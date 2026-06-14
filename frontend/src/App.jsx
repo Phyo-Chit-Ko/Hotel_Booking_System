@@ -1,36 +1,41 @@
-import { useState } from "react";
-import axios from "axios";
+import { Routes, Route, Navigate } from "react-router-dom";
+
+import Dashboard from "./pages/Dashboard";
+import RoomTypeManagement from "./pages/RoomTypeManagement";
+import RoomManagement from "./pages/RoomManagement";
+import GuestManagement from "./pages/GuestManagement";
+import ReservationManagement from "./pages/ReservationManagement";
+import AvailableRooms from "./pages/Available_rooms";
 
 function App() {
-  const [id, setId] = useState("");
-  const [customer, setCustomer] = useState("");
-
-  const searchCustomer = async () => {
-    const response =
-      await axios.get(
-        `http://127.0.0.1:8000/api/customer/${id}`
-      );
-
-    setCustomer(response.data.customer);
-  };
-
   return (
-    <div>
-      <h1>Customer Lookup</h1>
+    <Routes>
 
-      <input
-        value={id}
-        onChange={(e) =>
-          setId(e.target.value)
-        }
+      <Route
+        path="/"
+        element={<Navigate to="/dashboard" />}
       />
 
-      <button onClick={searchCustomer}>
-        Search
-      </button>
+      <Route
+        path="/dashboard"
+        element={<Dashboard />}
+      />
 
-      <h2>{customer}</h2>
-    </div>
+      <Route
+        path="/rooms"
+        element={<RoomManagement />}
+      />
+
+      <Route path="/available_rooms" element={<AvailableRooms />} />
+      
+
+      <Route
+        path="/room-types"
+        element={<RoomTypeManagement />}
+      />
+      <Route path="/guests" element={<GuestManagement />} />
+      <Route path="/reservations" element={<ReservationManagement />} />
+    </Routes>
   );
 }
 
