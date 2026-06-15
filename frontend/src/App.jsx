@@ -6,7 +6,7 @@ import RoomManagement from "./pages/RoomManagement";
 import GuestManagement from "./pages/GuestManagement";
 import ReservationManagement from "./pages/ReservationManagement";
 import AvailableRooms from "./pages/Available_rooms";
-
+import UserManagement from "./pages/UserManagement";
 function App() {
   return (
     <Routes>
@@ -35,6 +35,7 @@ function App() {
       />
       <Route path="/guests" element={<GuestManagement />} />
       <Route path="/reservations" element={<ReservationManagement />} />
+      <Route path="/user_management" element={<UserManagement />} />
     </Routes>
   );
 }

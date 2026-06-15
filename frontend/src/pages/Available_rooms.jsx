@@ -1,18 +1,23 @@
 import React, { useState } from "react";
 import AdminLayout from "../layouts/AdminLayout";
 import { FaBed, FaUsers, FaBuilding, FaBroom, FaLayerGroup, FaUserCircle, FaCalendarAlt } from "react-icons/fa";
+// Import your new form component
+import MakeWalkInReservation from "../components/makeWalkInReservation";
 
-// 1. Definition of Room Types & Specs
+// 1. Definition of Room Types & Specs (Updated with IDs for database alignment)
 const ROOM_TYPES = {
-  SUP: { name: "Superior Room", capacity: 2, rate: 120.0 },
-  DS:  { name: "Deluxe Suite", capacity: 4, rate: 240.0 },
-  JS:  { name: "Junior Suite", capacity: 3, rate: 180.0 },
-  PRES:{ name: "Presidential Suite", capacity: 6, rate: 650.0 }
+  SUP: { id: 1, name: "Superior Room", capacity: 2, rate: 120.0 },
+  DS:  { id: 2, name: "Deluxe Suite", capacity: 4, rate: 240.0 },
+  JS:  { id: 3, name: "Junior Suite", capacity: 3, rate: 180.0 },
+  PRES:{ id: 4, name: "Presidential Suite", capacity: 6, rate: 650.0 }
 };
 
 export default function AvailableRooms() {
   const [activeFloor, setActiveFloor] = useState(2);
   const [selectedRoom, setSelectedRoom] = useState(null);
+  
+  // State hook to handle the visibility toggle of your new reservation form modal
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
 
   // 2. Real-time Statuses of Rooms on Floor 2 with Guest Metadata for Occupied Units
   const [rooms] = useState({
@@ -147,7 +152,6 @@ export default function AvailableRooms() {
   };
 
   const handleOpenGuestProfile = (guestName) => {
-    // Replace this with your navigation logic, e.g., router.push(`/admin/guests/${id}`)
     alert(`Opening detailed profile view for: ${guestName}`);
   };
 
@@ -242,7 +246,7 @@ export default function AvailableRooms() {
                       key={cell.id}
                       style={{ gridArea: cell.gridArea }}
                       className={getCellStyles(cell.id, isSelected)}
-                      onClick={() => setSelectedRoom({ dbId: cell.id, id: displayId, ...roomMeta, ...ROOM_TYPES[roomMeta.type] })}
+                      onClick={() => setSelectedRoom({ dbId: cell.id, id: displayId, ...roomMeta, ...ROOM_TYPES[roomMeta.type], typeId: ROOM_TYPES[roomMeta.type].id })}
                     >
                       <span className="text-[10px] uppercase font-bold leading-none block opacity-75 mb-0.5">
                         {roomMeta.type.toLowerCase()}
@@ -329,7 +333,9 @@ export default function AvailableRooms() {
                 </div>
 
                 <div className="pt-1">
+                  {/* Updated Interactive Action Button */}
                   <button 
+                    onClick={() => setIsBookingModalOpen(true)}
                     disabled={selectedRoom.status !== "Available"}
                     className={`w-full py-2.5 px-4 rounded-lg font-bold text-xs uppercase tracking-wider transition-all ${
                       selectedRoom.status === "Available"
@@ -362,6 +368,22 @@ export default function AvailableRooms() {
         </div>
 
       </div>
+
+      {/* Conditional Modal Overlay Portal */}
+      {isBookingModalOpen && selectedRoom && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="w-full max-w-2xl my-auto">
+            <MakeWalkInReservation 
+              selectedRoom={selectedRoom} 
+              onClose={() => setIsBookingModalOpen(false)} 
+              onSaveSuccess={() => {
+                // Triggered post form submission hook
+                console.log("Walk-in registration successfully finalized.");
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       <style>{`
         .vertical-text {

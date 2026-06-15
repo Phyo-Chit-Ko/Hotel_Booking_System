@@ -15,7 +15,7 @@ export default function Sidebar() {
   },
 
   {
-  name: "Available Rooms",
+  name: "Available Search",
   path: "/available_rooms",
   icon: <FaBed />,
 },
@@ -35,6 +35,12 @@ export default function Sidebar() {
   {
     name: "Reservations",
     path: "/reservations",
+    icon: <FaCalendarAlt />,
+  },
+
+  {
+    name: "Users",
+    path: "/user_management",
     icon: <FaCalendarAlt />,
   },
 ];
