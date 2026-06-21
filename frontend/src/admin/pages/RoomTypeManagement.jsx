@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import AdminLayout from "../layouts/AdminLayout";
-import AddRoomTypeModal from "../components/AddRoomTypeModal";
+import AddRoomTypeModal from "../../admin/components/AddRoomTypeModal";
 import axios from "axios";
 import {
   FaPlus,

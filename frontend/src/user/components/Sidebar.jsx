@@ -39,6 +39,18 @@ export default function Sidebar() {
   },
 
   {
+    name: "Payments",
+    path: "/payments",
+    icon: <FaCalendarAlt />,
+  },
+
+  {
+    name: "Services",
+    path: "/services",
+    icon: <FaCalendarAlt />,
+  },
+
+  {
     name: "Users",
     path: "/user_management",
     icon: <FaCalendarAlt />,

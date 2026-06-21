@@ -1,5 +1,5 @@
 import AdminLayout from "../layouts/AdminLayout";
-import StatCard from "../components/StatCard";
+import StatCard from "../../admin/components/StatCard";
 
 import {
   FaBed,

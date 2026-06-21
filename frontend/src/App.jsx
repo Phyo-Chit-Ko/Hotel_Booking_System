@@ -1,12 +1,16 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 
-import Dashboard from "./pages/Dashboard";
-import RoomTypeManagement from "./pages/RoomTypeManagement";
-import RoomManagement from "./pages/RoomManagement";
-import GuestManagement from "./pages/GuestManagement";
-import ReservationManagement from "./pages/ReservationManagement";
-import AvailableRooms from "./pages/Available_rooms";
-import UserManagement from "./pages/UserManagement";
+import Dashboard from "./admin/pages/Dashboard";
+import RoomTypeManagement from "./admin/pages/RoomTypeManagement";
+import RoomManagement from "./admin/pages/RoomManagement";
+import GuestManagement from "./admin/pages/GuestManagement";
+import ReservationManagement from "./admin/pages/ReservationManagement";
+import AvailableRooms from "./admin/pages/Available_rooms";
+import UserManagement from "./admin/pages/UserManagement";
+import Bookings from "./admin/pages/Bookings";
+import Payments from "./admin/pages/Payments";
+import ExtraServices from "./admin/pages/ExtraServices";
+import Settings from "./admin/pages/Settings";
 function App() {
   return (
     <Routes>
@@ -36,6 +40,10 @@ function App() {
       <Route path="/guests" element={<GuestManagement />} />
       <Route path="/reservations" element={<ReservationManagement />} />
       <Route path="/user_management" element={<UserManagement />} />
+      <Route path="/bookings" element={<Bookings/>}/>
+      <Route path="/payments" element={<Payments/>}/>
+      <Route path="/extraServices" element={<ExtraServices/>}/>
+      <Route path="/settings" element={<Settings/>}/>
     </Routes>
   );
 }
