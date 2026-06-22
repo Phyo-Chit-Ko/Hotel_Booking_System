@@ -122,7 +122,7 @@ export default function GuestManagement() {
             <FaSearch className="absolute left-4 top-3.5 text-gray-400" />
             <input
               type="text"
-              placeholder="Search visible columns..."
+              placeholder="Search Guest Name.."
               className="pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
@@ -139,25 +139,9 @@ export default function GuestManagement() {
             <option>All VIP</option>
           </select>
 
-          <select className="border border-slate-200 bg-white text-sm text-slate-700 px-4 py-2.5 rounded-xl focus:outline-none min-w-[140px]">
-            <option>All Blacklist</option>
-          </select>
         </div>
 
-        {/* Action Buttons Toolbar */}
-        <div className="flex gap-2.5 pb-6 border-b border-slate-100">
-          <button className="border border-slate-200 hover:bg-slate-50 px-4 py-2 rounded-xl text-sm font-semibold text-slate-700 flex items-center gap-2 transition">
-            <FaFileExport className="text-slate-500" /> Export
-          </button>
-
-          <button className="border border-slate-200 hover:bg-slate-50 px-4 py-2 rounded-xl text-sm font-semibold text-slate-700 flex items-center gap-2 transition">
-            <FaDownload className="text-slate-500" /> Template
-          </button>
-
-          <button className="border border-slate-200 hover:bg-slate-50 px-4 py-2 rounded-xl text-sm font-semibold text-slate-700 flex items-center gap-2 transition">
-            <FaFileImport className="text-slate-500" /> Import
-          </button>
-        </div>
+       
 
         {/* Responsive Table Wrapper */}
         <div className="overflow-x-auto">

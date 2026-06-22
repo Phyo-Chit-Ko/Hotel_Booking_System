@@ -1,433 +1,237 @@
-import { useState, useEffect } from "react";
-
-import { toast } from "react-hot-toast";
-
+import React, { useState } from "react";
 import AdminLayout from "../layouts/AdminLayout";
-
-import AddRoomModal from "../../admin/components/AddRoomModal"; // You will create this modal next
-
-import axios from "axios";
-
 import {
-  FaPlus,
   FaSearch,
-  FaEdit,
-  FaTrash,
-  FaFileExport,
-  FaFileImport,
-  FaTimes,
+  FaCalendarCheck,
+  FaUsers,
+  FaMoneyBillWave,
+  FaCheckCircle,
+  FaTimesCircle,
+  FaEye,
 } from "react-icons/fa";
 
-export default function Bookings() {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+export default function BookingManagement() {
+  const [bookings] = useState([
+    {
+      id: "BK001",
+      guest: "John Smith",
+      email: "john@gmail.com",
+      roomType: "Deluxe Room",
+      guests: 2,
+      checkIn: "2026-06-25",
+      checkOut: "2026-06-28",
+      amount: 45,
+      status: "Pending",
+    },
+    {
+      id: "BK002",
+      guest: "Emma Wilson",
+      email: "emma@gmail.com",
+      roomType: "Suite",
+      guests: 4,
+      checkIn: "2026-06-26",
+      checkOut: "2026-06-30",
+      amount: 90,
+      status: "Confirmed",
+    },
+    {
+      id: "BK003",
+      guest: "Michael Lee",
+      email: "michael@gmail.com",
+      roomType: "Family Room",
+      guests: 5,
+      checkIn: "2026-06-27",
+      checkOut: "2026-06-29",
+      amount: 70,
+      status: "Pending",
+    },
+    {
+      id: "BK004",
+      guest: "Sarah Brown",
+      email: "sarah@gmail.com",
+      roomType: "Executive Room",
+      guests: 2,
+      checkIn: "2026-06-29",
+      checkOut: "2026-07-02",
+      amount: 55,
+      status: "Confirmed",
+    },
+  ]);
 
-  const [rooms, setRooms] = useState([]);
-
-  const [roomTypes, setRoomTypes] = useState([]); // Needed to correlate names & select options
-
-  const [isLoading, setIsLoading] = useState(true);
-
-  const [editingRoom, setEditingRoom] = useState(null);
-
-  // States for Searching & Filtering
-
-  const [typedQuery, setTypedQuery] = useState("");
-
-  const [activeSearch, setActiveSearch] = useState("");
-
-  const [statusFilter, setStatusFilter] = useState("All Active");
-
-  // Fetch both Rooms and Room Types for data relationship mapping
-
-  const fetchData = async () => {
-    try {
-      setIsLoading(true);
-
-      const [roomsResponse, roomTypesResponse] = await Promise.all([
-        axios.get("http://127.0.0.1:8000/api/rooms"),
-
-        axios.get("http://127.0.0.1:8000/api/room-types"),
-      ]);
-
-      setRooms(roomsResponse.data);
-
-      setRoomTypes(roomTypesResponse.data);
-    } catch (error) {
-      console.error("Error pulling data from database:", error);
-
-      toast.error("Failed to load dashboard data.");
-    } finally {
-      setIsLoading(false);
+  const getStatusStyle = (status) => {
+    switch (status) {
+      case "Confirmed":
+        return "bg-green-100 text-green-700 border border-green-200";
+      case "Pending":
+        return "bg-amber-100 text-amber-700 border border-amber-200";
+      case "Cancelled":
+        return "bg-red-100 text-red-700 border border-red-200";
+      default:
+        return "bg-slate-100 text-slate-700";
     }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  // Search Execution Handlers
-
-  const handleSearchSubmit = (e) => {
-    if (e) e.preventDefault();
-
-    setActiveSearch(typedQuery);
-  };
-
-  const handleClearSearch = () => {
-    setTypedQuery("");
-
-    setActiveSearch("");
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter") {
-      handleSearchSubmit();
-    }
-  };
-
-  const handleOpenAddModal = () => {
-    setEditingRoom(null);
-
-    setIsModalOpen(true);
-  };
-
-  const handleOpenEditModal = (room) => {
-    setEditingRoom(room);
-
-    setIsModalOpen(true);
-  };
-
-  // Create / Update handler using room_number as identifier
-
-  // Function triggered inside RoomManagement when the Modal hits "Save"
-
-  const handleSaveRoom = async (formData, isEditing) => {
-    try {
-      if (isEditing) {
-        await axios.put(
-          `http://127.0.0.1:8000/api/rooms/${formData.room_number}`,
-
-          formData,
-        );
-
-        toast.success("Room updated successfully!");
-      } else {
-        await axios.post(
-          "http://127.0.0.1:8000/api/rooms",
-
-          formData,
-        );
-
-        toast.success("New room created successfully!");
-      }
-
-      fetchData();
-
-      setIsModalOpen(false);
-    } catch (error) {
-      console.log("Validation Error:", error.response?.data);
-
-      console.error(error);
-
-      toast.error(
-        error.response?.data?.message ||
-          "Failed to commit database modifications.",
-      );
-    }
-  };
-
-  // Function triggered when hitting the trash icon in your table row line
-
-  const handleDeleteRoom = async (roomNumber) => {
-    if (
-      window.confirm(
-        `Are you sure you want to permanently remove Room ${roomNumber}?`,
-      )
-    ) {
-      try {
-        // Deleting route maps to: DELETE http://127.0.0.1:8000/api/rooms/{room_number}
-
-        await axios.delete(`http://127.0.0.1:8000/api/rooms/${roomNumber}`);
-
-        toast.success("Room purged successfully.");
-
-        fetchData(); // Refresh layout view state
-      } catch (error) {
-        toast.error("Failed to delete room item context.");
-      }
-    }
-  };
-
-  const handleToggleStatus = async (roomNumber, currentStatus) => {
-    const nextStatus =
-      currentStatus === "Available" ? "Maintenance" : "Available";
-
-    try {
-      setRooms((prev) =>
-        prev.map((room) =>
-          room.room_number === roomNumber
-            ? { ...room, status: nextStatus }
-            : room,
-        ),
-      );
-
-      await axios.patch(
-        `http://127.0.0.1:8000/api/rooms/${roomNumber}/toggle-status`,
-
-        {
-          status: nextStatus,
-        },
-      );
-
-      toast.success(`Room ${roomNumber} status switched to ${nextStatus}.`);
-    } catch (error) {
-      console.error("Error updating status:", error);
-
-      toast.error("Failed to sync toggle status change.");
-
-      fetchData();
-    }
-  };
-
-  // Client-Side Search and Filter Logic
-
-  const filteredRooms = rooms.filter((room) => {
-    const matchesSearch = room.room_number
-      .toLowerCase()
-      .includes(activeSearch.toLowerCase());
-
-    if (statusFilter === "Active")
-      return matchesSearch && room.status === "Available";
-
-    if (statusFilter === "Inactive")
-      return matchesSearch && room.status !== "Available";
-
-    return matchesSearch;
-  });
-
-  // Helper function to find the text name matching the foreign key ID
-
-  const getRoomTypeName = (typeId) => {
-    const typeObj = roomTypes.find((t) => t.room_type_id === typeId);
-
-    return typeObj ? typeObj.name : `Type ID: ${typeId}`;
   };
 
   return (
     <AdminLayout>
-      {/* Header */}
+      <div className="space-y-8">
 
-      <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-3xl p-8 shadow-sm mb-6 flex justify-between items-center">
+        {/* Header */}
         <div>
-          <h1 className="text-4xl font-bold text-slate-800">Room Management</h1>
-
+          <h1 className="text-4xl font-bold text-slate-900">
+            Booking Management
+          </h1>
           <p className="text-slate-500 mt-2">
-            Physical room tracking, floor levels, and availability statuses.
+            Manage hotel bookings and guest arrivals.
           </p>
         </div>
 
-        <button
-          onClick={handleOpenAddModal}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl flex items-center gap-2 shadow-sm transition"
-        >
-          <FaPlus />
-          Add Room
-        </button>
-      </div>
+        {/* Statistics */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
 
-      {/* Filters */}
-
-      <div className="bg-white rounded-2xl shadow-md p-5 mb-6">
-        <div className="flex flex-col lg:flex-row gap-4 justify-between">
-          <div className="flex gap-4">
-            {/* SEARCH CONTAINER */}
-
-            <div className="relative flex items-center">
-              <input
-                type="text"
-                placeholder="Search room number..."
-                value={typedQuery}
-                onChange={(e) => setTypedQuery(e.target.value)}
-                onKeyDown={handleKeyDown}
-                className="pl-4 pr-14 py-3 border border-slate-200 rounded-xl w-80 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
-              />
-
-              {activeSearch ? (
-                <button
-                  type="button"
-                  onClick={handleClearSearch}
-                  className="absolute right-2 p-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg transition-colors border border-rose-100"
-                  title="Clear Filter State"
-                >
-                  <FaTimes className="w-4 h-4" />
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleSearchSubmit}
-                  className="absolute right-2 p-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors border border-blue-100"
-                  title="Click to Search"
-                >
-                  <FaSearch className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="border rounded-xl px-4 py-3 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-sm"
-            >
-              <option value="All Active">All Statuses</option>
-
-              <option value="Active">Available Only</option>
-
-              <option value="Inactive">Occupied / Maintenance Only</option>
-            </select>
+          <div className="bg-gradient-to-r from-blue-500 to-cyan-500 rounded-3xl p-6 text-white">
+            <FaCalendarCheck size={24} />
+            <h2 className="text-3xl font-bold mt-3">48</h2>
+            <p>Total Bookings</p>
           </div>
 
-          <div className="flex gap-3">
-            <button className="border px-4 py-3 rounded-xl flex items-center gap-2 hover:bg-slate-50 text-slate-700 transition text-sm">
-              <FaFileExport /> Export
-            </button>
-
-            <button className="border px-4 py-3 rounded-xl flex items-center gap-2 hover:bg-slate-50 text-slate-700 transition text-sm">
-              <FaFileImport /> Import
-            </button>
+          <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-3xl p-6 text-white">
+            <FaCheckCircle size={24} />
+            <h2 className="text-3xl font-bold mt-3">27</h2>
+            <p>Confirmed</p>
           </div>
+
+          <div className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-3xl p-6 text-white">
+            <FaUsers size={24} />
+            <h2 className="text-3xl font-bold mt-3">8</h2>
+            <p>Pending</p>
+          </div>
+
+          
+
         </div>
-      </div>
 
-      {/* Table */}
+        {/* Search Section */}
+        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 flex flex-wrap gap-4">
 
-      <div className="bg-white rounded-2xl shadow-md overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr className="text-left text-sm text-gray-600">
-              <th className="p-4">#</th>
+          <div className="relative flex-1">
+            <FaSearch className="absolute left-4 top-4 text-slate-400" />
 
-              <th className="p-4">Room Number</th>
+            <input
+              type="text"
+              placeholder="Search booking ID, guest name..."
+              className="w-full border border-slate-200 rounded-xl pl-11 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
 
-              <th className="p-4">Room Type Configuration</th>
+          <select className="border border-slate-200 rounded-xl px-4 py-3">
+            <option>All Status</option>
+            <option>Pending</option>
+            <option>Confirmed</option>
+            <option>Cancelled</option>
+          </select>
 
-              <th className="p-4">Floor Location</th>
+        </div>
 
-              <th className="p-4">Status Indicator</th>
+        {/* Booking Table */}
+        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
 
-              <th className="p-4">Quick Toggle</th>
+          <div className="overflow-x-auto">
 
-              <th className="p-4">Actions</th>
-            </tr>
-          </thead>
+            <table className="w-full">
 
-          <tbody>
-            {isLoading ? (
-              <tr>
-                <td
-                  colSpan="7"
-                  className="p-8 text-center text-slate-400 font-medium"
-                >
-                  Loading room database records...
-                </td>
-              </tr>
-            ) : filteredRooms.length === 0 ? (
-              <tr>
-                <td
-                  colSpan="7"
-                  className="p-8 text-center text-slate-400 font-medium"
-                >
-                  No rooms found matching "{activeSearch}".
-                </td>
-              </tr>
-            ) : (
-              filteredRooms.map((room, index) => (
-                <tr
-                  key={room.room_number}
-                  className="border-t hover:bg-gray-50 transition-colors"
-                >
-                  <td className="p-4 text-slate-500 font-medium">
-                    {index + 1}
-                  </td>
-
-                  <td className="p-4 font-bold text-blue-600 text-lg">
-                    {room.room_number}
-                  </td>
-
-                  <td className="p-4 font-semibold text-slate-800">
-                    {getRoomTypeName(room.room_type_id)}
-                  </td>
-
-                  <td className="p-4 text-slate-600">
-                    {room.floor === 0 ? "Ground Floor" : `Floor ${room.floor}`}
-                  </td>
-
-                  <td className="p-4">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-bold border ${
-                        room.status === "Available"
-                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                          : room.status === "Occupied"
-                            ? "bg-amber-50 text-amber-700 border-amber-200"
-                            : "bg-rose-50 text-rose-700 border-rose-200"
-                      }`}
-                    >
-                      {room.status}
-                    </span>
-                  </td>
-
-                  <td className="p-4">
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleToggleStatus(room.room_number, room.status)
-                        }
-                        className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${room.status === "Available" ? "bg-green-500" : "bg-slate-300"}`}
-                      >
-                        <span
-                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${room.status === "Available" ? "translate-x-5" : "translate-x-0"}`}
-                        />
-                      </button>
-                    </div>
-                  </td>
-
-                  <td className="p-4">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleOpenEditModal(room)}
-                        className="bg-slate-100 hover:bg-slate-200 p-2 rounded-lg text-slate-600 transition"
-                      >
-                        <FaEdit />
-                      </button>
-
-                      <button
-                        onClick={() => handleDeleteRoom(room.room_number)}
-                        className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg transition"
-                      >
-                        <FaTrash />
-                      </button>
-                    </div>
-                  </td>
+              <thead className="bg-slate-50">
+                <tr>
+                  <th className="text-left px-6 py-4">Booking ID</th>
+                  <th className="text-left px-6 py-4">Guest</th>
+                  <th className="text-left px-6 py-4">Room Type</th>
+                  <th className="text-left px-6 py-4">Guests</th>
+                  <th className="text-left px-6 py-4">Check-In</th>
+                  <th className="text-left px-6 py-4">Check-Out</th>
+                  <th className="text-left px-6 py-4">Deposit</th>
+                  <th className="text-left px-6 py-4">Status</th>
+                  <th className="text-center px-6 py-4">Actions</th>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              </thead>
 
-        <div className="p-4 border-t text-gray-500 text-sm">
-          Showing {filteredRooms.length} of {rooms.length} records
+              <tbody>
+
+                {bookings.map((booking) => (
+                  <tr
+                    key={booking.id}
+                    className="border-t border-slate-100 hover:bg-slate-50"
+                  >
+                    <td className="px-6 py-4 font-semibold">
+                      {booking.id}
+                    </td>
+
+                    <td className="px-6 py-4">
+                      <div>
+                        <p className="font-medium">
+                          {booking.guest}
+                        </p>
+
+                        <p className="text-xs text-slate-500">
+                          {booking.email}
+                        </p>
+                      </div>
+                    </td>
+
+                    <td className="px-6 py-4">
+                      {booking.roomType}
+                    </td>
+
+                    <td className="px-6 py-4">
+                      {booking.guests}
+                    </td>
+
+                    <td className="px-6 py-4">
+                      {booking.checkIn}
+                    </td>
+
+                    <td className="px-6 py-4">
+                      {booking.checkOut}
+                    </td>
+
+                    <td className="px-6 py-4 font-semibold text-indigo-600">
+                      ${booking.amount}
+                    </td>
+
+                    <td className="px-6 py-4">
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusStyle(
+                          booking.status
+                        )}`}
+                      >
+                        {booking.status}
+                      </span>
+                    </td>
+
+                    <td className="px-6 py-4">
+                      <div className="flex justify-center gap-2">
+
+                        <button className="p-2 rounded-lg bg-green-100 text-green-600 hover:bg-green-200">
+                          <FaCheckCircle />
+                        </button>
+
+                        <button className="p-2 rounded-lg bg-red-100 text-red-600 hover:bg-red-200">
+                          <FaTimesCircle />
+                        </button>
+
+                      </div>
+                    </td>
+
+                  </tr>
+                ))}
+
+              </tbody>
+
+            </table>
+
+          </div>
+
         </div>
+
       </div>
-
-      {/* MODAL WINDOW PASSING ROOM TYPES LIST FOR DROPDOWN FORMS */}
-
-      <AddRoomModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSave={handleSaveRoom}
-        roomToEdit={editingRoom}
-        roomTypes={roomTypes}
-      />
     </AdminLayout>
   );
 }

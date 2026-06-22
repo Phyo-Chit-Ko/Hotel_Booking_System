@@ -19,7 +19,7 @@ const UserManagement = () => {
       email: "john@example.com",
       phone: "+1234567890",
       status: "Active",
-      role: "Admin",
+      role: "Manager",
     },
     {
       user_id: 2,
@@ -27,7 +27,7 @@ const UserManagement = () => {
       email: "jane@example.com",
       phone: "+0987654321",
       status: "Inactive",
-      role: "Editor",
+      role: "Receptionist",
     },
   ]);
 

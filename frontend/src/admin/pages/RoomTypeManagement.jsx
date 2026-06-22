@@ -231,14 +231,7 @@ export default function RoomTypeManagement() {
             </select>
           </div>
 
-          <div className="flex gap-3">
-            <button className="border px-4 py-3 rounded-xl flex items-center gap-2 hover:bg-slate-50 text-slate-700 transition text-sm">
-              <FaFileExport /> Export
-            </button>
-            <button className="border px-4 py-3 rounded-xl flex items-center gap-2 hover:bg-slate-50 text-slate-700 transition text-sm">
-              <FaFileImport /> Import
-            </button>
-          </div>
+          
         </div>
       </div>
 

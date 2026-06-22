@@ -106,12 +106,7 @@ const PaymentManagement = () => {
             <p className="text-sm text-slate-500 mt-0.5">Track financial transactions, collections, and printable ledger statements.</p>
           </div>
           <div className="flex items-center gap-3">
-            <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition shadow-sm">
-              <FaFileImport className="text-slate-400" /> Import
-            </button>
-            <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition shadow-sm">
-              <FaFileExport className="text-slate-400" /> Export
-            </button>
+            
             <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-amber-500 hover:bg-amber-600 active:bg-amber-700 transition rounded-xl shadow-sm shadow-amber-500/10">
               <FaPlus /> Add New
             </button>
