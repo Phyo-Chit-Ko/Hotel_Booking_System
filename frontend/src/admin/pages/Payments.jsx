@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import AdminLayout from "../layouts/AdminLayout";
+import AddPaymentModal from "../components/AddPaymentModal";
 import {
   FaPlus,
   FaSearch,
@@ -63,7 +64,7 @@ const PaymentManagement = () => {
       description: "Extra bed add-on",
     }
   ]);
-
+  const [showAddModal, setShowAddModal] = useState(false);
   // States for search and active multi-filters
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedMethod, setSelectedMethod] = useState("All");
@@ -107,9 +108,13 @@ const PaymentManagement = () => {
           </div>
           <div className="flex items-center gap-3">
             
-            <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-amber-500 hover:bg-amber-600 active:bg-amber-700 transition rounded-xl shadow-sm shadow-amber-500/10">
-              <FaPlus /> Add New
-            </button>
+            <button
+  onClick={() => setShowAddModal(true)}
+  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-amber-500 hover:bg-amber-600 active:bg-amber-700 transition rounded-xl shadow-sm shadow-amber-500/10"
+>
+  <FaPlus />
+  Add New
+</button>
           </div>
         </div>
 
@@ -233,6 +238,21 @@ const PaymentManagement = () => {
             </table>
           </div>
         </div>
+        <AddPaymentModal
+          isOpen={showAddModal}
+          onClose={() => setShowAddModal(false)}
+          onSave={(paymentData) => {
+            console.log(paymentData);
+
+            setPayments((prev) => [
+              ...prev,
+              {
+                payment_id: prev.length + 1,
+                ...paymentData,
+              },
+            ]);
+          }}
+        />
       </div>
     </AdminLayout>
   );

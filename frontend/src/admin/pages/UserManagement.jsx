@@ -1,17 +1,16 @@
 import React, { useState } from "react";
 import AdminLayout from "../layouts/AdminLayout";
+import AddUser from "../components/AddUser";
 import {
   FaPlus,
   FaSearch,
   FaFileExport,
   FaFileImport,
-  FaDownload,
   FaTrash,
   FaEdit
 } from "react-icons/fa";
 
-const UserManagement = () => {
-  // Mock data matching your Laravel migration schema
+export default function UserManagement() {
   const [users, setUsers] = useState([
     {
       user_id: 1,
@@ -32,8 +31,8 @@ const UserManagement = () => {
   ]);
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
 
-  // Filter users based on search input (name, email, or role)
   const filteredUsers = users.filter(
     (user) =>
       user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -41,221 +40,124 @@ const UserManagement = () => {
       user.role.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const handleSaveUser = (newUserData) => {
+    const newUser = {
+      user_id: users.length > 0 ? Math.max(...users.map(u => u.user_id)) + 1 : 1,
+      ...newUserData
+    };
+    setUsers([...users, newUser]);
+  };
+
   return (
     <AdminLayout>
-      <div style={styles.container}>
-        {/* Page Header */}
-        <div style={styles.header}>
-          <h2>User Management</h2>
-          <div style={styles.actionButtons}>
-            <button style={{ ...styles.btn, ...styles.btnSecondary }}>
-              <FaFileImport /> Import
+      <div className="p-6 space-y-6 font-sans">
+        
+        {/* Page Header Layout */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800 tracking-tight">User Management</h2>
+            <p className="text-sm text-slate-500 mt-0.5">Manage administrative roles, receptionist staff, and access states.</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition shadow-sm">
+              <FaFileImport className="text-slate-400" /> Import
             </button>
-            <button style={{ ...styles.btn, ...styles.btnSecondary }}>
-              <FaFileExport /> Export
+            <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition shadow-sm">
+              <FaFileExport className="text-slate-400" /> Export
             </button>
-            <button style={{ ...styles.btn, ...styles.btnPrimary }}>
+            <button 
+              onClick={() => setIsPanelOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-amber-500 hover:bg-amber-600 active:bg-amber-700 transition rounded-xl shadow-md shadow-amber-500/20"
+            >
               <FaPlus /> Add User
             </button>
           </div>
         </div>
 
-        {/* Search and Filters Bar */}
-        <div style={styles.filterBar}>
-          <div style={styles.searchWrapper}>
-            <FaSearch style={styles.searchIcon} />
+        {/* Search Input Filter Bar Layout */}
+        <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+          <div className="relative max-w-md w-full flex items-center bg-slate-50 rounded-xl border border-slate-200/80 focus-within:ring-2 focus-within:ring-amber-500/20 focus-within:border-amber-500">
+            <FaSearch className="absolute left-4 text-slate-400 w-4 h-4" />
             <input
               type="text"
               placeholder="Search users by name, email, or role..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              style={styles.searchInput}
+              className="w-full bg-transparent pl-11 pr-4 py-2.5 text-sm text-slate-800 outline-none"
             />
           </div>
         </div>
 
-        {/* Users Table */}
-        <div style={styles.tableWrapper}>
-          <table style={styles.table}>
-            <thead>
-              <tr>
-                <th style={styles.th}>ID</th>
-                <th style={styles.th}>Name</th>
-                <th style={styles.th}>Email</th>
-                <th style={styles.th}>Phone</th>
-                <th style={styles.th}>Role</th>
-                <th style={styles.th}>Status</th>
-                <th style={styles.th}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredUsers.length > 0 ? (
-                filteredUsers.map((user) => (
-                  <tr key={user.user_id} style={styles.tr}>
-                    <td style={styles.td}>{user.user_id}</td>
-                    <td style={styles.td, styles.boldText}>{user.name}</td>
-                    <td style={styles.td}>{user.email}</td>
-                    <td style={styles.td}>{user.phone}</td>
-                    <td style={styles.td}>
-                      <span style={styles.roleBadge}>{user.role}</span>
-                    </td>
-                    <td style={styles.td}>
-                      <span
-                        style={{
-                          ...styles.statusBadge,
-                          backgroundColor:
-                            user.status === "Active" ? "#e6fffa" : "#fff5f5",
-                          color: user.status === "Active" ? "#047481" : "#e53e3e",
-                        }}
-                      >
-                        {user.status}
-                      </span>
-                    </td>
-                    <td style={styles.td}>
-                      <div style={styles.tableActions}>
-                        <button style={styles.iconBtn} title="Edit User">
-                          <FaEdit color="#4a5568" />
-                        </button>
-                        <button style={styles.iconBtn} title="Delete User">
-                          <FaTrash color="#e53e3e" />
-                        </button>
-                      </div>
+        {/* Dynamic Data Table Panel View */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-100">
+                  <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">ID</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Name</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Email</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Phone</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Role</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredUsers.length > 0 ? (
+                  filteredUsers.map((user) => (
+                    <tr key={user.user_id} className="hover:bg-slate-50/40 transition group">
+                      <td className="px-6 py-4 text-sm font-medium text-slate-400">#{user.user_id}</td>
+                      <td className="px-6 py-4 text-sm font-bold text-slate-800">{user.name}</td>
+                      <td className="px-6 py-4 text-sm text-slate-500">{user.email}</td>
+                      <td className="px-6 py-4 text-sm text-slate-500">{user.phone || "—"}</td>
+                      <td className="px-6 py-4 text-sm">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700">
+                          {user.role}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm">
+                        <span
+                          className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold ${
+                            user.status === "Active" 
+                              ? "bg-emerald-50 text-emerald-700" 
+                              : "bg-rose-50 text-rose-600"
+                          }`}
+                        >
+                          {user.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button type="button" className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition">
+                            <FaEdit className="w-3.5 h-3.5" />
+                          </button>
+                          <button type="button" className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition">
+                            <FaTrash className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="7" className="text-center py-12 text-sm font-medium text-slate-400 bg-slate-50/50">
+                      No users found matching your search criteria.
                     </td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="7" style={styles.noData}>
-                    No users found matching your search criteria.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
+
+        {/* Form Modal composition */}
+        <AddUser 
+          isOpen={isPanelOpen} 
+          onClose={() => setIsPanelOpen(false)} 
+          onSave={handleSaveUser} 
+        />
       </div>
     </AdminLayout>
   );
-};
-
-// Clean inline styles. If you use Tailwind CSS, these map easily to utilities.
-const styles = {
-  container: {
-    padding: "24px",
-    fontFamily: "system-ui, sans-serif",
-  },
-  header: {
-    display: "flex",
-    justifyContent: "between",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: "24px",
-  },
-  actionButtons: {
-    display: "flex",
-    gap: "12px",
-  },
-  btn: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    padding: "8px 16px",
-    borderRadius: "6px",
-    border: "none",
-    fontWeight: "6px",
-    cursor: "pointer",
-    fontSize: "14px",
-  },
-  btnPrimary: {
-    backgroundColor: "#2b6cb0",
-    color: "#fff",
-  },
-  btnSecondary: {
-    backgroundColor: "#edf2f7",
-    color: "#4a5568",
-    border: "1px solid #e2e8f0",
-  },
-  filterBar: {
-    marginBottom: "20px",
-  },
-  searchWrapper: {
-    display: "flex",
-    alignItems: "center",
-    position: "relative",
-    maxWidth: "400px",
-  },
-  searchIcon: {
-    position: "absolute",
-    left: "12px",
-    color: "#a0aec0",
-  },
-  searchInput: {
-    width: "100%",
-    padding: "10px 10px 10px 36px",
-    borderRadius: "6px",
-    border: "1px solid #e2e8f0",
-    fontSize: "14px",
-    outline: "none",
-  },
-  tableWrapper: {
-    backgroundColor: "#fff",
-    borderRadius: "8px",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-    overflowX: "auto",
-    border: "1px solid #e2e8f0",
-  },
-  table: {
-    width: "100%",
-    borderCollapse: "collapse",
-    textAlign: "left",
-  },
-  th: {
-    backgroundColor: "#f7fafc",
-    padding: "12px 16px",
-    fontSize: "13px",
-    fontWeight: "600",
-    color: "#718096",
-    borderBottom: "2px solid #e2e8f0",
-  },
-  tr: {
-    borderBottom: "1px solid #edf2f7",
-  },
-  td: {
-    padding: "14px 16px",
-    fontSize: "14px",
-    color: "#2d3748",
-  },
-  boldText: {
-    fontWeight: "500",
-  },
-  roleBadge: {
-    backgroundColor: "#edf2f7",
-    padding: "4px 8px",
-    borderRadius: "4px",
-    fontSize: "12px",
-    color: "#4a5568",
-  },
-  statusBadge: {
-    padding: "4px 8px",
-    borderRadius: "4px",
-    fontSize: "12px",
-    fontWeight: "500",
-  },
-  tableActions: {
-    display: "flex",
-    gap: "10px",
-  },
-  iconBtn: {
-    background: "none",
-    border: "none",
-    cursor: "pointer",
-    padding: "4px",
-  },
-  noData: {
-    textAlign: "center",
-    padding: "32px",
-    color: "#718096",
-  },
-};
-
-export default UserManagement;
+}

@@ -168,9 +168,7 @@ export default function ReservationManagement() {
             <option>All PaymentStatus</option>
           </select>
 
-          <select className="border border-slate-200 bg-white text-sm text-slate-700 px-4 py-2.5 rounded-xl focus:outline-none min-w-[130px]">
-            <option>All Property</option>
-          </select>
+          
         </div>
 
         {/* Toolbar Section */}
@@ -179,13 +177,7 @@ export default function ReservationManagement() {
             <FaFileExport className="text-slate-500" /> Export
           </button>
 
-          <button className="border border-slate-200 hover:bg-slate-50 px-4 py-2 rounded-xl text-sm font-semibold text-slate-700 flex items-center gap-2 transition">
-            <FaDownload className="text-slate-500" /> Template
-          </button>
-
-          <button className="border border-slate-200 hover:bg-slate-50 px-4 py-2 rounded-xl text-sm font-semibold text-slate-700 flex items-center gap-2 transition">
-            <FaFileImport className="text-slate-500" /> Import
-          </button>
+         
         </div>
 
         {/* Data Table */}
