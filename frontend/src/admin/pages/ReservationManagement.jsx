@@ -125,7 +125,7 @@ export default function ReservationManagement() {
       <div className="bg-gradient-to-r from-sky-100 via-blue-50 to-indigo-50 rounded-3xl p-8 shadow-sm mb-6 flex justify-between items-center">
         <div>
           <h1 className="text-4xl font-bold text-slate-800">
-            Booking / Reservation Management
+             Reservation Management
           </h1>
           <p className="text-slate-500 mt-2 text-base">
             Reservations, overlaps, check-in, check-out, status actions, and billing
@@ -157,11 +157,11 @@ export default function ReservationManagement() {
           </select>
 
           <select className="border border-slate-200 bg-white text-sm text-slate-700 px-4 py-2.5 rounded-xl focus:outline-none min-w-[150px]">
-            <option>All BookingStatus</option>
+            <option>All Status</option>
           </select>
 
           <select className="border border-slate-200 bg-white text-sm text-slate-700 px-4 py-2.5 rounded-xl focus:outline-none min-w-[155px]">
-            <option>All BookingSource</option>
+            <option>All Source</option>
           </select>
 
           <select className="border border-slate-200 bg-white text-sm text-slate-700 px-4 py-2.5 rounded-xl focus:outline-none min-w-[150px]">
@@ -185,16 +185,16 @@ export default function ReservationManagement() {
           <table className="w-full whitespace-nowrap text-left text-sm mt-4">
             <thead>
               <tr className="text-slate-500 font-bold uppercase text-xs border-b border-slate-100 bg-slate-50/50">
-                <th className="p-4 rounded-l-xl">Booking ID</th>
-                <th className="p-4">Booking Number</th>
+                <th className="p-4 rounded-l-xl">Reservation ID</th>
+                <th className="p-4">Reservation Number</th>
                 <th className="p-4">Guest Name</th>
                 <th className="p-4">Room Number</th>
                 <th className="p-4">Room Type</th>
                 <th className="p-4">Check-In Date</th>
                 <th className="p-4">Check-Out Date</th>
                 <th className="p-4">Nights</th>
-                <th className="p-4">Booking Source</th>
-                <th className="p-4 text-center">Booking Status</th>
+                <th className="p-4">Source</th>
+                <th className="p-4 text-center">Status</th>
                 <th className="p-4 pr-6 text-right rounded-r-xl">Total Amount</th>
               </tr>
             </thead>
