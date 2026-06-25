@@ -1,15 +1,14 @@
+import { useState } from "react";
 import AdminLayout from "../layouts/AdminLayout";
+import AddReservation from "../components/addReservation"; // Imported Form Component
 import {
   FaPlus,
   FaSearch,
   FaFileExport,
-  FaFileImport,
-  FaDownload,
 } from "react-icons/fa";
 
 export default function ReservationManagement() {
-  // Mock data accurately modeled from your image_fef29e.jpg screenshot
-  const bookings = [
+  const [bookings, setBookings] = useState([
     {
       id: 1,
       bookingNumber: "BK-2026-0001",
@@ -101,22 +100,34 @@ export default function ReservationManagement() {
       status: "Checked-Out",
       totalAmount: "$353.00",
     },
-  ];
+  ]);
 
-  // Dynamically returns tailored Tailwind badge styles mirroring the layout design colors
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   const getStatusBadgeClass = (status) => {
     switch (status) {
-      case "Checked-In":
-        return "bg-green-100 text-green-700 font-bold";
-      case "Confirmed":
-        return "bg-cyan-100 text-cyan-700 font-bold";
-      case "Reserved":
-        return "bg-blue-100 text-blue-700 font-bold";
-      case "Checked-Out":
-        return "bg-slate-100 text-slate-500 font-bold";
-      default:
-        return "bg-slate-100 text-slate-600 font-bold";
+      case "Checked-In": return "bg-green-100 text-green-700 font-bold";
+      case "Confirmed": return "bg-cyan-100 text-cyan-700 font-bold";
+      case "Reserved": return "bg-blue-100 text-blue-700 font-bold";
+      case "Checked-Out": return "bg-slate-100 text-slate-500 font-bold";
+      default: return "bg-slate-100 text-slate-600 font-bold";
     }
+  };
+
+  // Receives raw form payload data sent from the child component
+  const handleSaveReservation = (newReservationData) => {
+    const nextId = bookings.length + 1;
+    const paddedId = String(nextId).padStart(4, "0");
+    const generatedBookingNumber = `BK-2026-${paddedId}`;
+
+    const newBookingFull = {
+      id: nextId,
+      bookingNumber: generatedBookingNumber,
+      ...newReservationData,
+    };
+
+    setBookings([newBookingFull, ...bookings]);
+    setIsModalOpen(false); // Close modal on success
   };
 
   return (
@@ -124,24 +135,23 @@ export default function ReservationManagement() {
       {/* Header Banner */}
       <div className="bg-gradient-to-r from-sky-100 via-blue-50 to-indigo-50 rounded-3xl p-8 shadow-sm mb-6 flex justify-between items-center">
         <div>
-          <h1 className="text-4xl font-bold text-slate-800">
-             Reservation Management
-          </h1>
+          <h1 className="text-4xl font-bold text-slate-800">Reservation Management</h1>
           <p className="text-slate-500 mt-2 text-base">
             Reservations, overlaps, check-in, check-out, status actions, and billing
           </p>
         </div>
 
-        <button className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-5 py-3 rounded-xl flex items-center gap-2 shadow-sm transition">
-          <FaPlus className="text-sm" />
-          Add New
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-5 py-3 rounded-xl flex items-center gap-2 shadow-sm transition"
+        >
+          <FaPlus className="text-sm" /> Add New
         </button>
       </div>
 
       {/* Main Table Container */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-        
-        {/* Reservation Custom Filters Panel */}
+        {/* Filters Panel */}
         <div className="flex flex-wrap gap-3 items-center mb-4">
           <div className="relative flex-1 min-w-[240px]">
             <FaSearch className="absolute left-4 top-3.5 text-gray-400" />
@@ -151,24 +161,10 @@ export default function ReservationManagement() {
               className="pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
-
-          <select className="border border-slate-200 bg-white text-sm text-slate-700 px-4 py-2.5 rounded-xl focus:outline-none min-w-[130px]">
-            <option>All RoomType</option>
-          </select>
-
-          <select className="border border-slate-200 bg-white text-sm text-slate-700 px-4 py-2.5 rounded-xl focus:outline-none min-w-[150px]">
-            <option>All Status</option>
-          </select>
-
-          <select className="border border-slate-200 bg-white text-sm text-slate-700 px-4 py-2.5 rounded-xl focus:outline-none min-w-[155px]">
-            <option>All Source</option>
-          </select>
-
-          <select className="border border-slate-200 bg-white text-sm text-slate-700 px-4 py-2.5 rounded-xl focus:outline-none min-w-[150px]">
-            <option>All PaymentStatus</option>
-          </select>
-
-          
+          <select className="border border-slate-200 bg-white text-sm text-slate-700 px-4 py-2.5 rounded-xl focus:outline-none min-w-[130px]"><option>All RoomType</option></select>
+          <select className="border border-slate-200 bg-white text-sm text-slate-700 px-4 py-2.5 rounded-xl focus:outline-none min-w-[150px]"><option>All Status</option></select>
+          <select className="border border-slate-200 bg-white text-sm text-slate-700 px-4 py-2.5 rounded-xl focus:outline-none min-w-[155px]"><option>All Source</option></select>
+          <select className="border border-slate-200 bg-white text-sm text-slate-700 px-4 py-2.5 rounded-xl focus:outline-none min-w-[150px]"><option>All PaymentStatus</option></select>
         </div>
 
         {/* Toolbar Section */}
@@ -176,8 +172,6 @@ export default function ReservationManagement() {
           <button className="border border-slate-200 hover:bg-slate-50 px-4 py-2 rounded-xl text-sm font-semibold text-slate-700 flex items-center gap-2 transition">
             <FaFileExport className="text-slate-500" /> Export
           </button>
-
-         
         </div>
 
         {/* Data Table */}
@@ -198,14 +192,11 @@ export default function ReservationManagement() {
                 <th className="p-4 pr-6 text-right rounded-r-xl">Total Amount</th>
               </tr>
             </thead>
-
             <tbody className="divide-y divide-slate-100">
               {bookings.map((booking) => (
                 <tr key={booking.id} className="hover:bg-slate-50/80 transition-colors">
                   <td className="p-4 text-slate-600 font-medium">{booking.id}</td>
-                  <td className="p-4 font-mono font-semibold text-slate-700 tracking-tight">
-                    {booking.bookingNumber}
-                  </td>
+                  <td className="p-4 font-mono font-semibold text-slate-700 tracking-tight">{booking.bookingNumber}</td>
                   <td className="p-4 font-semibold text-slate-800">{booking.guestName}</td>
                   <td className="p-4 font-medium text-slate-700">{booking.roomNumber}</td>
                   <td className="p-4 text-slate-600">{booking.roomType}</td>
@@ -213,24 +204,25 @@ export default function ReservationManagement() {
                   <td className="p-4 text-slate-600">{booking.checkOut}</td>
                   <td className="p-4 text-slate-700 font-medium">{booking.nights}</td>
                   <td className="p-4 text-slate-600">{booking.source}</td>
-                  
-                  {/* Styled Status Badge */}
                   <td className="p-4 text-center">
                     <span className={`px-3 py-1.5 rounded-full text-xs tracking-wide ${getStatusBadgeClass(booking.status)}`}>
                       {booking.status}
                     </span>
                   </td>
-
-                  {/* Right-aligned pricing */}
-                  <td className="p-4 pr-6 text-right font-semibold text-slate-800">
-                    {booking.totalAmount}
-                  </td>
+                  <td className="p-4 pr-6 text-right font-semibold text-slate-800">{booking.totalAmount}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* Render the extracted Add Reservation component overlay */}
+      <AddReservation 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        onSave={handleSaveReservation} 
+      />
     </AdminLayout>
   );
 }

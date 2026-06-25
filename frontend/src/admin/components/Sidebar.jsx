@@ -57,6 +57,12 @@ export default function Sidebar() {
   },
 
   {
+    name: "Restaurant",
+    path: "/restaurant",
+    icon: <FaCalendarAlt />,
+  },
+
+  {
     name: "Users",
     path: "/user_management",
     icon: <FaCalendarAlt />,

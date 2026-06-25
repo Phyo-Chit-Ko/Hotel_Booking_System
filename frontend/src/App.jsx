@@ -11,6 +11,8 @@ import Bookings from "./admin/pages/Bookings";
 import Payments from "./admin/pages/Payments";
 import ExtraServices from "./admin/pages/ExtraServices";
 import Settings from "./admin/pages/Settings";
+import Restaurant from "./admin/pages/RestaurantManagement";
+import RestaurantManagement from "./admin/pages/RestaurantManagement";
 function App() {
   return (
     <Routes>
@@ -44,6 +46,7 @@ function App() {
       <Route path="/payments" element={<Payments/>}/>
       <Route path="/extraServices" element={<ExtraServices/>}/>
       <Route path="/settings" element={<Settings/>}/>
+      <Route path="/restaurant" element={<RestaurantManagement/>}/>
     </Routes>
   );
 }
