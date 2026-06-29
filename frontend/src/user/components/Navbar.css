@@ -1,0 +1,224 @@
+/* ==========================================================================
+   DESKTOP DEFAULT LAYOUT (SIDEBAR MODE)
+   ========================================================================== */
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 260px;
+  height: 100vh;
+  background-color: #141414; /* Deep boutique charcoal background */
+  border-right: 1px solid #262626;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 2.5rem 1.5rem;
+  box-sizing: border-box;
+  z-index: 1000;
+  transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* Hide mobile top-bar on desktop displays */
+.mobile-header, .sidebar-backdrop {
+  display: none;
+}
+
+/* Brand Identity Styling */
+.sidebar-brand {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.logo-container {
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 0.75rem auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.brand-logo {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.brand-title {
+  display: block;
+  font-family: 'Playfair Display', 'Georgia', serif;
+  color: #f5f5f4;
+  font-size: 1.15rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.brand-subtitle {
+  display: block;
+  color: #737373;
+  font-size: 0.65rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin-top: 0.25rem;
+}
+
+/* Menu Links navigation matrix */
+.sidebar-menu {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sidebar-menu li a {
+  display: block;
+  padding: 0.85rem 1rem;
+  color: #a3a3a3;
+  text-decoration: none;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  border-radius: 2px;
+  border-left: 3px solid transparent;
+  transition: all 0.3s ease-in-out;
+}
+
+/* Hover Actions */
+.sidebar-menu li a:hover {
+  color: #d97706; /* Premium Amber Gold */
+  background-color: #1c1c1c;
+  padding-left: 1.25rem;
+}
+
+/* Active Navigation Route Link State */
+.sidebar-menu li a.active {
+  color: #fbbf24;
+  background-color: #1c1c1c;
+  font-weight: 600;
+  border-left: 3px solid #fbbf24;
+  padding-left: 1.15rem;
+}
+
+/* Account Link Action Block */
+.sidebar-footer {
+  border-top: 1px solid #262626;
+  padding-top: 1.5rem;
+}
+
+.account-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background-color: #1c1c1c;
+  color: #fbbf24;
+  text-decoration: none;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border: 1px solid rgba(217, 119, 6, 0.2);
+  transition: all 0.3s ease;
+}
+
+.account-link:hover {
+  background-color: #d97706;
+  color: #141414;
+  font-weight: bold;
+}
+
+/* ==========================================================================
+   MOBILE & TABLET RESPONSIVE TRANSFORMS
+   ========================================================================== */
+@media (max-width: 992px) {
+  /* Show fixed bar across top viewport bounds */
+  .mobile-header {
+    display: flex;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 70px;
+    background-color: #141414;
+    border-bottom: 1px solid #262626;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1.5rem;
+    box-sizing: border-box;
+    z-index: 1100;
+  }
+
+  .mobile-brand-title {
+    font-family: 'Playfair Display', serif;
+    color: #f5f5f4;
+    letter-spacing: 0.1em;
+    font-size: 1.1rem;
+  }
+
+  /* Morph Sidebar into hidden left drawer canvas panel */
+  .sidebar {
+    transform: translateX(-100%); /* ◄── Shifts sidebar off-screen by default */
+    top: 70px;                    /* Renders immediately below mobile header */
+    height: calc(100vh - 70px);
+    width: 280px;
+    box-shadow: 5px 0 25px rgba(0,0,0,0.5);
+    z-index: 1200;
+  }
+
+  /* Class attached by state when burger button is clicked */
+  .sidebar.mobile-open {
+    transform: translateX(0);     /* ◄── Slides menu out smoothly */
+  }
+
+  /* Back-layer backdrop masking background overlay */
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    top: 70px;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(3px);
+    z-index: 999;
+  }
+
+  /* ==========================================
+     BURGER INTERACTIVE EMBED ANIMATIONS
+     ========================================== */
+  .burger-menu-btn {
+    background: transparent;
+    border: none;
+    width: 30px;
+    height: 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .burger-bar {
+    width: 100%;
+    height: 2px;
+    background-color: #fbbf24;
+    transition: all 0.3s ease;
+    transform-origin: left center;
+  }
+
+  /* Cross configuration transitions when open state registers true */
+  .burger-menu-btn.open .burger-bar:nth-child(1) {
+    transform: rotate(45deg) translateY(-2px);
+  }
+
+  .burger-menu-btn.open .burger-bar:nth-child(2) {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+
+  .burger-menu-btn.open .burger-bar:nth-child(3) {
+    transform: rotate(-45deg) translateY(2px);
+  }
+}

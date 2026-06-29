@@ -6,27 +6,22 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('room_types', function (Blueprint $table) {
-        $table->id('room_type_id');
-        $table->string('name');
-        $table->integer('numOfRooms');
-        $table->decimal('base_price', 10, 2);
-        $table->integer('capacity');
-        $table->boolean('breakfast')->default(false);
-        $table->boolean('bathtub')->default(false);
-        $table->string('status')->default('Active'); // <--- ADD THIS LINE
-        $table->timestamps();
-    });
+            $table->id('room_type_id');
+            $table->string('code', 10)->unique();         // ← ADD THIS: SUP, DS, JS, PRES
+            $table->string('name', 100);
+            $table->unsignedSmallInteger('num_of_rooms')->default(0);
+            $table->decimal('base_price', 10, 2);
+            $table->unsignedTinyInteger('capacity');
+            $table->boolean('breakfast')->default(false);
+            $table->boolean('bathtub')->default(false);
+            $table->enum('status', ['Active', 'Inactive'])->default('Active');
+            $table->timestamps();
+        });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('room_types');

@@ -1,0 +1,39 @@
+/* Only override the specific user styles that bleed in */
+.admin-layout {
+  min-height: 100vh;
+}
+
+/* Fix dark background from user's body style */
+.admin-layout {
+  background-color: #f0f2f5; /* or whatever your admin background was */
+}
+
+/* Undo user's sidebar margin on admin */
+.admin-layout .page-container {
+  margin-left: 0 !important;
+}
+
+/* Fix input and select dark background from user CSS bleed */
+.admin-layout input,
+.admin-layout select,
+.admin-layout textarea {
+  background-color: #ffffff !important;
+  color: #1e293b !important;
+}
+
+.admin-layout input::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Fix calendar dark background */
+.admin-layout .react-calendar,
+.admin-layout [class*="calendar"],
+.admin-layout [class*="Calendar"] {
+  background-color: #ffffff !important;
+  color: #1e293b !important;
+}
+
+.admin-layout [class*="calendar"] button,
+.admin-layout [class*="Calendar"] button {
+  color: #1e293b !important;
+}

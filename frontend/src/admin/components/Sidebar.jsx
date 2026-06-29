@@ -11,28 +11,29 @@ export default function Sidebar() {
     {
       groupName: "Overview",
       items: [
-        { name: "Dashboard", path: "/dashboard", icon: <FaChartPie /> },
+        { name: "Dashboard", path: "/admin/dashboard", icon: <FaChartPie /> },
       ]
     },
     {
       groupName: "Front Desk & Operations",
       items: [
-        { name: "Available Search", path: "/available_rooms", icon: <FaSearch /> },
-        { name: "Bookings", path: "/bookings", icon: <FaCalendarAlt /> },
-        { name: "Reservations", path: "/reservations", icon: <FaCalendarAlt /> },
-        { name: "Guests", path: "/guests", icon: <FaUsers /> },
-        { name: "Payments", path: "/payments", icon: <FaCreditCard /> },
-        { name: "Extra Services", path: "/extraServices", icon: <FaConciergeBell /> },
+        { name: "Available Search", path: "/admin/available_rooms", icon: <FaSearch /> },
+        { name: "Bookings", path: "/admin/bookings", icon: <FaCalendarAlt /> },
+        { name: "Reservations", path: "/admin/reservations", icon: <FaCalendarAlt /> },
+        { name: "Guests", path: "/admin/guests", icon: <FaUsers /> },
+        { name: "Payments", path: "/admin/payments", icon: <FaCreditCard /> },
+        { name: "Extra Services", path: "/admin/extraServices", icon: <FaConciergeBell /> },
       ]
     },
     {
       groupName: "Management & Controls",
       items: [
-        { name: "Room Management", path: "/rooms", icon: <FaBed /> },
-        { name: "Room Type Management", path: "/room-types", icon: <FaHotel /> },
-        { name: "User Management", path: "/user_management", icon: <FaUserShield /> },
-        { name: "Restaurant", path: "/restaurant", icon: <FaUtensils /> },
-        { name: "Settings", path: "/settings", icon: <FaCog /> },
+        { name: "Room Management", path: "/admin/rooms", icon: <FaBed /> },
+        { name: "Room Type Management", path: "/admin/room-types", icon: <FaHotel /> },
+        { name: "User Management", path: "/admin/user_management", icon: <FaUserShield /> },
+        { name: "Restaurant", path: "/admin/restaurant", icon: <FaUtensils /> },
+        { name: "Settings", path: "/admin/settings", icon: <FaCog /> },
+        { name: "RoomLayoutEditor", path: "/admin/roomLayoutEditor", icon: <FaCog /> },
       ]
     }
   ];
