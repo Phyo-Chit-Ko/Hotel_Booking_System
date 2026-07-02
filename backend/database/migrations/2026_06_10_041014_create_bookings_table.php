@@ -31,6 +31,7 @@ return new class extends Migration
             $table->unsignedInteger('child')->default(0);
             $table->decimal('deposit', 10, 2)->default(0.00);
             $table->string('deposit_screenshot')->nullable();
+            $table->string('special_requests')->nullable();
             $table->string('status')->default('pending');
 
             $table->timestamp('created_at')->useCurrent();
