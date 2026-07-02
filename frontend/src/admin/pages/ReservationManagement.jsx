@@ -1,6 +1,6 @@
 import { useState } from "react";
 import AdminLayout from "../layouts/AdminLayout";
-import AddReservation from "../components/addReservation"; // Imported Form Component
+import AddReservation from "../components/addReservation";
 import {
   FaPlus,
   FaSearch,
@@ -8,6 +8,15 @@ import {
 } from "react-icons/fa";
 
 export default function ReservationManagement() {
+  // Helper function to generate today's date string in strict YYYY-MM-DD format
+  const getTodayDateString = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
   const [bookings, setBookings] = useState([
     {
       id: 1,
@@ -103,18 +112,23 @@ export default function ReservationManagement() {
   ]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(getTodayDateString()); // Managed date state
 
   const getStatusBadgeClass = (status) => {
     switch (status) {
-      case "Checked-In": return "bg-green-100 text-green-700 font-bold";
-      case "Confirmed": return "bg-cyan-100 text-cyan-700 font-bold";
-      case "Reserved": return "bg-blue-100 text-blue-700 font-bold";
-      case "Checked-Out": return "bg-slate-100 text-slate-500 font-bold";
-      default: return "bg-slate-100 text-slate-600 font-bold";
+      case "Checked-In":
+        return "bg-green-50 text-green-700 border border-green-100 font-medium";
+      case "Confirmed":
+        return "bg-cyan-50 text-cyan-700 border border-cyan-100 font-medium";
+      case "Reserved":
+        return "bg-blue-50 text-blue-700 border border-blue-100 font-medium";
+      case "Checked-Out":
+        return "bg-slate-50 text-slate-500 border border-slate-100 font-medium";
+      default:
+        return "bg-slate-50 text-slate-600 border border-slate-100 font-medium";
     }
   };
 
-  // Receives raw form payload data sent from the child component
   const handleSaveReservation = (newReservationData) => {
     const nextId = bookings.length + 1;
     const paddedId = String(nextId).padStart(4, "0");
@@ -127,97 +141,147 @@ export default function ReservationManagement() {
     };
 
     setBookings([newBookingFull, ...bookings]);
-    setIsModalOpen(false); // Close modal on success
+    setIsModalOpen(false);
   };
 
   return (
     <AdminLayout>
-      {/* Header Banner */}
-      <div className="bg-gradient-to-r from-sky-100 via-blue-50 to-indigo-50 rounded-3xl p-8 shadow-sm mb-6 flex justify-between items-center">
-        <div>
-          <h1 className="text-4xl font-bold text-slate-800">Reservation Management</h1>
-          <p className="text-slate-500 mt-2 text-base">
-            Reservations, overlaps, check-in, check-out, status actions, and billing
-          </p>
-        </div>
+      <div className="w-full space-y-6 p-1">
+        
+        {/* Live Counter Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-5">
+          <button className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex items-center justify-between text-left transition hover:border-slate-300 active:scale-98">
+            <div>
+              <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Daily Check-Ins</p>
+              <h3 className="text-2xl font-semibold text-slate-900 tracking-tight mt-0.5">14</h3>
+            </div>
+          </button>
 
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-5 py-3 rounded-xl flex items-center gap-2 shadow-sm transition"
-        >
-          <FaPlus className="text-sm" /> Add New
-        </button>
-      </div>
+          <button className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex items-center justify-between text-left transition hover:border-slate-300 active:scale-98">
+            <div>
+              <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Daily Check-Outs</p>
+              <h3 className="text-2xl font-semibold text-slate-900 tracking-tight mt-0.5">9</h3>
+            </div>
+          </button>
 
-      {/* Main Table Container */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-        {/* Filters Panel */}
-        <div className="flex flex-wrap gap-3 items-center mb-4">
-          <div className="relative flex-1 min-w-[240px]">
-            <FaSearch className="absolute left-4 top-3.5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search visible columns..."
-              className="pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-            />
-          </div>
-          <select className="border border-slate-200 bg-white text-sm text-slate-700 px-4 py-2.5 rounded-xl focus:outline-none min-w-[130px]"><option>All RoomType</option></select>
-          <select className="border border-slate-200 bg-white text-sm text-slate-700 px-4 py-2.5 rounded-xl focus:outline-none min-w-[150px]"><option>All Status</option></select>
-          <select className="border border-slate-200 bg-white text-sm text-slate-700 px-4 py-2.5 rounded-xl focus:outline-none min-w-[155px]"><option>All Source</option></select>
-          <select className="border border-slate-200 bg-white text-sm text-slate-700 px-4 py-2.5 rounded-xl focus:outline-none min-w-[150px]"><option>All PaymentStatus</option></select>
-        </div>
-
-        {/* Toolbar Section */}
-        <div className="flex gap-2.5 pb-6 border-b border-slate-100">
-          <button className="border border-slate-200 hover:bg-slate-50 px-4 py-2 rounded-xl text-sm font-semibold text-slate-700 flex items-center gap-2 transition">
-            <FaFileExport className="text-slate-500" /> Export
+          <button className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex items-center justify-between text-left transition hover:border-slate-300 active:scale-98">
+            <div>
+              <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">In-House Today</p>
+              <h3 className="text-2xl font-semibold text-slate-900 tracking-tight mt-0.5">32</h3>
+            </div>
           </button>
         </div>
 
-        {/* Data Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full whitespace-nowrap text-left text-sm mt-4">
-            <thead>
-              <tr className="text-slate-500 font-bold uppercase text-xs border-b border-slate-100 bg-slate-50/50">
-                <th className="p-4 rounded-l-xl">Reservation ID</th>
-                <th className="p-4">Reservation Number</th>
-                <th className="p-4">Guest Name</th>
-                <th className="p-4">Room Number</th>
-                <th className="p-4">Room Type</th>
-                <th className="p-4">Check-In Date</th>
-                <th className="p-4">Check-Out Date</th>
-                <th className="p-4">Nights</th>
-                <th className="p-4">Source</th>
-                <th className="p-4 text-center">Status</th>
-                <th className="p-4 pr-6 text-right rounded-r-xl">Total Amount</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {bookings.map((booking) => (
-                <tr key={booking.id} className="hover:bg-slate-50/80 transition-colors">
-                  <td className="p-4 text-slate-600 font-medium">{booking.id}</td>
-                  <td className="p-4 font-mono font-semibold text-slate-700 tracking-tight">{booking.bookingNumber}</td>
-                  <td className="p-4 font-semibold text-slate-800">{booking.guestName}</td>
-                  <td className="p-4 font-medium text-slate-700">{booking.roomNumber}</td>
-                  <td className="p-4 text-slate-600">{booking.roomType}</td>
-                  <td className="p-4 text-slate-600">{booking.checkIn}</td>
-                  <td className="p-4 text-slate-600">{booking.checkOut}</td>
-                  <td className="p-4 text-slate-700 font-medium">{booking.nights}</td>
-                  <td className="p-4 text-slate-600">{booking.source}</td>
-                  <td className="p-4 text-center">
-                    <span className={`px-3 py-1.5 rounded-full text-xs tracking-wide ${getStatusBadgeClass(booking.status)}`}>
-                      {booking.status}
-                    </span>
-                  </td>
-                  <td className="p-4 pr-6 text-right font-semibold text-slate-800">{booking.totalAmount}</td>
+        {/* Master Control Layout & Data Structure Block */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-5">
+          
+          {/* Controls Unified Row Frame */}
+          <div className="flex items-center gap-3">
+            
+            {/* Search Input Box */}
+            <div className="relative w-[355px] h-11">
+              <input
+                type="text"
+                placeholder="Search visible columns..."
+                className="w-full h-full border border-slate-300 rounded-xl pl-4 pr-11 text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 box-border"
+              />
+              <FaSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none" />
+            </div>
+
+            {/* Room Type Dropdown */}
+            <div className="h-11">
+              <select className="h-full w-34 px-4 border border-slate-300 rounded-xl text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 box-border [color-scheme:light]">
+                <option>All Room Types</option>
+                <option>Standard</option>
+                <option>Deluxe</option>
+                <option>Executive Room</option>
+                <option>Suite</option>
+                <option>Villa</option>
+              </select>
+            </div>
+
+            {/* Date Picker Input */}
+            <div className="h-11">
+              <input
+                type="date"
+                value={selectedDate}
+                className="h-full px-4 border border-slate-300 rounded-xl text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 box-border [color-scheme:light]"
+                onChange={(e) => {
+                  setSelectedDate(e.target.value);
+                  console.log("Selected Check-In Date:", e.target.value);
+                }}
+              />
+            </div>
+
+            {/* Spacer pushing following tools tightly to the right margin */}
+            <div className="flex-1" />
+
+            {/* Export Trigger */}
+            <div className="h-11">
+              <button className="h-full px-4 border border-slate-300 bg-white hover:bg-slate-50 rounded-xl text-sm font-medium text-slate-700 flex items-center justify-center gap-2 shadow-sm transition active:scale-95">
+                <FaFileExport className="text-slate-400 text-sm" />
+                <span>Export</span>
+              </button>
+            </div>
+
+            {/* Add New Trigger */}
+            <div className="h-11">
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="h-full px-5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-xl flex items-center justify-center gap-2 shadow-sm transition active:scale-95"
+              >
+                <FaPlus className="text-sm" />
+                <span>Add New</span>
+              </button>
+            </div>
+
+          </div>
+
+          {/* Interactive Data Table Matrix */}
+          <div className="overflow-x-auto border border-slate-100 rounded-xl">
+            <table className="w-full text-left text-sm text-slate-600 border-collapse">
+              <thead>
+                <tr className="text-slate-500 font-semibold text-xs uppercase tracking-wider border-b border-slate-200 bg-slate-50">
+                  <th className="px-5 py-3.5">ID</th>
+                  <th className="px-5 py-3.5">Res Number</th>
+                  <th className="px-5 py-3.5">Guest Name</th>
+                  <th className="px-5 py-3.5">Room</th>
+                  <th className="px-5 py-3.5">Room Type</th>
+                  <th className="px-5 py-3.5">Check-In</th>
+                  <th className="px-5 py-3.5">Check-Out</th>
+                  <th className="px-5 py-3.5 text-center">Nights</th>
+                  <th className="px-5 py-3.5">Source</th>
+                  <th className="px-5 py-3.5 text-center">Status</th>
+                  <th className="px-5 py-3.5 text-right">Total Amount</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {bookings.map((booking) => (
+                  <tr key={booking.id} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="px-5 py-4 text-slate-500 font-medium font-mono">{booking.id}</td>
+                    <td className="px-5 py-4 font-mono font-semibold text-slate-900 tracking-tight">{booking.bookingNumber}</td>
+                    <td className="px-5 py-4 font-medium text-slate-900">{booking.guestName}</td>
+                    <td className="px-5 py-4 font-mono font-medium text-slate-700">{booking.roomNumber}</td>
+                    <td className="px-5 py-4 text-slate-600">{booking.roomType}</td>
+                    <td className="px-5 py-4 font-mono text-xs text-slate-500">{booking.checkIn}</td>
+                    <td className="px-5 py-4 font-mono text-xs text-slate-500">{booking.checkOut}</td>
+                    <td className="px-5 py-4 text-center font-mono text-slate-700">{booking.nights}</td>
+                    <td className="px-5 py-4 text-slate-600">{booking.source}</td>
+                    <td className="px-5 py-4 text-center">
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium inline-block ${getStatusBadgeClass(booking.status)}`}>
+                        {booking.status}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4 text-right font-mono font-semibold text-slate-900">{booking.totalAmount}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
         </div>
       </div>
 
-      {/* Render the extracted Add Reservation component overlay */}
       <AddReservation 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 

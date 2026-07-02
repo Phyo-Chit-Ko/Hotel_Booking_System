@@ -8,6 +8,7 @@ use App\Models\RoomType;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 class RoomLayoutController extends Controller
 {
@@ -46,11 +47,14 @@ class RoomLayoutController extends Controller
      */
     public function saveLayout(Request $request)
     {
+        // Build the map of valid room type codes from the DB — NOT a hardcoded list.
+        $typeMap = RoomType::all()->keyBy('code');
+
         $validator = Validator::make($request->all(), [
             'floor'                   => 'required|string',
             'rooms'                   => 'required|array',
             'rooms.*.roomNumber'      => 'required|string|max:10',
-            'rooms.*.type'            => 'required|string|in:SUP,DS,JS,PRES',
+            'rooms.*.type'            => ['required', 'string', Rule::in($typeMap->keys()->all())],
             'rooms.*.status'          => 'required|string|in:Available,Occupied,Cleaning,Reserved,Maintenance',
             'rooms.*.col'             => 'required|integer|min:1',
             'rooms.*.row'             => 'required|integer|min:1',
@@ -66,8 +70,6 @@ class RoomLayoutController extends Controller
                 'errors'  => $validator->errors(),
             ], 422);
         }
-
-        $typeMap = RoomType::all()->keyBy('code');
 
         DB::beginTransaction();
         try {
@@ -87,7 +89,7 @@ class RoomLayoutController extends Controller
                     DB::rollBack();
                     return response()->json([
                         'success' => false,
-                        'message' => "Room type '{$data['type']}' not found. Run: php artisan db:seed --class=RoomTypeSeeder",
+                        'message' => "Room type '{$data['type']}' not found in room_types table.",
                     ], 422);
                 }
 

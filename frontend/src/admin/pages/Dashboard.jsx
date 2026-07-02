@@ -20,10 +20,9 @@ export default function Dashboard() {
   ];
 
   const reportTypes = [
-    { id: "ops_brief", label: "Daily Operations Brief", desc: "Check-ins, check-outs, and room status matrix.", icon: <FaClipboardList className="text-base" /> },
-    { id: "rev_summary", label: "Revenue & Financial Summary", desc: "Gross earnings, tax collections, and ADR tracking.", icon: <FaChartLine className="text-base" /> },
+    { id: "ops_brief", label: "Daily Operations Brief", desc: "Check-ins, check-outs, and room status.", icon: <FaClipboardList className="text-base" /> },
+    { id: "rev_summary", label: "Revenue & Financial Summary", desc: "Room Revenue, Restaurant Revenue, Car rental Revenue", icon: <FaChartLine className="text-base" /> },
     { id: "occ_forecast", label: "Occupancy Forecast", desc: "Percentage trends and capacity limitations.", icon: <FaPercentage className="text-base" /> },
-    { id: "channel_perf", label: "Channel Performance", desc: "Direct website bookings vs OTA metrics.", icon: <FaHubspot className="text-base" /> }
   ];
 
   const recentActivities = [
@@ -34,9 +33,9 @@ export default function Dashboard() {
   ];
 
   const channels = [
-    { name: "Direct Website", value: "42%", count: "124 Bookings", color: "bg-slate-900" },
+    { name: "Phone", value: "42%", count: "124 Bookings", color: "bg-slate-900" },
     { name: "Booking.com", value: "38%", count: "110 Bookings", color: "bg-amber-500" },
-    { name: "Expedia / OTAs", value: "20%", count: "58 Bookings", color: "bg-slate-300" }
+    { name: "Others", value: "20%", count: "58 Bookings", color: "bg-slate-300" }
   ];
 
   return (
@@ -51,29 +50,30 @@ export default function Dashboard() {
         /* Viewport Lock Wrapper */
         <div className="w-full h-[calc(100vh-110px)] flex flex-col gap-5 overflow-hidden p-1">
           
-          {/* 1. Control Header */}
           <div className="flex items-center justify-between pb-3 border-b border-slate-200 shrink-0">
             <div>
-              <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">Property Overview</h1>
-              <p className="text-sm font-normal text-slate-500 mt-0.5">Real-time terminal environment</p>
+              <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">
+                Property Overview
+              </h1>
+              <p className="text-sm font-normal text-slate-500 mt-0.5">
+                Real-time terminal environment
+              </p>  
             </div>
-            
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2.5 bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-sm">
-                <FaCalendarAlt className="text-slate-500 text-sm" />
-                <input 
-                  type="month" 
-                  value={dashboardDate}
-                  onChange={(e) => setDashboardDate(e.target.value)}
-                  className="text-sm font-medium text-slate-800 bg-transparent outline-none cursor-pointer"
-                />
-              </div>
 
-              <button 
+            {/* FIXED: Single unified layout row forcing identical heights & flex baseline alignment */}
+            <div className="flex items-stretch gap-3">
+              <input
+                type="month"
+                value={dashboardDate}
+                onChange={(e) => setDashboardDate(e.target.value)}
+                className="h-11 !w-44 px-4 bg-white [color-scheme:light] border border-slate-300 rounded-xl text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 box-border"
+              />
+
+              <button
                 onClick={() => setIsModalOpen(true)}
-                className="bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium px-5 py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-sm transition active:scale-95"
+                className="h-11 px-6 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-xl flex items-center justify-center gap-2 shadow-sm transition active:scale-95"
               >
-                <FaFileExport className="text-xs" />
+                <FaFileExport className="text-sm" />
                 <span>Export & Reports</span>
               </button>
             </div>

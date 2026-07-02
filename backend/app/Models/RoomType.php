@@ -11,7 +11,7 @@ class RoomType extends Model
 
     protected $fillable = [
         'name',
-        'code',          // SUP, DS, JS, PRES — used by layout editor
+        'code',         
         'num_of_rooms',
         'base_price',
         'capacity',

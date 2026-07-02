@@ -10,13 +10,6 @@ const ROWS   = 14;
 const CELL_W = 72;
 const CELL_H = 42;
 
-const ROOM_TYPES = {
-  SUP:  { code: "SUP",  label: "Superior",     rate: 120, capacity: 2 },
-  DS:   { code: "DS",   label: "Deluxe Suite",  rate: 240, capacity: 4 },
-  JS:   { code: "JS",   label: "Junior Suite",  rate: 180, capacity: 3 },
-  PRES: { code: "PRES", label: "Presidential",  rate: 650, capacity: 6 },
-};
-
 const STATUS_COLORS = {
   Available:   "bg-emerald-400 text-emerald-950 border-emerald-500",
   Occupied:    "bg-rose-300   text-rose-900   border-rose-400",
@@ -56,8 +49,14 @@ function Toast({ toast }) {
   );
 }
 
-function AddRoomModal({ targetCell, onAdd, onClose }) {
-  const [form, setForm]   = useState({ roomNumber: "", type: "SUP", status: "Available", bedType: "Single", extraPersonRate: 0, w: 1, h: 1 });
+// roomTypes is now a dynamic, DB-backed map keyed by `code`, e.g.
+// { SUP: { code: "SUP", label: "Superior", rate: 120, capacity: 2 }, ... }
+function AddRoomModal({ targetCell, roomTypes, onAdd, onClose }) {
+  const typeCodes = Object.keys(roomTypes);
+  const [form, setForm]   = useState({
+    roomNumber: "", type: typeCodes[0] || "", status: "Available",
+    bedType: "Single", extraPersonRate: 0, w: 1, h: 1,
+  });
   const [error, setError] = useState("");
   const f   = (key) => (e) => setForm((p) => ({ ...p, [key]: e.target.value }));
   const iCls = "w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500";
@@ -65,6 +64,7 @@ function AddRoomModal({ targetCell, onAdd, onClose }) {
 
   const handleAdd = () => {
     if (!form.roomNumber.trim()) return setError("Room number is required.");
+    if (!form.type) return setError("No room types available. Add one first.");
     setError("");
     onAdd({ id: `r-${Date.now()}`, roomNumber: form.roomNumber.trim(), type: form.type, status: form.status,
       bedType: form.bedType, extraPersonRate: parseFloat(form.extraPersonRate)||0,
@@ -87,7 +87,8 @@ function AddRoomModal({ targetCell, onAdd, onClose }) {
           <div className="grid grid-cols-2 gap-3">
             <div><label className={lCls}>Room Type</label>
               <select className={iCls} value={form.type} onChange={f("type")}>
-                {Object.entries(ROOM_TYPES).map(([k,v]) => <option key={k} value={k}>{v.label} ({k})</option>)}
+                {typeCodes.length === 0 && <option value="">No room types found</option>}
+                {typeCodes.map((k) => <option key={k} value={k}>{roomTypes[k].label} ({k})</option>)}
               </select>
             </div>
             <div><label className={lCls}>Status</label>
@@ -112,7 +113,7 @@ function AddRoomModal({ targetCell, onAdd, onClose }) {
           </div>
           <div className="bg-slate-800/60 border border-slate-700/40 rounded-lg p-2.5 flex justify-between text-xs">
             <span className="text-slate-400">Nightly rate</span>
-            <span className="font-bold text-amber-400">${ROOM_TYPES[form.type]?.rate}/night</span>
+            <span className="font-bold text-amber-400">${roomTypes[form.type]?.rate ?? "—"}/night</span>
           </div>
         </div>
         <div className="p-4 border-t border-slate-800 flex gap-2">
@@ -126,7 +127,8 @@ function AddRoomModal({ targetCell, onAdd, onClose }) {
   );
 }
 
-function EditRoomModal({ room, onSave, onClose }) {
+function EditRoomModal({ room, roomTypes, onSave, onClose }) {
+  const typeCodes = Object.keys(roomTypes);
   const [form, setForm] = useState({ ...room });
   const f   = (key) => (e) => setForm((p) => ({ ...p, [key]: e.target.value }));
   const iCls = "w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500";
@@ -143,7 +145,8 @@ function EditRoomModal({ room, onSave, onClose }) {
           <div className="grid grid-cols-2 gap-3">
             <div><label className={lCls}>Room Type</label>
               <select className={iCls} value={form.type} onChange={f("type")}>
-                {Object.entries(ROOM_TYPES).map(([k,v]) => <option key={k} value={k}>{v.label}</option>)}
+                {typeCodes.length === 0 && <option value={form.type}>{form.type}</option>}
+                {typeCodes.map((k) => <option key={k} value={k}>{roomTypes[k].label}</option>)}
               </select>
             </div>
             <div><label className={lCls}>Status</label>
@@ -193,9 +196,41 @@ export default function RoomLayoutEditor() {
   const [historyIdx, setHistoryIdx]   = useState(-1);
   const [dragState, setDragState]     = useState(null);
   const [toast, setToast]             = useState(null);
+
+  // Room types are now loaded live from the DB via /api/room-types instead of
+  // being hardcoded, so anything you add manually (e.g. through Room Type
+  // Management) shows up here automatically.
+  const [roomTypes, setRoomTypes]         = useState({});
+  const [roomTypesLoading, setRoomTypesLoading] = useState(true);
+  const [roomTypesError, setRoomTypesError]     = useState(null);
+
   const gridRef = useRef(null);
 
   const showToast = (type, message) => { setToast({ type, message }); setTimeout(() => setToast(null), 3000); };
+
+  const loadRoomTypes = useCallback(async () => {
+    setRoomTypesLoading(true); setRoomTypesError(null);
+    try {
+      const res  = await fetch("/api/room-types");
+      const raw  = await res.json();
+      // Handle either a plain array response or a { data: [...] } wrapper
+      const list = Array.isArray(raw) ? raw : (raw.data ?? raw.room_types ?? []);
+      const map  = {};
+      list.forEach((rt) => {
+        map[rt.code] = {
+          code:     rt.code,
+          label:    rt.name,
+          rate:     Number(rt.base_price),
+          capacity: rt.capacity,
+        };
+      });
+      setRoomTypes(map);
+    } catch (err) {
+      setRoomTypesError(err.message || "Failed to load room types.");
+    } finally {
+      setRoomTypesLoading(false);
+    }
+  }, []);
 
   const loadLayout = useCallback(async (floor) => {
     setLoading(true); setFetchError(null); setSelected(null);
@@ -211,6 +246,7 @@ export default function RoomLayoutEditor() {
     } finally { setLoading(false); }
   }, []);
 
+  useEffect(() => { loadRoomTypes(); }, [loadRoomTypes]);
   useEffect(() => { loadLayout(activeFloor); }, [activeFloor, loadLayout]);
 
   const saveLayout = async () => {
@@ -325,6 +361,14 @@ export default function RoomLayoutEditor() {
         </div>
       </div>
 
+      {roomTypesError && (
+        <div className="px-5 py-2 bg-rose-950/40 border-b border-rose-900/40 text-xs text-rose-300 flex items-center gap-2">
+          <FaExclamationTriangle size={11} />
+          Could not load room types from /api/room-types: {roomTypesError}
+          <button onClick={loadRoomTypes} className="underline hover:text-rose-100">Retry</button>
+        </div>
+      )}
+
       {/* Body */}
       <div className="flex flex-1 overflow-hidden">
 
@@ -397,7 +441,7 @@ export default function RoomLayoutEditor() {
                       ${isDragging ? "opacity-75 shadow-2xl z-30 scale-105" : ""}`}
                     style={{ left:(room.col-1)*CELL_W+2, top:(room.row-1)*CELL_H+2, width:room.w*CELL_W-4, height:room.h*CELL_H-4,
                       transition: isDragging ? "none" : "box-shadow 0.1s" }}>
-                    <span className="text-[9px] font-bold uppercase opacity-70 leading-none">{ROOM_TYPES[room.type]?.label}</span>
+                    <span className="text-[9px] font-bold uppercase opacity-70 leading-none">{roomTypes[room.type]?.label ?? room.type}</span>
                     <span className="text-xs font-black leading-tight mt-0.5">{room.roomNumber}</span>
                     {room.h > 1 && <span className="text-[9px] opacity-60 mt-0.5">{room.status}</span>}
                   </div>
@@ -417,7 +461,7 @@ export default function RoomLayoutEditor() {
             {selectedRoom ? (
               <div className="space-y-3">
                 <div className={`rounded-xl p-3 text-center border-2 ${STATUS_COLORS[selectedRoom.status]}`}>
-                  <p className="text-[10px] font-bold uppercase opacity-70">{ROOM_TYPES[selectedRoom.type]?.label}</p>
+                  <p className="text-[10px] font-bold uppercase opacity-70">{roomTypes[selectedRoom.type]?.label ?? selectedRoom.type}</p>
                   <p className="text-2xl font-black">{selectedRoom.roomNumber}</p>
                   <p className="text-[10px] font-bold opacity-80">{selectedRoom.status}</p>
                 </div>
@@ -427,7 +471,7 @@ export default function RoomLayoutEditor() {
                     ["Size",        `${selectedRoom.w} × ${selectedRoom.h} cells`],
                     ["Bed Type",    selectedRoom.bedType || "—"],
                     ["Extra Rate",  selectedRoom.extraPersonRate ? `$${selectedRoom.extraPersonRate}/person` : "—"],
-                    ["Nightly Rate",`$${ROOM_TYPES[selectedRoom.type]?.rate}/night`],
+                    ["Nightly Rate",roomTypes[selectedRoom.type]?.rate != null ? `$${roomTypes[selectedRoom.type].rate}/night` : "—"],
                   ].map(([label, value]) => (
                     <div key={label} className="flex justify-between p-2 bg-slate-800/60 rounded-lg border border-slate-700/30">
                       <span className="text-slate-500">{label}</span>
@@ -477,8 +521,10 @@ export default function RoomLayoutEditor() {
         </div>
       </div>
 
-      {addCell     && <AddRoomModal  targetCell={addCell}   onAdd={handleAddRoom}   onClose={() => setAddCell(null)}     />}
-      {editingRoom && <EditRoomModal room={editingRoom}      onSave={handleSaveEdit} onClose={() => setEditingRoom(null)} />}
+      {addCell && !roomTypesLoading &&
+        <AddRoomModal targetCell={addCell} roomTypes={roomTypes} onAdd={handleAddRoom} onClose={() => setAddCell(null)} />}
+      {editingRoom &&
+        <EditRoomModal room={editingRoom} roomTypes={roomTypes} onSave={handleSaveEdit} onClose={() => setEditingRoom(null)} />}
     </div>
   );
 }

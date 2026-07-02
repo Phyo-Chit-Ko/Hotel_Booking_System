@@ -37,3 +37,8 @@
 .admin-layout [class*="Calendar"] button {
   color: #1e293b !important;
 }
+
+/* Backstop: guarantee search icon spacing survives any global input resets */
+.admin-layout .hotel-search-input {
+  padding-left: 44px !important;
+}

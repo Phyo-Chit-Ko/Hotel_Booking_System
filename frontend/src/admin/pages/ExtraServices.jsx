@@ -70,6 +70,7 @@ const ExtraServices = () => {
 
   const [formData, setFormData] = useState(initialFormState);
   const [selectedFoodItems, setSelectedFoodItems] = useState({});
+  const [searchTerm, setSearchTerm] = useState("");
 
   const calculatedTotal = (Number(formData.quantity) * Number(formData.rate)) + Number(formData.tax);
 
@@ -148,114 +149,154 @@ const ExtraServices = () => {
     setSelectedFoodItems({});
   };
 
+  // Badge style aligned with Booking/Payment page's badge pattern
+  const getServiceTypeStyle = (type) => {
+    switch (type) {
+      case "Laundry":
+        return "bg-blue-50 text-blue-700 border border-blue-200";
+      case "Car Rental":
+        return "bg-emerald-50 text-emerald-700 border border-emerald-200";
+      case "Food":
+        return "bg-amber-50 text-amber-700 border border-amber-200";
+      default:
+        return "bg-slate-50 text-slate-700 border border-slate-200";
+    }
+  };
+
+  const filteredServices = services.filter((item) => {
+    const term = searchTerm.toLowerCase();
+    return (
+      item.booking_number.toLowerCase().includes(term) ||
+      item.guest_name.toLowerCase().includes(term) ||
+      item.service_type.toLowerCase().includes(term) ||
+      (item.description && item.description.toLowerCase().includes(term))
+    );
+  });
+
   return (
     <AdminLayout>
       <div className="space-y-6 relative overflow-hidden">
-        
-        {/* ORIGINAL MAIN UI: Header layout */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Extra Charges / Services</h2>
-            <p className="text-sm text-slate-500 mt-0.5">Service billing for food adjustments, laundry tracking, and car logistics logs.</p>
+       
+
+        {/* Statistics Panels (matches Booking/Payment icon-box style) */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-5">
+          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="p-3.5 bg-blue-50 rounded-xl border border-blue-100 text-xl text-blue-600">
+                <FaTshirt />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Laundry</p>
+                <h3 className="text-2xl font-semibold text-slate-900 tracking-tight mt-0.5">{services.filter(s => s.service_type === "Laundry").length}</h3>
+              </div>
+            </div>
           </div>
+
+          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="p-3.5 bg-emerald-50 rounded-xl border border-emerald-100 text-xl text-emerald-600">
+                <FaCar />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Car Rentals</p>
+                <h3 className="text-2xl font-semibold text-slate-900 tracking-tight mt-0.5">{services.filter(s => s.service_type === "Car Rental").length}</h3>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="p-3.5 bg-amber-50 rounded-xl border border-amber-100 text-xl text-amber-600">
+                <FaUtensils />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Food Orders</p>
+                <h3 className="text-2xl font-semibold text-slate-900 tracking-tight mt-0.5">{services.filter(s => s.service_type === "Food").length}</h3>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Master Card Box Container (Matches Booking/Payment Layout) */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-5">
+
+          {/* Controls Horizontal Row */}
           <div className="flex items-center gap-3">
-            <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition shadow-sm">
-              <FaFileImport className="text-slate-400" /> Import
-            </button>
-            <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition shadow-sm">
-              <FaFileExport className="text-slate-400" /> Export
-            </button>
-            <button 
-              onClick={() => setIsPanelOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-amber-500 hover:bg-amber-600 active:bg-amber-700 transition rounded-xl shadow-md shadow-amber-500/20"
+            <div className="relative w-[355px] h-11">
+              <input
+                type="text"
+                placeholder="Search booking #, guest, or service..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full h-full border border-slate-300 rounded-xl pl-4 pr-11 text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 box-border"
+              />
+              <FaSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none" />
+            </div>
+
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="h-11 px-5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-xl flex items-center justify-center gap-2 shadow-sm transition active:scale-95 ml-auto"
             >
-              <FaPlus /> Add New Charge
+              <FaPlus className="text-sm" />
+               <span>Add New</span>
             </button>
           </div>
-        </div>
 
-        {/* ORIGINAL MAIN UI: Aesthetic metric cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center"><FaTshirt /></div>
-            <div>
-              <p className="text-xs text-slate-400 font-medium uppercase">Laundry</p>
-              <h5 className="text-lg font-bold text-slate-800">{services.filter(s => s.service_type === "Laundry").length} Logged</h5>
-            </div>
-          </div>
-          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center"><FaCar /></div>
-            <div>
-              <p className="text-xs text-slate-400 font-medium uppercase">Car Rentals</p>
-              <h5 className="text-lg font-bold text-slate-800">{services.filter(s => s.service_type === "Car Rental").length} Trips</h5>
-            </div>
-          </div>
-          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center"><FaUtensils /></div>
-            <div>
-              <p className="text-xs text-slate-400 font-medium uppercase">Food Orders</p>
-              <h5 className="text-lg font-bold text-slate-800">{services.filter(s => s.service_type === "Food").length} Deliveries</h5>
-            </div>
-          </div>
-        </div>
-
-        {/* Search Input Bar */}
-        <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-          <div className="relative max-w-md w-full">
-            <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-            <input
-              type="text"
-              readOnly
-              placeholder="Search features (Disabled for Form Demo)..."
-              className="w-full pl-11 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-400 cursor-not-allowed"
-            />
-          </div>
-        </div>
-
-        {/* ORIGINAL MAIN UI: Full detailed table matrix layout */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-100">
-                  <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Charge ID</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Booking Number</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Guest Name</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Charge Date</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Service Type</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Description</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">QTY</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Rate</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Tax</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Amount</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Actions</th>
+          {/* Nested Data Table Box */}
+          <div className="overflow-x-auto border border-slate-100 rounded-xl">
+            <table className="w-full border-collapse text-left text-sm text-slate-600">
+              <thead className="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                <tr>
+                  <th className="px-5 py-3.5 font-medium">Charge ID</th>
+                  <th className="px-5 py-3.5 font-medium">Booking Number</th>
+                  <th className="px-5 py-3.5 font-medium">Guest Name</th>
+                  <th className="px-5 py-3.5 font-medium">Charge Date</th>
+                  <th className="px-5 py-3.5 font-medium">Service Type</th>
+                  <th className="px-5 py-3.5 font-medium">Description</th>
+                  <th className="px-5 py-3.5 font-medium text-center">QTY</th>
+                  <th className="px-5 py-3.5 font-medium">Rate</th>
+                  <th className="px-5 py-3.5 font-medium">Tax</th>
+                  <th className="px-5 py-3.5 font-medium">Total Amount</th>
+                  <th className="px-5 py-3.5 font-medium text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {services.map((item) => (
-                  <tr key={item.id} className="hover:bg-slate-50/40 transition group">
-                    <td className="px-6 py-4 text-sm font-medium text-slate-400">#{item.id}</td>
-                    <td className="px-6 py-4 text-sm font-semibold text-slate-700">{item.booking_number}</td>
-                    <td className="px-6 py-4 text-sm font-medium text-slate-800">{item.guest_name}</td>
-                    <td className="px-6 py-4 text-sm text-slate-500">{item.date}</td>
-                    <td className="px-6 py-4 text-sm">
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700">
-                        {item.service_type}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-slate-600 max-w-[160px] truncate" title={item.description}>{item.description}</td>
-                    <td className="px-6 py-4 text-sm text-slate-700 text-center font-semibold">{item.quantity}</td>
-                    <td className="px-6 py-4 text-sm text-slate-600">${item.rate.toFixed(2)}</td>
-                    <td className="px-6 py-4 text-sm text-slate-400">${item.tax.toFixed(2)}</td>
-                    <td className="px-6 py-4 text-sm font-bold text-slate-900">${((item.quantity * item.rate) + item.tax).toFixed(2)}</td>
-                    <td className="px-6 py-4 text-sm text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button type="button" className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition"><FaEdit className="w-3.5 h-3.5" /></button>
-                        <button type="button" className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"><FaTrash className="w-3.5 h-3.5" /></button>
-                      </div>
+                {filteredServices.length > 0 ? (
+                  filteredServices.map((item) => (
+                    <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="px-5 py-4 font-mono font-medium text-slate-900">#{item.id}</td>
+                      <td className="px-5 py-4 font-medium text-slate-900">{item.booking_number}</td>
+                      <td className="px-5 py-4 text-slate-700">{item.guest_name}</td>
+                      <td className="px-5 py-4 font-mono text-xs text-slate-500">{item.date}</td>
+                      <td className="px-5 py-4">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium inline-block ${getServiceTypeStyle(item.service_type)}`}>
+                          {item.service_type}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 text-slate-600 max-w-[160px] truncate" title={item.description}>{item.description}</td>
+                      <td className="px-5 py-4 text-center font-mono font-medium text-slate-700">{item.quantity}</td>
+                      <td className="px-5 py-4 font-mono text-slate-600">${item.rate.toFixed(2)}</td>
+                      <td className="px-5 py-4 font-mono text-slate-400">${item.tax.toFixed(2)}</td>
+                      <td className="px-5 py-4 font-mono font-semibold text-slate-900">${((item.quantity * item.rate) + item.tax).toFixed(2)}</td>
+                      <td className="px-5 py-4">
+                        <div className="flex justify-center items-center gap-1.5">
+                          <button type="button" className="p-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-400 hover:text-slate-600 transition" title="Edit Charge">
+                            <FaEdit className="w-3.5 h-3.5" />
+                          </button>
+                          <button type="button" className="p-2 rounded-lg bg-slate-50 border border-slate-200 text-rose-500 hover:bg-rose-50 transition" title="Delete Charge">
+                            <FaTrash className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="11" className="px-6 py-12 text-center text-sm text-slate-400">
+                      No matching service charges found.
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>

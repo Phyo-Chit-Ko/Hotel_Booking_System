@@ -32,7 +32,6 @@ export default function Sidebar() {
         { name: "Room Type Management", path: "/admin/room-types", icon: <FaHotel /> },
         { name: "User Management", path: "/admin/user_management", icon: <FaUserShield /> },
         { name: "Restaurant", path: "/admin/restaurant", icon: <FaUtensils /> },
-        { name: "Settings", path: "/admin/settings", icon: <FaCog /> },
         { name: "RoomLayoutEditor", path: "/admin/roomLayoutEditor", icon: <FaCog /> },
       ]
     }
