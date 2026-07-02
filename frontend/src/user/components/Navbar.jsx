@@ -1,85 +1,123 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
+// Use three dots to go up two levels
+import { useAuth } from "../../context/AuthContext";
 import './Navbar.css';
+import {
+  FaHome,
+  FaInfoCircle,
+  FaBed,
+  FaUtensils,
+  FaEnvelope,
+  FaUserCircle,
+  FaSignInAlt,
+  FaImages
+} from "react-icons/fa";
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
+  const { user, setUser } = useAuth(); // 2. Access user and setter
 
-  const toggleMenu = () => {
-    setIsOpen(!isOpen);
-  };
+  const toggleMenu = () => setIsOpen(!isOpen);
+  const closeMenu = () => setIsOpen(false);
 
-  // Close the drawer automatically when a user clicks a link
-  const closeMenu = () => {
-    setIsOpen(false);
+  const handleLogout = () => {
+    setUser(null);                   // 1. Clear State
+    localStorage.removeItem('user'); // 2. Clear Storage
+    closeMenu();
+    window.location.reload();        // 3. Force UI refresh
   };
 
   return (
     <>
-      {/* Mobile Header Bar: Only visible on small screens */}
       <div className="mobile-header">
         <div className="mobile-logo-zone">
           <span className="mobile-brand-title">RELAX HOTEL</span>
         </div>
-        <button 
-          className={`burger-menu-btn ${isOpen ? 'open' : ''}`} 
-          onClick={toggleMenu}
-          aria-label="Toggle navigation menu"
-        >
+        <button className={`burger-menu-btn ${isOpen ? 'open' : ''}`} onClick={toggleMenu}>
           <span className="burger-bar"></span>
           <span className="burger-bar"></span>
           <span className="burger-bar"></span>
         </button>
       </div>
 
-      {/* Main Sidebar Container */}
       <aside className={`sidebar ${isOpen ? 'mobile-open' : ''}`}>
-        
-        {/* Brand Identity Top Header */}
         <div className="sidebar-brand">
-          <div className="logo-container">
-            {/* Replace with your gold asset logo paths if available */}
-            <img src="/images/1.png" alt="Hotel Logo" className="brand-logo" />
-          </div>
+          <img src="/images/1.png" alt="Hotel Logo" className="brand-logo" />
           <span className="brand-title">RELAX HOTEL</span>
-          <span className="brand-subtitle">A LUXURIOUS STAY</span>
         </div>
 
-        {/* Vertical Navigation Links */}
-        <nav className="sidebar-nav">
-          <ul className="sidebar-menu">
-            <li>
-              <NavLink to="/" end onClick={closeMenu}>Home</NavLink>
-            </li>
-            <li>
-              <NavLink to="/about" onClick={closeMenu}>About</NavLink>
-            </li>
-            <li>
-              <NavLink to="/rooms" onClick={closeMenu}>Rooms</NavLink>
-            </li>
-            <li>
-              <NavLink to="/gallery" onClick={closeMenu}>Gallery</NavLink>
-            </li>
-            <li>
-              <NavLink to="/restaurant" onClick={closeMenu}>Restaurant</NavLink>
-            </li>
-            <li>
-              <NavLink to="/contact" onClick={closeMenu}>Contact Us</NavLink>
-            </li>
-          </ul>
-        </nav>
+       <nav className="sidebar-nav">
+  <ul className="sidebar-menu">
+    <li>
+      <NavLink to="/" end onClick={closeMenu}>
+        <FaHome className="nav-icon" />
+        <span>Home</span>
+      </NavLink>
+    </li>
 
-        {/* Footer & Account Link Profile Zone */}
-        <div className="sidebar-footer">
-          <NavLink to="/account" className="account-link" onClick={closeMenu}>
-            👤 Account
-          </NavLink>
-        </div>
+    <li>
+      <NavLink to="/about" onClick={closeMenu}>
+        <FaInfoCircle className="nav-icon" />
+        <span>About</span>
+      </NavLink>
+    </li>
 
+    <li>
+      <NavLink to="/rooms" onClick={closeMenu}>
+        <FaBed className="nav-icon" />
+        <span>Rooms</span>
+      </NavLink>
+    </li>
+
+    <li>
+      <NavLink to="/gallery" onClick={closeMenu}>
+        <FaImages className="nav-icon" />
+        <span>Gallery</span>
+      </NavLink>
+    </li>
+
+    <li>
+      <NavLink to="/restaurant" onClick={closeMenu}>
+        <FaUtensils className="nav-icon" />
+        <span>Restaurant</span>
+      </NavLink>
+    </li>
+
+    <li>
+      <NavLink to="/contact" onClick={closeMenu}>
+        <FaEnvelope className="nav-icon" />
+        <span>Contact Us</span>
+      </NavLink>
+    </li>
+  </ul>
+</nav>
+
+        {/* 3. Conditional Rendering for Account / Profile */}
+       <div className="sidebar-footer">
+  {user ? (
+    <>
+      <NavLink
+        to="/profile"
+        className="account-link"
+        onClick={closeMenu}
+      >
+        👤 My Account
+      </NavLink>
+    </>
+  ) : (
+    <NavLink
+      to="/account"
+      className="account-link"
+      onClick={closeMenu}
+    >
+      👤 Login / Register
+    </NavLink>
+  )}
+</div>
       </aside>
 
-      {/* Dark tint backdrop overlay for mobile view mode */}
       {isOpen && <div className="sidebar-backdrop" onClick={closeMenu}></div>}
     </>
   );
-}
+} 

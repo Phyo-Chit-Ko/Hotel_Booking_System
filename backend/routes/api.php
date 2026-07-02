@@ -7,10 +7,16 @@ use App\Http\Controllers\RoomTypeController;
 use App\Http\Controllers\RoomController;
 use App\Http\Controllers\ReservationController;
 use App\Http\Controllers\Api\RoomLayoutController;
+use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\ProfileController;
+
+Route::middleware('api')->post('/login', [AuthController::class, 'login']);
 
 Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
+
+Route::post('/register', [AuthController::class, 'register']);
 
 Route::get('/customer/{id}', [CustomerController::class, 'getCustomer']);
 
@@ -35,3 +41,5 @@ Route::apiResource('rooms', RoomController::class);
 Route::prefix('reservations')->group(function () {
     Route::post('/walk-in', [ReservationController::class, 'storeWalkIn']);
 });
+
+Route::put('/profile/update', [ProfileController::class, 'update']);

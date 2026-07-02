@@ -1,22 +1,57 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios"; // Ensure you ran 'npm install axios'
 import "./Account.css";
+import { useAuth } from "../../context/AuthContext";
 
 export default function Account() {
   const [isLogin, setIsLogin] = useState(true);
+  const [formData, setFormData] = useState({ name: "", email: "", password: "" });
   const navigate = useNavigate();
+  const { setUser } = useAuth();
 
-  const handleSubmit = (e) => {
+ const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (isLogin) {
-      // TODO: Add your login validation here
-      navigate("/admin/dashboard");
-    } else {
-      // TODO: Add your sign up logic here
-      alert("Account created successfully!");
-      setIsLogin(true);
-    }
+    try {
+      await axios.get("/sanctum/csrf-cookie");
+
+      if (isLogin) {
+        const response = await axios.post("/api/login", {
+          email: formData.email,
+          password: formData.password,
+        });
+
+        // Ensure response.data.user contains { name, role, ... }
+        if (response.data.success) {
+          const userData = response.data.user;
+          console.log("Setting user state to:", userData); // DEBUG: Check console
+          
+          setUser(userData); // This triggers the Navbar update
+
+          const { role } = userData;
+          if (role === 'manager') navigate("/admin/dashboard");
+          else if (role === 'reception') navigate("/reception-dashboard");
+          else navigate("/homepage");
+        }
+      } else {
+        const response = await axios.post("/api/register", {
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+        });
+
+        if (response.data.success) {
+          alert("Account created successfully! Please log in.");
+          setIsLogin(true);
+        }
+      }
+    } catch (error) {
+  console.log(error);
+  console.log(error.response);
+
+  alert(JSON.stringify(error.response?.data || error.message));
+}
   };
 
   return (
@@ -24,33 +59,40 @@ export default function Account() {
       <div className="auth-card">
         <h2>{isLogin ? "Welcome Back" : "Create Account"}</h2>
 
-        {/* Login / Register Form */}
         <form onSubmit={handleSubmit}>
           {!isLogin && (
-            <input
-              type="text"
-              placeholder="Full Name"
-              required
-            />
+            <div className="form-row">
+              <label>Full Name</label>
+              <input 
+                type="text" 
+                onChange={(e) => setFormData({...formData, name: e.target.value})} 
+                required 
+              />
+            </div>
           )}
 
-          <input
-            type="email"
-            placeholder="Email Address"
-            required
-          />
+          <div className="form-row">
+            <label>Email</label>
+            <input 
+              type="email" 
+              onChange={(e) => setFormData({...formData, email: e.target.value})} 
+              required 
+            />
+          </div>
 
-          <input
-            type="password"
-            placeholder="Password"
-            required
-          />
+          <div className="form-row">
+            <label>Password</label>
+            <input 
+              type="password" 
+              onChange={(e) => setFormData({...formData, password: e.target.value})} 
+              required 
+            />
+          </div>
 
           <button type="submit" className="submit-btn">
-            {isLogin ? "Login" : "Sign Up"}
+            {isLogin ? "Login" : "REGISTER"}
           </button>
         </form>
-
         <div className="divider">
           <span>OR</span>
         </div>

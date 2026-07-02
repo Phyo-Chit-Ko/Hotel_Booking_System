@@ -33,84 +33,118 @@
 .room-image-title { position: absolute; bottom: 0; width: 100%; padding: 2rem; background: linear-gradient(transparent, rgba(0,0,0,0.9)); text-align: left; }
 .room-image-title h3 { font-family: 'Playfair Display', Georgia, serif; font-size: 1.5rem; margin: 0; }
 
-/* Back Face with Padding */
-.flip-card-back { background-color: #242424; border: 1px solid #c49a5b; padding: 1.5rem; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; text-align: left; box-sizing: border-box; transform: rotateY(180deg); }
-.info-card-title { font-family: 'Playfair Display', Georgia, serif; font-size: 1.25rem; margin-bottom: 0.5rem; }
-.info-card-desc { font-size: 0.8rem; line-height: 1.5; color: #a3a3a3; margin-bottom: 1rem; }
-.info-card-specs { display: grid; gap: 0.4rem; width: 100%; margin-bottom: 1.2rem; }
-.spec-item { font-size: 0.75rem; color: #e5e5e5; display: flex; align-items: center; gap: 0.5rem; }
-.book-now-btn { background-color: transparent; color: #ffffff; border: 1px solid #c49a5b; padding: 0.5rem 1rem; font-size: 0.6rem; text-transform: uppercase; cursor: pointer; width: 100%; }
-.book-now-btn:hover { background-color: #c49a5b; color: #141414; }
+.flip-card-back{
+    position:absolute;
+    inset:0;
+    background:#2d2d2d;
+    color:#fff;
+    border-radius:18px;
+    padding:35px 30px;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    backface-visibility:hidden;
+    transform:rotateY(180deg);
+}
+
+.info-card-title{
+    font-size:1.5rem;
+    font-weight:600;
+    margin-bottom:18px;
+    color:#fff;
+}
+
+.info-card-desc{
+    color:#c9c9c9;
+    line-height:1.8;
+    font-size:15px;
+    margin-bottom:28px;
+}
+
+.room-features{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:15px 18px;
+    margin-bottom:35px;
+}
+
+.feature{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    color:#d8d8d8;
+    font-size:15px;
+}
+
+.feature span:first-child{
+    font-size:18px;
+    color:#d4af37;
+}
+
+.book-now-btn{
+    margin-top:auto;
+    align-self:center;
+    width:180px;
+    padding:14px 0;
+    border:2px solid #d4af37;
+    background:transparent;
+    color:#d4af37;
+    font-size:15px;
+    font-weight:600;
+    border-radius:6px;
+    cursor:pointer;
+    transition:.3s ease;
+}
+
+.book-now-btn:hover{
+    background:#d4af37;
+    color:#222;
+}
 
 /* Modal Overlay Styling */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.85);
+/* --- Modal & Form Styles --- */
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+.reservation-form { background: #1c1c1c; padding: 1.5rem; border: 1px solid #c49a5b; width: 90%; max-width: 800px; color: #f5f5f4; overflow-y: hidden; }
+.reservation-form h2 { font-family: 'Playfair Display', serif; color: #c49a5b; text-align: center; margin-bottom: 1rem; font-size: 1.4rem; }
+
+.form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 10px; }
+.field-group { display: flex; flex-direction: column; gap: 4px; }
+.field-group label { font-size: 0.65rem; text-transform: uppercase; color: #a3a3a3; }
+.reservation-form input, .reservation-form select, .reservation-form textarea { width: 100%; padding: 8px; background: #242424; border: 1px solid #333; color: white; }
+
+.form-actions {
   display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-  backdrop-filter: blur(5px);
+  gap: 15px;
+  margin-top: 1.5rem;
 }
 
-.reservation-form {
-  background: #1c1c1c;
-  padding: 3rem;
-  border: 1px solid #c49a5b;
-  width: 90%;
-  max-width: 450px;
-  color: #f5f5f4;
-  position: relative;
-}
-
-.reservation-form h2 {
-  font-family: 'Playfair Display', Georgia, serif;
-  margin-bottom: 1.5rem;
-  color: #c49a5b;
-}
-
-.reservation-form input, 
-.reservation-form textarea {
-  width: 100%;
-  padding: 12px;
-  margin-bottom: 1rem;
-  background: #242424;
-  border: 1px solid #333;
-  color: white;
-  box-sizing: border-box;
-}
-
-.reservation-form input:focus {
-  border-color: #c49a5b;
-  outline: none;
-}
-
-.submit-btn {
-  background-color: #c49a5b;
-  color: #141414;
-  border: none;
-  padding: 1rem;
-  width: 100%;
+/* Force both buttons to be identical in shape and size */
+.submit-btn, 
+.cancel-btn {
+  flex: 1;                /* Makes them share the row equally */
+  padding: 12px 0;        /* Uniform vertical padding */
   text-transform: uppercase;
   font-weight: bold;
   cursor: pointer;
-  transition: 0.3s;
+  border: 1px solid #c49a5b; /* Shared border thickness */
+  border-radius: 4px;      /* Consistent rounding */
+  text-align: center;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
 }
 
-.submit-btn:hover { background-color: #e5b874; }
-
-.cancel-btn {
-  background: transparent;
-  color: #666;
-  border: 1px solid #333;
-  padding: 0.8rem;
-  width: 100%;
-  margin-top: 10px;
-  cursor: pointer;
+.submit-btn { 
+  background-color: #c49a5b; 
+  color: #141414; 
 }
 
-.cancel-btn:hover { border-color: #c49a5b; color: #c49a5b; }
+.cancel-btn { 
+  background: transparent; 
+  color: #c49a5b; 
+}
+
+/* Hover effects for symmetry */
+.submit-btn:hover { background-color: #d4a760; border-color: #d4a760; }
+.cancel-btn:hover { background-color: rgba(196, 154, 91, 0.1); }
+.file-upload-btn { display: block; width: 100%; padding: 10px; background: #242424; border: 1px solid #333; color: #c49a5b; text-align: center; cursor: pointer; font-size: 0.8rem; font-weight: bold; margin-bottom: 1rem; }
+.file-upload-btn:hover { background: #333; }

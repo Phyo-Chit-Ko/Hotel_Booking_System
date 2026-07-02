@@ -16,7 +16,7 @@ export default function Home() {
       {/* HERO SECTION */}
       <div className="hero-section">
         <video className="hero-video" autoPlay loop muted playsInline>
-          <source src="/videos/1video.mp4" type="video/mp4" />
+          <source src="/assets/videos/video1.mp4" type="video/mp4" />
           Your browser does not support the video tag.
         </video>
         <div className="hero-overlay"></div>

@@ -6,7 +6,7 @@ export default function Contact() {
     <div className="contact-page">
       {/* Contact Hero Image */}
       <div className="contact-hero">
-        <img src="/images/5.png" alt="Contact Us" className="hero-img" />
+        <img src="/images/16.jpg" alt="Contact Us" className="hero-img" />
         <div className="hero-overlay">
           <h1>Get In Touch</h1>
         </div>
