@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('guests', function (Blueprint $table) {
-            $table->id('guest_id'); // (pk)
+            $table->id('guest_id'); 
             $table->string('first_name');
             $table->string('last_name');
             $table->string('email')->unique();
@@ -23,9 +23,7 @@ return new class extends Migration
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
+  
     public function down(): void
     {
         Schema::dropIfExists('guests');

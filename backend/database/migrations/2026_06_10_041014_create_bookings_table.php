@@ -23,12 +23,14 @@ return new class extends Migration
             $table->foreignId('room_type_id')
                 ->constrained('room_types', 'room_type_id')
                 ->onDelete('cascade');
-
+            $table->string('bed_preference')->nullable();
             $table->date('check_in_date');
             $table->date('check_out_date');
             $table->unsignedInteger('total_room')->default(1);
             $table->unsignedInteger('adult')->default(1);
             $table->unsignedInteger('child')->default(0);
+            $table->decimal('deposit', 10, 2)->default(0.00);
+            $table->string('deposit_screenshot')->nullable();
             $table->string('status')->default('pending');
 
             $table->timestamp('created_at')->useCurrent();

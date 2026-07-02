@@ -47,6 +47,7 @@ export default function RoomTypeManagement() {
       // Always send numOfRooms (camelCase) — controller maps it to num_of_rooms
       const payload = {
         name:       formData.name,
+        code:       formData.code,
         numOfRooms: parseInt(formData.numOfRooms || formData.num_of_rooms || 0),
         base_price: parseFloat(formData.base_price),
         capacity:   parseInt(formData.capacity),

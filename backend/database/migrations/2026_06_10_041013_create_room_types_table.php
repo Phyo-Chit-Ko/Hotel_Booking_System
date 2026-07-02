@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('room_types', function (Blueprint $table) {
             $table->id('room_type_id');
-            $table->string('code', 10)->unique()->nullable();         // ← ADD THIS: SUP, DS, JS, PRES
+            $table->string('code', 10)->unique()->nullable();     
             $table->string('name', 100);
             $table->unsignedSmallInteger('num_of_rooms')->default(0);
             $table->decimal('base_price', 10, 2);

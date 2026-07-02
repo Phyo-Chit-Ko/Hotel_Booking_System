@@ -33,7 +33,7 @@ class RoomTypeController extends Controller
             'breakfast'    => $request->breakfast,
             'bathtub'      => $request->bathtub,
             'status'       => 'Active',
-            'code'         => 'SUP'
+            'code'         => $request->code,
         ]);
 
         return response()->json([
@@ -63,6 +63,7 @@ class RoomTypeController extends Controller
             'capacity'     => $request->capacity,
             'breakfast'    => $request->breakfast,
             'bathtub'      => $request->bathtub,
+            'code'         => $request->code, 
         ]);
 
         return response()->json([

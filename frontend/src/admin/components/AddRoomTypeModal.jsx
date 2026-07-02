@@ -1,30 +1,35 @@
 import { useState, useEffect } from "react";
 import { FaTimes, FaBed, FaDollarSign, FaUsers, FaCoffee, FaHotTub } from "react-icons/fa";
 
+// Move this OUTSIDE the component so it never causes a lifecycle/scope compilation error
+const initialFormState = {
+  name:       "",
+  code:       "",   
+  numOfRooms: "",   
+  base_price: "",
+  capacity:   "2",
+  breakfast:  false,
+  bathtub:    false,
+};
+
 export default function AddRoomTypeModal({ isOpen, onClose, onSave, roomToEdit = null }) {
-  if (!isOpen) return null;
-
-  const initialFormState = {
-    name:       "",
-    numOfRooms: "",   // always camelCase here — controller maps to num_of_rooms
-    base_price: "",
-    capacity:   "2",
-    breakfast:  false,
-    bathtub:    false,
-  };
-
+  // All hooks MUST run on every render, regardless of `isOpen`.
+  // The `if (!isOpen) return null;` guard has to come AFTER these,
+  // otherwise this component calls a different number of hooks
+  // depending on isOpen, which breaks React's Rules of Hooks and
+  // is very likely why saving/editing was misbehaving.
   const [formData, setFormData] = useState(initialFormState);
-  const [errors, setErrors]     = useState({});
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     setErrors({});
     if (roomToEdit) {
       setFormData({
         name:       roomToEdit.name       || "",
-        // DB returns num_of_rooms — map it to numOfRooms for the form
+        code:       roomToEdit.code       || "", 
         numOfRooms: roomToEdit.num_of_rooms ?? roomToEdit.numOfRooms ?? "",
-        base_price: roomToEdit.base_price  || "",
         capacity:   String(roomToEdit.capacity || "2"),
+        base_price: roomToEdit.base_price  || "",
         breakfast:  roomToEdit.breakfast === 1 || roomToEdit.breakfast === true,
         bathtub:    roomToEdit.bathtub   === 1 || roomToEdit.bathtub   === true,
       });
@@ -32,6 +37,9 @@ export default function AddRoomTypeModal({ isOpen, onClose, onSave, roomToEdit =
       setFormData(initialFormState);
     }
   }, [roomToEdit, isOpen]);
+
+  // Safe to bail out AFTER all hooks have been called.
+  if (!isOpen) return null;
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -41,12 +49,18 @@ export default function AddRoomTypeModal({ isOpen, onClose, onSave, roomToEdit =
 
   const validateForm = () => {
     const tempErrors = {};
-    if (!formData.name.trim())                          tempErrors.name       = "Room type name is required.";
-    else if (formData.name.trim().length < 3)           tempErrors.name       = "Name must be at least 3 characters.";
-    if (!formData.numOfRooms)                           tempErrors.numOfRooms = "Room count is required.";
-    else if (parseInt(formData.numOfRooms) <= 0)        tempErrors.numOfRooms = "Must be at least 1 room.";
-    if (!formData.base_price)                           tempErrors.base_price = "Base price is required.";
-    else if (parseFloat(formData.base_price) < 0)      tempErrors.base_price = "Price cannot be negative.";
+    if (!formData.name.trim())                    tempErrors.name = "Room type name is required.";
+    else if (formData.name.trim().length < 3)     tempErrors.name = "Name must be at least 3 characters.";
+    
+    if (!formData.code.trim())                    tempErrors.code = "Room code is required.";
+    else if (formData.code.trim().length > 5)     tempErrors.code = "Code cannot exceed 5 characters.";
+
+    if (!formData.numOfRooms)                      tempErrors.numOfRooms = "Room count is required.";
+    else if (parseInt(formData.numOfRooms) <= 0)  tempErrors.numOfRooms = "Must be at least 1 room.";
+    
+    if (!formData.base_price)                     tempErrors.base_price = "Base price is required.";
+    else if (parseFloat(formData.base_price) < 0) tempErrors.base_price = "Price cannot be negative.";
+    
     setErrors(tempErrors);
     return Object.keys(tempErrors).length === 0;
   };
@@ -54,7 +68,14 @@ export default function AddRoomTypeModal({ isOpen, onClose, onSave, roomToEdit =
   const handleSubmit = (e) => {
     e.preventDefault();
     if (validateForm()) {
-      onSave(formData, roomToEdit ? roomToEdit.room_type_id : null);
+      // Convert booleans explicitly to 1 or 0 so Laravel's 'boolean' validation passes seamlessly
+      const sanitizedData = {
+        ...formData,
+        breakfast: formData.breakfast ? 1 : 0,
+        bathtub: formData.bathtub ? 1 : 0,
+      };
+
+      onSave(sanitizedData, roomToEdit ? roomToEdit.room_type_id : null);
       onClose();
     }
   };
@@ -80,7 +101,7 @@ export default function AddRoomTypeModal({ isOpen, onClose, onSave, roomToEdit =
               {roomToEdit ? "Modify configuration parameters." : "Configure capacity, amenities and base rate."}
             </p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 bg-white shadow-sm border p-2.5 rounded-xl transition">
+          <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 bg-white shadow-sm border p-2.5 rounded-xl transition">
             <FaTimes />
           </button>
         </div>
@@ -98,8 +119,22 @@ export default function AddRoomTypeModal({ isOpen, onClose, onSave, roomToEdit =
             {errors.name && <p className="text-xs text-rose-500 mt-1.5 ml-1">{errors.name}</p>}
           </div>
 
-          {/* Rooms count + Base price */}
+          {/* Code + Rooms count */}
           <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Code</label>
+              <input 
+                type="text" 
+                name="code" 
+                value={formData.code} 
+                onChange={handleChange}
+                placeholder="Dlx"
+                className={`px-4 py-2.5 bg-slate-50 border rounded-xl w-full text-sm focus:outline-none focus:ring-2 transition-all ${
+                  errors.code ? "border-rose-300 focus:ring-rose-500/20" : "border-slate-200 focus:ring-blue-500/20 focus:border-blue-500"
+                }`} 
+              />
+              {errors.code && <p className="text-xs text-rose-500 mt-1.5 ml-1">{errors.code}</p>}
+            </div>
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">Total Rooms</label>
               <input type="number" name="numOfRooms" value={formData.numOfRooms} onChange={handleChange}
@@ -109,6 +144,25 @@ export default function AddRoomTypeModal({ isOpen, onClose, onSave, roomToEdit =
                 }`} />
               {errors.numOfRooms && <p className="text-xs text-rose-500 mt-1.5 ml-1">{errors.numOfRooms}</p>}
             </div>
+          </div>
+
+          {/* Capacity + Base Price */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Max Guest Capacity</label>
+              <div className="relative">
+                <FaUsers className="absolute left-4 top-3.5 text-slate-400" />
+                <select name="capacity" value={formData.capacity} onChange={handleChange}
+                  className="pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 appearance-none">
+                  <option value="1">1 Person</option>
+                  <option value="2">2 People</option>
+                  <option value="3">3 People</option>
+                  <option value="4">4 People</option>
+                  <option value="5">5 People</option>
+                  <option value="6">6+ People</option>
+                </select>
+              </div>
+            </div>
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">Base Price / Night</label>
               <div className="relative">
@@ -117,23 +171,6 @@ export default function AddRoomTypeModal({ isOpen, onClose, onSave, roomToEdit =
                   placeholder="0.00" className={inp("base_price")} />
               </div>
               {errors.base_price && <p className="text-xs text-rose-500 mt-1.5 ml-1">{errors.base_price}</p>}
-            </div>
-          </div>
-
-          {/* Capacity */}
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Max Guest Capacity</label>
-            <div className="relative">
-              <FaUsers className="absolute left-4 top-3.5 text-slate-400" />
-              <select name="capacity" value={formData.capacity} onChange={handleChange}
-                className="pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 appearance-none">
-                <option value="1">1 Person</option>
-                <option value="2">2 People</option>
-                <option value="3">3 People</option>
-                <option value="4">4 People</option>
-                <option value="5">5 People</option>
-                <option value="6">6+ People</option>
-              </select>
             </div>
           </div>
 

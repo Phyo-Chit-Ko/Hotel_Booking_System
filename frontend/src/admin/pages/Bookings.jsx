@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import AdminLayout from "../layouts/AdminLayout";
+import AddBookingModal from "../components/AddBookingModal"; // Adjust path based on your folder structure
 import {
   FaSearch,
   FaCalendarCheck,
@@ -66,6 +67,9 @@ export default function BookingManagement() {
 
   // Added managed state for the date input
   const [selectedDate, setSelectedDate] = useState(getTodayDateString());
+
+  // Modal Visibility State
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const getStatusStyle = (status) => {
     switch (status) {
@@ -158,6 +162,15 @@ export default function BookingManagement() {
                 }}
               />
             </div>
+            <div className="h-11 ml-auto">
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(true)}
+                className="h-full px-5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-xl flex items-center justify-center gap-2 shadow-sm transition active:scale-95"
+              >
+                <span>Add New</span>
+              </button>
+            </div>
           </div>
 
           {/* Nested Data Table Box */}
@@ -233,6 +246,13 @@ export default function BookingManagement() {
         </div>
 
       </div>
+
+      {/* Add Booking Modal Trigger Configuration */}
+      <AddBookingModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        selectedRoom={{ title: "New Suite Room" }} // Optional: Send initial room properties if needed
+      />
     </AdminLayout>
   );
 }
