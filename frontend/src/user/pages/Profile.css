@@ -135,7 +135,7 @@ label {
 }
 
 .edit {
-  background: #d4af37;
+  background: #6bf86e;
   color: black;
 }
 
@@ -199,4 +199,18 @@ label {
 
 .eye-icon:hover {
   opacity: 1;
+}
+.btn.bookings {
+  background-color: #f39c12; /* Or your preferred gold/accent color */
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  cursor: pointer;
+  border-radius: 5px;
+  margin: 5px;
+  transition: background 0.3s;
+}
+
+.btn.bookings:hover {
+  background-color: #d68910;
 }

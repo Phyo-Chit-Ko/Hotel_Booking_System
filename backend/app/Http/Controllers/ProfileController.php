@@ -10,38 +10,33 @@ class ProfileController extends Controller
 {
     public function update(Request $request)
     {
-        
-        // 1. validate first
+
+        // Debugging line:
+        if (!$request->user()) {
+            return response()->json(['message' => 'User is not authenticated!'], 401);
+        }
+        // 1. Validate only the profile fields
         $request->validate([
-            'user_id' => 'required',
-            'name' => 'required',
-            'email' => 'required|email',
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email,' . $request->user()->id,
+            'old_password' => 'nullable',
+            'new_password' => 'nullable|min:8',
         ]);
 
-        // 2. correct query (ONLY ONCE)
-        $user = User::where('user_id', $request->user_id)->first();
+        // 2. Get the authenticated user directly
+        $user = $request->user();
 
-        if (!$user) {
-            return response()->json([
-                'message' => 'User not found'
-            ], 404);
-        }
-
-        // 3. password check (optional)
+        // 3. Handle password change
         if ($request->old_password) {
             if (!Hash::check($request->old_password, $user->password)) {
-                return response()->json([
-                    'message' => 'Old password incorrect'
-                ], 400);
+                return response()->json(['message' => 'Old password incorrect'], 400);
             }
-
             $user->password = Hash::make($request->new_password);
         }
 
-        // 4. update fields
+        // 4. Update fields
         $user->name = $request->name;
         $user->email = $request->email;
-
         $user->save();
 
         return response()->json([

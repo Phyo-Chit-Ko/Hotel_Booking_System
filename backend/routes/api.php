@@ -42,4 +42,4 @@ Route::prefix('reservations')->group(function () {
     Route::post('/walk-in', [ReservationController::class, 'storeWalkIn']);
 });
 
-Route::put('/profile/update', [ProfileController::class, 'update']);
+Route::middleware('auth:sanctum')->put('/profile/update', [ProfileController::class, 'update']);

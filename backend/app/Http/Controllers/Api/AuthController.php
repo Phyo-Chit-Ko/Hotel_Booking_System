@@ -13,27 +13,36 @@ class AuthController extends Controller
     // Handle Login
     public function login(Request $request)
     {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
-        ]);
-
         $user = User::where('email', $request->email)->first();
 
-        // Check if user exists and password is correct
-        if (!$user || !Hash::check($request->password, $user->password)) {
-            return response()->json(['message' => 'Invalid credentials'], 401);
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found'
+            ], 401);
         }
 
-        // Return user data for your frontend state
+        if (!Hash::check($request->password, $user->password)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Password is incorrect'
+            ], 401);
+        }
+
+        $token = $user->createToken('auth_token')->plainTextToken;
+
         return response()->json([
             'success' => true,
+            'token' => $token,
             'user' => [
+                'id' => $user->user_id,
                 'name' => $user->name,
+                'email' => $user->email,
                 'role' => $user->role
             ]
         ]);
     }
+    
 
     // Handle Registration
     public function register(Request $request)
