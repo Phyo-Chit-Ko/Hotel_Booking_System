@@ -46,15 +46,17 @@ Route::prefix('reservations')->group(function () {
     // Route::post('/walk-in', [ReservationController::class, 'storeWalkIn']);
 });
 Route::get('/bookings', [BookingController::class, 'index']);
-Route::put('/profile/update', [ProfileController::class, 'update']);
 Route::post('/bookings', [BookingController::class, 'store']);
 
+// Secured — was previously unprotected, now requires an authenticated user
+Route::middleware('auth:sanctum')->put('/profile/update', [ProfileController::class, 'update']);
 
 Route::get('/guests/search', [GuestController::class, 'search']);
 Route::post('/guests', [GuestController::class, 'store']);
+Route::delete('/guests/{id}', [GuestController::class, 'destroy']);
 
 Route::get('/reservations', [ReservationController::class, 'index']);
 Route::post('/reservations', [ReservationController::class, 'store']);
-Route::delete('/guests/{id}', [GuestController::class, 'destroy']);
 Route::delete('/reservations/{id}', [ReservationController::class, 'destroy']);
+
 Route::post('/payments', [PaymentController::class, 'store']);

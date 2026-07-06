@@ -24,16 +24,22 @@ export default function Account() {
 
         // Ensure response.data.user contains { name, role, ... }
         if (response.data.success) {
-          const userData = response.data.user;
-          console.log("Setting user state to:", userData); // DEBUG: Check console
-          
-          setUser(userData); // This triggers the Navbar update
+  const userData = response.data.user;
 
-          const { role } = userData;
-          if (role === 'manager') navigate("/admin/dashboard");
-          else if (role === 'reception') navigate("/reception-dashboard");
-          else navigate("/homepage");
-        }
+  // Save token
+  localStorage.setItem("token", response.data.token);
+
+  // Save user
+  localStorage.setItem("user", JSON.stringify(userData));
+
+  setUser(userData);
+
+  const { role } = userData;
+
+  if (role === "manager") navigate("/admin/dashboard");
+  else if (role === "reception") navigate("/reception-dashboard");
+  else navigate("/homepage");
+}
       } else {
         const response = await axios.post("/api/register", {
           name: formData.name,

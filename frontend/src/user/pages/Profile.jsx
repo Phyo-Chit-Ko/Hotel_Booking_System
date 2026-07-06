@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
 import axios from "axios";
 import "./Profile.css";
+import { useNavigate } from "react-router-dom"; // Add this import
 
 export default function Profile() {
   const { user, setUser } = useAuth();
@@ -14,26 +15,31 @@ export default function Profile() {
   old_password: "",
   password: ""
 });
-  const handleSave = async () => {
+ const handleSave = async () => {
+  const token = localStorage.getItem("token");
+  console.log("Token being sent:", token); // If this prints 'null', the issue is in your Login component
+
   try {
     const res = await axios.put("http://localhost:8000/api/profile/update", {
-      user_id: user.user_id,
       name: form.name,
       email: form.email,
-      old_password: form.old_password || "",
-      new_password: form.password || ""
+      old_password: form.old_password || null,
+      new_password: form.password || null
+    }, {
+      headers: {
+        "Authorization": `Bearer ${token}`, // Ensure this header is exactly right
+        "Accept": "application/json"
+      }
     });
 
     const updatedUser = res.data.user;
-
     setUser(updatedUser);
     localStorage.setItem("user", JSON.stringify(updatedUser));
-
     setEditing(false);
     alert("Profile updated successfully!");
   } catch (err) {
-    console.log(err);
-    alert(err.response?.data?.message || "Update failed");
+    console.error("Full error response:", err.response);
+    alert("Update failed: " + (err.response?.data?.message || "Check console for details"));
   }
 };
 
@@ -69,10 +75,11 @@ export default function Profile() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("user");
-    setUser(null);
-    window.location.href = "/";
-  };
+  localStorage.removeItem("token");
+  localStorage.removeItem("user");
+  setUser(null);
+  window.location.href = "/";
+};
 
   const goBack = () => {
     window.history.back();
@@ -169,13 +176,20 @@ export default function Profile() {
           <div className="actions">
             {!editing ? (
               <button className="btn edit" onClick={() => setEditing(true)}>
-                ✏ Edit Profile
+                ✏ Edit
               </button>
             ) : (
               <button className="btn save" onClick={handleSave}>
                 💾 Save Changes
               </button>
             )}
+
+            <button 
+    className="btn bookings" 
+    onClick={() => window.location.href = "/my-bookings"}
+  >
+    📅Bookings
+  </button>
 
             <button className="btn logout" onClick={handleLogout}>
               Logout
