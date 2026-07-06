@@ -5,10 +5,13 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\RoomTypeController;
 use App\Http\Controllers\RoomController;
-use App\Http\Controllers\ReservationController;
+use App\Http\Controllers\Api\GuestController;
+use App\Http\Controllers\Api\ReservationController;
+use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\RoomLayoutController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\BookingController;
 
 Route::middleware('api')->post('/login', [AuthController::class, 'login']);
 
@@ -33,13 +36,25 @@ Route::apiResource('room-types', RoomTypeController::class);
 // treating "layout" as a room ID → must define specific routes first
 Route::get('/rooms/layout',  [RoomLayoutController::class, 'getLayout']);
 Route::post('/rooms/layout', [RoomLayoutController::class, 'saveLayout']);
-
+Route::get('/rooms/available', [RoomController::class, 'available']); // must be BEFORE the next line
+Route::get('/rooms/{roomNumber}', [RoomController::class, 'show']);
 Route::patch('rooms/{room_number}/toggle-status', [RoomController::class, 'toggleStatus']);
 Route::apiResource('rooms', RoomController::class);
 
 // ── Reservations ──────────────────────────────────────────────────────────────
 Route::prefix('reservations')->group(function () {
-    Route::post('/walk-in', [ReservationController::class, 'storeWalkIn']);
+    // Route::post('/walk-in', [ReservationController::class, 'storeWalkIn']);
 });
-
+Route::get('/bookings', [BookingController::class, 'index']);
 Route::put('/profile/update', [ProfileController::class, 'update']);
+Route::post('/bookings', [BookingController::class, 'store']);
+
+
+Route::get('/guests/search', [GuestController::class, 'search']);
+Route::post('/guests', [GuestController::class, 'store']);
+
+Route::get('/reservations', [ReservationController::class, 'index']);
+Route::post('/reservations', [ReservationController::class, 'store']);
+Route::delete('/guests/{id}', [GuestController::class, 'destroy']);
+Route::delete('/reservations/{id}', [ReservationController::class, 'destroy']);
+Route::post('/payments', [PaymentController::class, 'store']);

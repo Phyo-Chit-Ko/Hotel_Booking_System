@@ -13,16 +13,11 @@ return new class extends Migration
     {
         Schema::create('bookings', function (Blueprint $table) {
             $table->id('booking_id');
-
-            // FK -> guests.guest_id
-            $table->foreignId('guest_id')
-                ->constrained('guests', 'guest_id')
-                ->onDelete('cascade');
-
-            // FK -> room_types.room_type_id
-            $table->foreignId('room_type_id')
-                ->constrained('room_types', 'room_type_id')
-                ->onDelete('cascade');
+            $table->foreignId('room_type_id')->constrained('room_types', 'room_type_id')->onDelete('cascade');
+            $table->string('first_name');
+            $table->string('last_name');
+            $table->string('email');
+            $table->string('phone');
             $table->string('bed_preference')->nullable();
             $table->date('check_in_date');
             $table->date('check_out_date');
@@ -32,8 +27,8 @@ return new class extends Migration
             $table->decimal('deposit', 10, 2)->default(0.00);
             $table->string('deposit_screenshot')->nullable();
             $table->string('special_requests')->nullable();
+            $table->string('payment_method')->nullable();
             $table->string('status')->default('pending');
-
             $table->timestamp('created_at')->useCurrent();
         });
     }

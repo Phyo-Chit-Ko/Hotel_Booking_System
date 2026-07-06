@@ -1,74 +1,156 @@
 <?php
-header("Access-Control-Allow-Origin: *");
+// Lock CORS to your actual dev origin, not '*'
+header("Access-Control-Allow-Origin: http://localhost:5173");
 header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
 header("Content-Type: application/json");
 
-if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
     exit;
 }
 
-$screenshot_path = null;
-$guest_id = null;
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode(["message" => "Method not allowed."]);
+    exit;
+}
 
+function fail(int $code, string $message): void
+{
+    http_response_code($code);
+    echo json_encode(["message" => $message]);
+    exit;
+}
+
+// ---- 1. Validate required fields up front ----
+$required = [
+    'first_name', 'last_name', 'email', 'phone',
+    'adult', 'total_room', 'bed_preference',
+    'check_in_date', 'check_out_date', 'room_type_id',
+];
+
+foreach ($required as $field) {
+    if (!isset($_POST[$field]) || trim($_POST[$field]) === '') {
+        fail(400, "Missing required field: $field");
+    }
+}
+
+if (!filter_var($_POST['email'], FILTER_VALIDATE_EMAIL)) {
+    fail(400, "Invalid email address.");
+}
+
+if (strtotime($_POST['check_out_date']) <= strtotime($_POST['check_in_date'])) {
+    fail(400, "Check-out date must be after check-in date.");
+}
+
+if (!isset($_FILES['deposit_screenshot']) || $_FILES['deposit_screenshot']['error'] !== UPLOAD_ERR_OK) {
+    fail(400, "Payment screenshot is required.");
+}
+
+// ---- 2. Validate the uploaded file ----
+$file = $_FILES['deposit_screenshot'];
+$allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+$maxSize = 5 * 1024 * 1024; // 5MB
+
+$finfo = finfo_open(FILEINFO_MIME_TYPE);
+$mimeType = finfo_file($finfo, $file['tmp_name']);
+finfo_close($finfo);
+
+if (!in_array($mimeType, $allowedTypes, true)) {
+    fail(400, "Payment screenshot must be a JPG or PNG image.");
+}
+
+if ($file['size'] > $maxSize) {
+    fail(400, "Payment screenshot must be under 5MB.");
+}
+
+$extMap = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/jpg' => 'jpg'];
+$ext = $extMap[$mimeType];
+
+// CHANGED: save into Laravel's public disk location instead of a local uploads/ folder
+// __DIR__ is backend/, so this resolves to backend/storage/app/public/deposit_screenshots/
+$uploadDir = __DIR__ . '/storage/app/public/deposit_screenshots/';
+if (!is_dir($uploadDir)) {
+    mkdir($uploadDir, 0755, true);
+}
+
+// Random filename — never trust the original uploaded filename
+$filename = bin2hex(random_bytes(16)) . '.' . $ext;
+$destination = $uploadDir . $filename;
+
+if (!move_uploaded_file($file['tmp_name'], $destination)) {
+    fail(500, "Failed to save the uploaded file.");
+}
+
+// CHANGED: path stored in DB must be relative to the 'public' disk root
+// (storage/app/public), matching what Storage::url() expects in BookingController
+$screenshotPath = 'deposit_screenshots/' . $filename;
+
+// ---- 3. Sanitize / cast the rest of the input ----
+$first_name       = trim($_POST['first_name']);
+$last_name        = trim($_POST['last_name']);
+$email            = trim($_POST['email']);
+$phone            = trim($_POST['phone']);
+$adult            = (int) $_POST['adult'];
+$child            = isset($_POST['child']) && $_POST['child'] !== '' ? (int) $_POST['child'] : 0;
+$total_room       = (int) $_POST['total_room'];
+$bed_preference   = trim($_POST['bed_preference']);
+$check_in_date    = $_POST['check_in_date'];
+$check_out_date   = $_POST['check_out_date'];
+$special_requests = trim($_POST['special_requests'] ?? '');
+$room_type_id     = (int) $_POST['room_type_id'];
+$deposit          = 45.00; // fixed server-side, never trust a client-submitted price
+
+if ($adult < 1 || $total_room < 1) {
+    fail(400, "Adult count and total rooms must be at least 1.");
+}
+
+// ---- 4. Insert into bookings ----
 try {
-    // 1. ADD THIS CONNECTION BLOCK BACK
     $host = 'localhost';
     $db   = 'hotel-management';
     $user = 'root';
     $pass = '';
-    $pdo = new PDO("mysql:host=$host;dbname=$db", $user, $pass);
+
+    $pdo = new PDO("mysql:host=$host;dbname=$db;charset=utf8mb4", $user, $pass);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    // 2. Start the transaction
-    $pdo->beginTransaction();
+    $sql = "INSERT INTO bookings
+        (room_type_id, first_name, last_name, email, phone, bed_preference,
+         check_in_date, check_out_date, total_room, adult, child,
+         deposit, deposit_screenshot, special_requests, status)
+        VALUES
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')";
 
-    // 3. Handle File Upload
-    if (isset($_FILES['deposit_screenshot']) && $_FILES['deposit_screenshot']['error'] === UPLOAD_ERR_OK) {
-        $upload_dir = 'uploads/';
-        if (!is_dir($upload_dir)) mkdir($upload_dir, 0777, true);
-        $filename = time() . '_' . basename($_FILES['deposit_screenshot']['name']);
-        $screenshot_path = $upload_dir . $filename;
-        move_uploaded_file($_FILES['deposit_screenshot']['tmp_name'], $screenshot_path);
-    }
-
-    // 4. Insert Guest
-    $sqlGuest = "INSERT INTO guests (first_name, last_name, email, phone, nationality) VALUES (?, ?, ?, ?, ?)";
-    $stmtG = $pdo->prepare($sqlGuest);
-    $stmtG->execute([
-        $_POST['first_name'],
-        $_POST['last_name'],
-        $_POST['email'],
-        $_POST['phone'],
-        $_POST['nationality']
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([
+        $room_type_id,
+        $first_name,
+        $last_name,
+        $email,
+        $phone,
+        $bed_preference,
+        $check_in_date,
+        $check_out_date,
+        $total_room,
+        $adult,
+        $child,
+        $deposit,
+        $screenshotPath,
+        $special_requests,
     ]);
 
-    $guest_id = $pdo->lastInsertId();
-
-    // 5. Insert Booking
-    if ($guest_id) {
-        $sqlBooking = "INSERT INTO bookings 
-            (guest_id, room_type_id, bed_preference, check_in_date, check_out_date, total_room, adult, child, deposit, deposit_screenshot, special_requests, status) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')";
-
-        $pdo->prepare($sqlBooking)->execute([
-            $guest_id,
-            $_POST['room_type_id'],
-            $_POST['bed_preference'],
-            $_POST['check_in_date'],
-            $_POST['check_out_date'],
-            $_POST['total_room'],
-            $_POST['adult'],
-            $_POST['child'],
-            $_POST['deposit'],
-            $screenshot_path,
-            $_POST['special_requests']
-        ]);
+    echo json_encode([
+        "message"    => "Booking registered successfully!",
+        "booking_id" => $pdo->lastInsertId(),
+    ]);
+} catch (PDOException $e) {
+    // Clean up the uploaded file if the DB insert failed
+    if (file_exists($destination)) {
+        unlink($destination);
     }
-
-    $pdo->commit();
-    echo json_encode(["message" => "Booking registered successfully!"]);
-} catch (Exception $e) {
-    if (isset($pdo) && $pdo->inTransaction()) $pdo->rollBack();
-    echo json_encode(["message" => "Database Error: " . $e->getMessage()]);
+    // Don't leak raw DB error details to the client in production
+    error_log($e->getMessage());
+    fail(500, "Something went wrong while saving your booking. Please try again.");
 }

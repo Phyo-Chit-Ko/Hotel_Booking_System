@@ -15,12 +15,12 @@ return new class extends Migration
             $table->id('user_id');
             $table->string('name');
             $table->string('email')->unique();
-            $table->timestamp('email_verified_at')->nullable(); // Add this
+            $table->timestamp('email_verified_at')->nullable(); 
             $table->string('password');
-            $table->string('remember_token')->nullable();       // Add this
-            $table->string('phone')->default('0000000000'); // Add default
-            $table->string('status')->default('active');    // Add default
-            $table->string('role')->default('user');       // Add default
+            $table->string('remember_token')->nullable();      
+            $table->string('phone')->default('0000000000');
+            $table->string('status')->default('active');    
+            $table->string('role')->default('user');       
             $table->timestamps();
         });
 
