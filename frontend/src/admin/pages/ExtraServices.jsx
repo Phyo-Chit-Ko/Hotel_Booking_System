@@ -55,36 +55,38 @@ const ExtraServices = () => {
   const closeModal = () => { setIsModalOpen(false); setChargeToEdit(null); };
 
   // 2. Fire an HTTP DELETE request to remove records from XAMPP
-  const handleDeleteCharge = async (id) => {
-    if (window.confirm("Are you sure you want to permanently delete this charge row?")) {
+  const handleDelete = async (id) => {
+    if (window.confirm("Are you sure you want to delete this charge?")) {
       try {
-        const response = await axios.delete(`/api/services/${id}`);
-        if (response.data.success) {
-          fetchServices(); // Refresh table state
-        }
+        // Direct call bypassing global prefix matching issues
+        await axios.delete(`http://127.0.0.1:8000/api/services/${id}`);
+        
+        alert("Deleted successfully!");
+        fetchServices(); // Refresh the table list data automatically
       } catch (error) {
-        console.error("Failed to delete item:", error);
+        console.error("Delete Error:", error);
+        alert("Failed to delete record: " + (error.response?.data?.message || error.message));
       }
     }
   };
 
   // 3. Fire real API requests into your Laravel controller
-  const handleSaveCharge = async (data, editingId) => {
-  try {
-    if (editingId) {
-      // Bypass global configs by writing out the exact full address
-      await axios.put(`http://127.0.0.1:8000/api/services/${editingId}`, data);
-    } else {
-      // Bypass global configs by writing out the exact full address
-      await axios.post("http://127.0.0.1:8000/api/services", data);
+  async function handleSaveCharge(data, editingId) {
+    try {
+      if (editingId) {
+        // Bypass global configs by writing out the exact full address
+        await axios.put(`http://127.0.0.1:8000/api/services/${editingId}`, data);
+      } else {
+        // Bypass global configs by writing out the exact full address
+        await axios.post("http://127.0.0.1:8000/api/services", data);
+      }
+      fetchServices();
+      closeModal();
+    } catch (error) {
+      console.error("API Storage Error:", error.response?.data || error.message);
+      alert("Error saving: " + (error.response?.data?.message || "Verify Laravel setup properties."));
     }
-    fetchServices();
-    closeModal();
-  } catch (error) {
-    console.error("API Storage Error:", error.response?.data || error.message);
-    alert("Error saving: " + (error.response?.data?.message || "Verify Laravel setup properties."));
   }
-};
 
   return (
     <AdminLayout>
@@ -135,7 +137,9 @@ const ExtraServices = () => {
                   <th className="px-5 py-3.5">Guest Name</th>
                   <th className="px-5 py-3.5">Service Type</th>
                   <th className="px-5 py-3.5">Charge Date</th>
-                  <th className="px-5 py-3.5">Description / Food Items</th>
+                  
+                  <th className="px-5 py-3.5">Description</th> 
+                  <th className="px-5 py-3.5">Food Items</th>
                   <th className="px-5 py-3.5 text-center">QTY</th>
                   <th className="px-5 py-3.5">Rate</th>
                   <th className="px-5 py-3.5">Total</th>
@@ -155,16 +159,33 @@ const ExtraServices = () => {
                         </span>
                       </td>
                       <td className="px-5 py-4 font-mono text-xs text-slate-500">{item.charge_date}</td>
-                      <td className="px-5 py-4 text-slate-600 max-w-[180px] truncate">
-                        {item.service_type === "Food" && item.food_items ? `Items: ${item.food_items}` : item.description}
-                      </td>
-                      <td className="px-5 py-4 text-center font-mono text-slate-700">{item.quantity}</td>
+
+
+<td className="px-5 py-4 text-slate-600 max-w-[150px] truncate">
+  {item.description || <span className="text-slate-300">-</span>}
+</td>
+
+{/* Column 2: Food Items (Only renders text if the service type is Food) */}
+<td className="px-5 py-4 text-slate-600 max-w-[150px] truncate">
+  {item.service_type === "Food" && item.food_items ? (
+    item.food_items
+  ) : (
+    <span className="text-slate-300">-</span>
+  )}
+</td>
+
+<td className="px-5 py-4 text-center font-mono text-slate-700">{item.quantity}</td>
                       <td className="px-5 py-4 font-mono text-slate-600">${Number(item.rate).toFixed(2)}</td>
                       <td className="px-5 py-4 font-mono font-bold text-slate-900">${Number(item.total).toFixed(2)}</td>
                       <td className="px-5 py-4 text-center">
                         <div className="flex justify-center gap-1.5">
-                          <button onClick={() => openEditModal(item)} className="p-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-400 hover:text-slate-600"><FaEdit className="w-3.5 h-3.5" /></button>
-                          <button onClick={() => handleDeleteCharge(item.id)} className="p-2 rounded-lg bg-slate-50 border border-slate-200 text-rose-500 hover:bg-rose-50"><FaTrash className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => openEditModal(item)} className="p-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-400 hover:text-slate-600">
+                            <FaEdit className="w-3.5 h-3.5" />
+                          </button>
+                          {/* Fixed variables and replaced the missing icon placeholder with FaTrash */}
+                          <button onClick={() => handleDelete(item.id)} className="p-2 rounded-lg bg-slate-50 border border-slate-200 text-red-500 hover:bg-red-50 hover:text-red-700 transition-colors">
+                            <FaTrash className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </td>
                     </tr>
