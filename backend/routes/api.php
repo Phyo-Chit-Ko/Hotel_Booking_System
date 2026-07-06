@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ExtraServiceController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\RoomTypeController;
 use App\Http\Controllers\RoomController;
@@ -55,3 +56,8 @@ Route::post('/reservations', [ReservationController::class, 'store']);
 Route::delete('/reservations/{id}', [ReservationController::class, 'destroy']);
 
 Route::post('/payments', [PaymentController::class, 'store']);
+
+Route::get('/services', [ExtraServiceController::class, 'index']);
+Route::post('/services', [ExtraServiceController::class, 'store']);
+Route::put('/services/{id}', [ExtraServiceController::class, 'update']);
+Route::delete('/services/{id}', [ExtraServiceController::class, 'handleDeleteCharge']);
