@@ -16,7 +16,6 @@ class ExtraServiceController extends Controller
     public function index(Request $request): JsonResponse
     {
         $search = $request->query('search');
-
         $query = Service::query();
 
         if (!empty($search)) {
@@ -42,6 +41,17 @@ class ExtraServiceController extends Controller
             if ($type === 'Car Rental') $carRentalCount++;
             if ($type === 'Food') $foodCount++;
 
+            // FIX: If food_items was stored as JSON, cleanly decode it into a readable string or strip brackets for your React column
+            $rawFoodItems = $charge->food_items;
+            if (!empty($rawFoodItems)) {
+                $decoded = json_decode($rawFoodItems, true);
+                if (is_array($decoded)) {
+                    $rawFoodItems = implode(', ', $decoded);
+                } else {
+                    $rawFoodItems = trim($rawFoodItems, '"[]'); 
+                }
+            }
+
             return [
                 'id'             => $charge->id,
                 'reservation_id' => $charge->reservation_id,
@@ -49,7 +59,7 @@ class ExtraServiceController extends Controller
                 'charge_date'    => $charge->charge_date ? \Carbon\Carbon::parse($charge->charge_date)->format('Y-m-d') : null,
                 'service_type'   => $type,
                 'description'    => $charge->description ?? '',
-                'food_items'     => $charge->food_items ?? '',
+                'food_items'     => $rawFoodItems ?? '', // 👈 Now returns a clean readable text string to match React
                 'quantity'       => (int) $charge->quantity,
                 'rate'           => (float) $charge->rate,
                 'total'          => (float) $charge->total,
@@ -78,10 +88,12 @@ class ExtraServiceController extends Controller
         $rate = (float) $validatedData['rate'];
         $validatedData['total'] = $quantity * $rate;
 
-        // Ensure these fallbacks are set directly on the array going into the database
         $validatedData['created_by'] = Auth::id() ?? 1; 
-        $validatedData['food_items'] = !empty($request->input('food_items')) ? json_encode($request->input('food_items')) : null;
-$validatedData['description'] = $request->input('description') ?? null;
+        
+        // FIX: If frontend sends it as a string instead of an array, don't double-json_encode it
+        $foodInput = $request->input('food_items');
+        $validatedData['food_items'] = !empty($foodInput) ? (is_array($foodInput) ? json_encode($foodInput) : json_encode([$foodInput])) : null;
+        $validatedData['description'] = $request->input('description') ?? null;
 
         try {
             $extraCharge = Service::create($validatedData);
@@ -95,7 +107,6 @@ $validatedData['description'] = $request->input('description') ?? null;
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                // 👇 CRUCIAL: Appending the real message here forces your React alert window to show the SQL error text!
                 'message' => 'Database persistence failed. SQL Error: ' . $e->getMessage(),
                 'error'   => $e->getMessage()
             ], 500);
@@ -122,8 +133,9 @@ $validatedData['description'] = $request->input('description') ?? null;
         $rate = (float) $validatedData['rate'];
         $validatedData['total'] = $quantity * $rate;
         
-        $validatedData['food_items'] = !empty($request->input('food_items')) ? json_encode($request->input('food_items')) : null;
-$validatedData['description'] = $request->input('description') ?? null;
+        $foodInput = $request->input('food_items');
+        $validatedData['food_items'] = !empty($foodInput) ? (is_array($foodInput) ? json_encode($foodInput) : json_encode([$foodInput])) : null;
+        $validatedData['description'] = $request->input('description') ?? null;
 
         try {
             $extraCharge->update($validatedData);
@@ -138,6 +150,37 @@ $validatedData['description'] = $request->input('description') ?? null;
             return response()->json([
                 'success' => false,
                 'message' => 'Database modification failed. SQL Error: ' . $e->getMessage(),
+                'error'   => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Remove the specified extra charge from the database.
+     */
+    public function destroy($id): JsonResponse
+    {
+        try {
+            $extraCharge = Service::find($id);
+
+            if (!$extraCharge) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Record not found or already deleted.'
+                ], 404);
+            }
+
+            $extraCharge->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Extra charge record deleted successfully!'
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete record.',
                 'error'   => $e->getMessage()
             ], 500);
         }

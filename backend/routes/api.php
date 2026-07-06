@@ -60,4 +60,4 @@ Route::post('/payments', [PaymentController::class, 'store']);
 Route::get('/services', [ExtraServiceController::class, 'index']);
 Route::post('/services', [ExtraServiceController::class, 'store']);
 Route::put('/services/{id}', [ExtraServiceController::class, 'update']);
-Route::delete('/services/{id}', [ExtraServiceController::class, 'handleDeleteCharge']);
+Route::delete('/services/{id}', [ExtraServiceController::class, 'destroy']);
