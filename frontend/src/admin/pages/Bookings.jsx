@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import AdminLayout from "../layouts/AdminLayout";
-import AddBookingModal from "../components/AddBookingModal"; // Adjust path based on your folder structure
+import AddBookingModal from "../components/AddBookingModal";
 import {
   FaSearch,
   FaCalendarCheck,
@@ -9,67 +9,48 @@ import {
 } from "react-icons/fa";
 
 export default function BookingManagement() {
-  // Helper function to get today's date in proper YYYY-MM-DD format
-  const getTodayDateString = () => {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, "0");
-    const day = String(today.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  };
+  const [bookings, setBookings] = useState([]);
+  const [stats, setStats] = useState({ total: 0, confirmed: 0, pending: 0 });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const [bookings] = useState([
-    {
-      id: "BK001",
-      guest: "John Smith",
-      email: "john@gmail.com",
-      roomType: "Deluxe Room",
-      guests: 2,
-      checkIn: "2026-06-25",
-      checkOut: "2026-06-28",
-      amount: 45,
-      status: "Pending",
-    },
-    {
-      id: "BK002",
-      guest: "Emma Wilson",
-      email: "emma@gmail.com",
-      roomType: "Suite",
-      guests: 4,
-      checkIn: "2026-06-26",
-      checkOut: "2026-06-30",
-      amount: 90,
-      status: "Confirmed",
-    },
-    {
-      id: "BK003",
-      guest: "Michael Lee",
-      email: "michael@gmail.com",
-      roomType: "Family Room",
-      guests: 5,
-      checkIn: "2026-06-27",
-      checkOut: "2026-06-29",
-      amount: 70,
-      status: "Pending",
-    },
-    {
-      id: "BK004",
-      guest: "Sarah Brown",
-      email: "sarah@gmail.com",
-      roomType: "Executive Room",
-      guests: 2,
-      checkIn: "2026-06-29",
-      checkOut: "2026-07-02",
-      amount: 55,
-      status: "Confirmed",
-    },
-  ]);
-
-  // Added managed state for the date input
-  const [selectedDate, setSelectedDate] = useState(getTodayDateString());
-
-  // Modal Visibility State
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All Status");
+  const [selectedDate, setSelectedDate] = useState(""); // empty = no date filter
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Total number of columns in the table — keep this in sync with <thead>
+  const COLUMN_COUNT = 13;
+
+  const fetchBookings = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams();
+      if (searchTerm) params.append("search", searchTerm);
+      if (statusFilter !== "All Status") params.append("status", statusFilter);
+      if (selectedDate) params.append("date", selectedDate);
+
+      const res = await fetch(`/api/bookings?${params.toString()}`);
+      if (!res.ok) throw new Error("Failed to load bookings");
+      const json = await res.json();
+
+      setBookings(json.data);
+      setStats(json.stats);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [searchTerm, statusFilter, selectedDate]);
+
+  // Debounce search + refetch on filter change
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      fetchBookings();
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [fetchBookings]);
 
   const getStatusStyle = (status) => {
     switch (status) {
@@ -97,7 +78,7 @@ export default function BookingManagement() {
               </div>
               <div>
                 <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Total Bookings</p>
-                <h3 className="text-2xl font-semibold text-slate-900 tracking-tight mt-0.5">48</h3>
+                <h3 className="text-2xl font-semibold text-slate-900 tracking-tight mt-0.5">{stats.total}</h3>
               </div>
             </div>
           </div>
@@ -109,7 +90,7 @@ export default function BookingManagement() {
               </div>
               <div>
                 <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Confirmed</p>
-                <h3 className="text-2xl font-semibold text-slate-900 tracking-tight mt-0.5">27</h3>
+                <h3 className="text-2xl font-semibold text-slate-900 tracking-tight mt-0.5">{stats.confirmed}</h3>
               </div>
             </div>
           </div>
@@ -121,28 +102,34 @@ export default function BookingManagement() {
               </div>
               <div>
                 <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Pending Tasks</p>
-                <h3 className="text-2xl font-semibold text-slate-900 tracking-tight mt-0.5">8</h3>
+                <h3 className="text-2xl font-semibold text-slate-900 tracking-tight mt-0.5">{stats.pending}</h3>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Master Card Box Container (Matches Reservation Layout) */}
+        {/* Master Card Box Container */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-5">
-          
+
           {/* Controls Horizontal Row */}
           <div className="flex items-center gap-3">
-            <div className="relative w-[355px] h-11"> 
+            <div className="relative w-[355px] h-11">
               <input
                 type="text"
                 placeholder="Search booking ID, guest name..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full h-full border border-slate-300 rounded-xl pl-4 pr-11 text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 box-border"
               />
               <FaSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none" />
             </div>
 
             <div className="h-11">
-              <select className="h-full w-34 px-4 border border-slate-300 rounded-xl text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 box-border [color-scheme:light]">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="h-full w-34 px-4 border border-slate-300 rounded-xl text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 box-border [color-scheme:light]"
+              >
                 <option>All Status</option>
                 <option>Pending</option>
                 <option>Confirmed</option>
@@ -150,27 +137,23 @@ export default function BookingManagement() {
               </select>
             </div>
 
-            {/* Controlled Date Input Layer */}
             <div className="h-11">
               <input
                 type="date"
                 value={selectedDate}
                 className="h-full px-4 border border-slate-300 rounded-xl text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 box-border [color-scheme:light]"
-                onChange={(e) => {
-                  setSelectedDate(e.target.value);
-                  console.log("Selected Check-In Date:", e.target.value);
-                }}
+                onChange={(e) => setSelectedDate(e.target.value)}
               />
             </div>
-            <div className="h-11 ml-auto">
+
+            {selectedDate && (
               <button
-                type="button"
-                onClick={() => setIsModalOpen(true)}
-                className="h-full px-5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-xl flex items-center justify-center gap-2 shadow-sm transition active:scale-95"
+                onClick={() => setSelectedDate("")}
+                className="h-11 px-3 text-xs font-medium text-slate-500 hover:text-slate-700"
               >
-                <span>Add New</span>
+                Clear date
               </button>
-            </div>
+            )}
           </div>
 
           {/* Nested Data Table Box */}
@@ -179,37 +162,74 @@ export default function BookingManagement() {
               <thead className="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200">
                 <tr>
                   <th className="px-5 py-3.5 font-medium">Booking ID</th>
-                  <th className="px-5 py-3.5 font-medium">Guest details</th>
+                  <th className="px-5 py-3.5 font-medium">First Name</th>
+                  <th className="px-5 py-3.5 font-medium">Last Name</th>
                   <th className="px-5 py-3.5 font-medium">Room Type</th>
-                  <th className="px-5 py-3.5 font-medium text-center">Pax</th>
+                  <th className="px-5 py-3.5 font-medium">Phone</th>
+                  <th className="px-5 py-3.5 font-medium text-center">Adult</th>
+                  <th className="px-5 py-3.5 font-medium text-center">Child</th>
                   <th className="px-5 py-3.5 font-medium">Check-In</th>
                   <th className="px-5 py-3.5 font-medium">Check-Out</th>
                   <th className="px-5 py-3.5 font-medium">Deposit</th>
+                  <th className="px-5 py-3.5 font-medium">Deposit SS</th>
                   <th className="px-5 py-3.5 font-medium">Status</th>
                   <th className="px-5 py-3.5 font-medium text-center">Actions</th>
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-slate-100">
-                {bookings.map((booking) => (
-                  <tr key={booking.id} className="hover:bg-slate-50/70 transition-colors">
+                {loading && (
+                  <tr>
+                    <td colSpan={COLUMN_COUNT} className="px-5 py-8 text-center text-slate-400">
+                      Loading bookings...
+                    </td>
+                  </tr>
+                )}
+
+                {!loading && error && (
+                  <tr>
+                    <td colSpan={COLUMN_COUNT} className="px-5 py-8 text-center text-rose-500">
+                      {error}
+                    </td>
+                  </tr>
+                )}
+
+                {!loading && !error && bookings.length === 0 && (
+                  <tr>
+                    <td colSpan={COLUMN_COUNT} className="px-5 py-8 text-center text-slate-400">
+                      No bookings found.
+                    </td>
+                  </tr>
+                )}
+
+                {!loading && !error && bookings.map((booking) => (
+                  <tr key={booking.raw_id} className="hover:bg-slate-50/70 transition-colors">
                     <td className="px-5 py-4 font-mono font-medium text-slate-900">
                       {booking.id}
                     </td>
 
-                    <td className="px-5 py-4">
-                      <div className="flex flex-col">
-                        <span className="font-medium text-slate-900">{booking.guest}</span>
-                        <span className="text-xs text-slate-400 font-mono mt-0.5">{booking.email}</span>
-                      </div>
+                    <td className="px-5 py-4 font-medium text-slate-900">
+                      {booking.first_name}
+                    </td>
+
+                    <td className="px-5 py-4 font-medium text-slate-900">
+                      {booking.last_name}
                     </td>
 
                     <td className="px-5 py-4 text-slate-700">
                       {booking.roomType}
                     </td>
 
+                    <td className="px-5 py-4 font-mono text-xs text-slate-500">
+                      {booking.phone}
+                    </td>
+
                     <td className="px-5 py-4 text-center font-mono font-medium text-slate-700">
-                      {booking.guests}
+                      {booking.adult}
+                    </td>
+
+                    <td className="px-5 py-4 text-center font-mono font-medium text-slate-700">
+                      {booking.child}
                     </td>
 
                     <td className="px-5 py-4 font-mono text-xs text-slate-500">
@@ -221,7 +241,22 @@ export default function BookingManagement() {
                     </td>
 
                     <td className="px-5 py-4 font-mono font-semibold text-slate-900">
-                      ${booking.amount.toFixed(2)}
+                      ${(booking.amount ?? 0).toFixed(2)}
+                    </td>
+
+                    <td className="px-5 py-4">
+                      {booking.depositScreenshot ? (
+                        <a
+                          href={booking.depositScreenshot}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-amber-600 underline text-xs font-medium"
+                        >
+                          View
+                        </a>
+                      ) : (
+                        <span className="text-slate-300 text-xs">—</span>
+                      )}
                     </td>
 
                     <td className="px-5 py-4">
@@ -247,11 +282,11 @@ export default function BookingManagement() {
 
       </div>
 
-      {/* Add Booking Modal Trigger Configuration */}
-      <AddBookingModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        selectedRoom={{ title: "New Suite Room" }} // Optional: Send initial room properties if needed
+      <AddBookingModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        selectedRoom={{ title: "New Suite Room" }}
+        onSuccess={fetchBookings} // refresh table after adding a booking
       />
     </AdminLayout>
   );

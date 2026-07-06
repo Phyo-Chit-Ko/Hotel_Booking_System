@@ -1,28 +1,12 @@
 import { useState, useEffect } from "react";
 import {
-  FaTimes, FaSearch, FaUser, FaBed, FaCreditCard, 
-  FaUpload, FaCheck, FaStar, FaCalculator, FaChevronRight
+  FaTimes, FaMinus, FaSearch, FaUpload, FaCheck, FaCalculator, FaChevronRight
 } from "react-icons/fa";
 
 const inp = "w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:ring-4 focus:ring-yellow-500/20 focus:border-yellow-500 transition-all placeholder-slate-400 bg-slate-50/50 hover:bg-yellow-50/40 hover:border-yellow-300 focus:bg-white";
 const sel = inp + " appearance-none pr-10 bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2364748b%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:1.25rem] bg-[right_0.75rem_center] bg-no-repeat";
 const lbl = "block text-xs font-semibold text-slate-600 mb-1.5 ml-0.5";
 const sec = "space-y-6";
-
-function SectionHeader({ icon: Icon, step, title, subtitle }) {
-  return (
-    <div className="flex items-start gap-4 pb-4 border-b border-slate-100">
-      <div className="w-10 h-10 rounded-xl bg-yellow-50 flex items-center justify-center text-yellow-600 flex-shrink-0 shadow-sm shadow-yellow-500/5">
-        <Icon size={16} />
-      </div>
-      <div>
-        <span className="inline-block text-[10px] font-bold text-yellow-700 uppercase bg-yellow-50/60 px-2 py-0.5 rounded-md mb-1">Step {step} of 3</span>
-        <h3 className="text-base font-bold text-slate-800 leading-tight">{title}</h3>
-        {subtitle && <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>}
-      </div>
-    </div>
-  );
-}
 
 function FileUpload({ label, name, value, onChange }) {
   return (
@@ -49,50 +33,52 @@ function FileUpload({ label, name, value, onChange }) {
   );
 }
 
-function SummaryRow({ label, value, highlight, bold }) {
-  return (
-    <div className={`flex justify-between items-center text-sm py-1 ${highlight ? "pt-3 mt-2 border-t border-slate-200" : ""}`}>
-      <span className={highlight ? "font-bold text-slate-800" : "text-slate-500 font-medium"}>{label}</span>
-      <span className={`${bold || highlight ? "font-bold" : "font-semibold"} ${highlight ? "text-yellow-700 text-lg" : "text-slate-800"}`}>{value}</span>
-    </div>
-  );
-}
-
 const EMPTY = {
+  // step 1 -> guests table
   guestSearch: "", guestId: null,
   firstName: "", lastName: "", phone: "", email: "",
   nationality: "", idType: "Passport", idNumber: "",
   idFront: null, idBack: null, isVip: false,
-  roomNumber: "", roomType: "", floor: "", bedType: "",
-  checkIn: "", checkOut: "", numberOfGuests: 1,
-  specialRequests: "", reservationStatus: "confirmed",
-  depositAmount: "", paymentMethod: "cash", paymentProof: null,
-  ratePerNight: 0, nights: 0, roomCharge: 0,
-  extraPersonCharge: 0, taxAmount: 0, totalAmount: 0, remainingAmount: 0,
+
+  // step 2 -> reservations table
+  reservationId: null,
+  roomNumber: "", roomType: "", floor: "", bedType: "", ratePerNight: 0,
+  checkIn: "", checkOut: "", adults: 1, children: 0,
+  bookingSource: "Direct", specialRequests: "", reservationStatus: "Confirmed",
+  nights: 0, roomCharge: 0, extraPersonCharge: 0, taxAmount: 0, totalAmount: 0,
+
+  // step 3 -> payments table
+  depositAmount: "", paymentMethod: "cash", transactionNo: "", paymentProof: null,
 };
 
-export default function AddReservation({ isOpen, onClose, onSave }) {
+export default function AddReservation({ isOpen, isMinimized = false, onClose, onMinimize, onSave }) {
   const [form, setForm]               = useState(EMPTY);
   const [currentStep, setCurrentStep] = useState(1);
   const [guestResults, setGuestResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [availableRooms, setAvailableRooms] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [stepError, setStepError] = useState("");
 
+  // Tracks records that THIS session created (vs. an existing guest picked
+  // from search, or a reservation that already had a payment). Only records
+  // flagged here get rolled back if the user cancels out of the flow.
+  const [guestCreatedThisSession, setGuestCreatedThisSession] = useState(false);
+  const [reservationCreatedThisSession, setReservationCreatedThisSession] = useState(false);
+
+  // live client-side preview only — server recalculates authoritatively on step 2 submit
   useEffect(() => {
     if (!form.checkIn || !form.checkOut) return;
-    const nights            = Math.max(0, Math.round((new Date(form.checkOut) - new Date(form.checkIn)) / 86400000));
-    const roomCharge        = nights * form.ratePerNight;
-    const extraPersonCharge = Math.max(0, form.numberOfGuests - 2) * 20 * nights;
-    const taxAmount         = (roomCharge + extraPersonCharge) * 0.1;
-    const totalAmount       = roomCharge + extraPersonCharge + taxAmount;
-    const remainingAmount   = Math.max(0, totalAmount - (parseFloat(form.depositAmount) || 0));
-    setForm((p) => ({ ...p, nights, roomCharge, extraPersonCharge, taxAmount, totalAmount, remainingAmount }));
-  }, [form.checkIn, form.checkOut, form.ratePerNight, form.numberOfGuests]);
+    const nights      = Math.max(0, Math.round((new Date(form.checkOut) - new Date(form.checkIn)) / 86400000));
+    const totalGuests = (parseInt(form.adults) || 0) + (parseInt(form.children) || 0);
+    const roomCharge  = nights * form.ratePerNight;
+    const extra       = Math.max(0, totalGuests - 2) * 20 * nights;
+    const tax         = (roomCharge + extra) * 0.1;
+    const total       = roomCharge + extra + tax;
+    setForm((p) => ({ ...p, nights, roomCharge, extraPersonCharge: extra, taxAmount: tax, totalAmount: total }));
+  }, [form.checkIn, form.checkOut, form.ratePerNight, form.adults, form.children]);
 
-  useEffect(() => {
-    const remaining = Math.max(0, form.totalAmount - (parseFloat(form.depositAmount) || 0));
-    setForm((p) => ({ ...p, remainingAmount: remaining }));
-  }, [form.depositAmount]);
+  const remainingAmount = Math.max(0, form.totalAmount - (parseFloat(form.depositAmount) || 0));
 
   const set   = (key, val) => setForm((p) => ({ ...p, [key]: val }));
   const field = (key) => (e) => set(key, e.target.value);
@@ -119,6 +105,8 @@ export default function AddReservation({ isOpen, onClose, onSave }) {
       idNumber: guest.id_number, isVip: guest.is_vip || false,
     }));
     setGuestResults([]);
+    // Picked an existing guest — nothing created this session for them.
+    setGuestCreatedThisSession(false);
   };
 
   const handleRoomSelect = async (roomNumber) => {
@@ -147,11 +135,146 @@ export default function AddReservation({ isOpen, onClose, onSave }) {
       .catch(() => setAvailableRooms([]));
   }, [form.checkIn, form.checkOut]);
 
-  const handleSubmit = (e) => {
+  // STEP 1 -> POST /api/guests
+  const submitStep1 = async () => {
+    setStepError("");
+    if (form.guestId) { setCurrentStep(2); return; } // already picked an existing guest
+
+    setSaving(true);
+    try {
+      const payload = new FormData();
+      payload.append("firstName", form.firstName);
+      payload.append("lastName", form.lastName);
+      payload.append("phone", form.phone);
+      if (form.email) payload.append("email", form.email);
+      if (form.nationality) payload.append("nationality", form.nationality);
+      payload.append("idType", form.idType);
+      payload.append("idNumber", form.idNumber);
+      payload.append("isVip", form.isVip ? "1" : "0");
+      if (form.idFront) payload.append("idFront", form.idFront);
+      if (form.idBack) payload.append("idBack", form.idBack);
+
+      const res = await fetch("/api/guests", { method: "POST", headers: { Accept: "application/json" }, body: payload });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || "Failed to save guest");
+      const data = await res.json();
+
+      set("guestId", data.guest.guest_id);
+      setGuestCreatedThisSession(true); // we created this guest — eligible for rollback on cancel
+      setCurrentStep(2);
+    } catch (err) {
+      setStepError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // STEP 2 -> POST /api/reservations
+  const submitStep2 = async () => {
+    setStepError("");
+    setSaving(true);
+    try {
+      const res = await fetch("/api/reservations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          guestId: form.guestId,
+          roomNumber: form.roomNumber,
+          checkIn: form.checkIn,
+          checkOut: form.checkOut,
+          adults: form.adults,
+          children: form.children,
+          bookingSource: form.bookingSource,
+          specialRequests: form.specialRequests,
+          reservationStatus: form.reservationStatus,
+        }),
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || "Failed to save reservation");
+      const data = await res.json();
+
+      setForm((p) => ({
+        ...p,
+        reservationId: data.reservation.reservationId,
+        nights: data.reservation.nights,
+        roomCharge: data.reservation.roomCharge,
+        extraPersonCharge: data.reservation.extraPersonCharge,
+        taxAmount: data.reservation.taxAmount,
+        totalAmount: data.reservation.totalAmount,
+      }));
+      setReservationCreatedThisSession(true); // eligible for rollback on cancel
+      setCurrentStep(3);
+    } catch (err) {
+      setStepError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // STEP 3 -> POST /api/payments (final)
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onSave(form);
-    setForm(EMPTY);
-    setCurrentStep(1);
+    setStepError("");
+    setSaving(true);
+    try {
+      const payload = new FormData();
+      payload.append("reservationId", form.reservationId);
+      payload.append("depositAmount", form.depositAmount || 0);
+      payload.append("paymentMethod", form.paymentMethod);
+      if (form.transactionNo) payload.append("transactionNo", form.transactionNo);
+      if (form.paymentProof) payload.append("paymentProof", form.paymentProof);
+
+      const res = await fetch("/api/payments", { method: "POST", headers: { Accept: "application/json" }, body: payload });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || "Failed to save payment");
+      const data = await res.json();
+
+      onSave(data.booking);
+      setForm(EMPTY);
+      setCurrentStep(1);
+      setGuestCreatedThisSession(false);
+      setReservationCreatedThisSession(false);
+    } catch (err) {
+      setStepError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Minimize: just tell the parent, nothing else changes. The component
+  // stays mounted (parent hides it with a CSS class), so all state
+  // (currentStep, guestId, reservationId, every field) survives untouched.
+  const handleMinimize = () => {
+    onMinimize?.(currentStep);
+  };
+
+  // Cancel / X: roll back anything THIS session committed but never
+  // finished, then reset and close for real.
+  const handleClose = async () => {
+    setSaving(true);
+    try {
+      if (guestCreatedThisSession && form.guestId) {
+        // Deleting the guest cascades to any reservation created against it
+        // (reservations.guest_id -> cascadeOnDelete), so this alone cleans
+        // up both tables in the "brand new guest" case.
+        await fetch(`/api/guests/${form.guestId}`, {
+          method: "DELETE",
+          headers: { Accept: "application/json" },
+        }).catch(() => {});
+      } else if (reservationCreatedThisSession && form.reservationId) {
+        // Existing guest (picked via search) but a new reservation was
+        // started and abandoned before payment — remove just that.
+        await fetch(`/api/reservations/${form.reservationId}`, {
+          method: "DELETE",
+          headers: { Accept: "application/json" },
+        }).catch(() => {});
+      }
+    } finally {
+      setForm(EMPTY);
+      setCurrentStep(1);
+      setGuestCreatedThisSession(false);
+      setReservationCreatedThisSession(false);
+      setStepError("");
+      setSaving(false);
+      onClose();
+    }
   };
 
   if (!isOpen) return null;
@@ -160,20 +283,24 @@ export default function AddReservation({ isOpen, onClose, onSave }) {
   const steps = ["Guest Info", "Room & Stay", "Payment"];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-sm transition-opacity">
+    <div className={`fixed inset-0 z-50 ${isMinimized ? "hidden" : "flex"} items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-sm transition-opacity`}>
       <div className="w-full max-w-2xl bg-white rounded-3xl border border-slate-100 shadow-2xl flex flex-col overflow-hidden max-h-[90vh] transition-all scale-100">
 
-        {/* Dynamic Nav Header */}
         <div className="px-6 pt-6 pb-4 border-b border-slate-100 bg-white flex-shrink-0">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold text-slate-900 tracking-tight">New Reservation</h2>
-            <button type="button" onClick={onClose}
-              className="text-slate-400 hover:text-slate-600 p-2 rounded-xl hover:bg-slate-50 border border-transparent transition">
-              <FaTimes size={16} />
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button type="button" onClick={handleMinimize} title="Minimize"
+                className="text-slate-400 hover:text-slate-600 p-2 rounded-xl hover:bg-slate-50 border border-transparent transition">
+                <FaMinus size={14} />
+              </button>
+              <button type="button" onClick={handleClose} title="Cancel"
+                className="text-slate-400 hover:text-slate-600 p-2 rounded-xl hover:bg-slate-50 border border-transparent transition">
+                <FaTimes size={16} />
+              </button>
+            </div>
           </div>
 
-          {/* Stepper Timeline UI */}
           <div className="flex items-center w-full bg-slate-50 p-1.5 rounded-2xl">
             {steps.map((label, idx) => {
               const s = idx + 1;
@@ -181,11 +308,10 @@ export default function AddReservation({ isOpen, onClose, onSave }) {
               const isPast = s < currentStep;
               return (
                 <div key={s} className="flex-1 flex items-center justify-center last:flex-none">
-                  <button type="button" onClick={() => setCurrentStep(s)}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-bold transition-all w-full justify-center md:justify-start ${
+                  <div className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-bold w-full justify-center md:justify-start ${
                       isCurrent ? "bg-white text-yellow-700 shadow-sm"
-                      : isPast ? "text-emerald-600 hover:bg-white/50"
-                      : "text-slate-400 hover:text-slate-600"
+                      : isPast ? "text-emerald-600"
+                      : "text-slate-400"
                     }`}>
                     <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs ${
                       isCurrent ? "bg-yellow-500 text-slate-900"
@@ -195,7 +321,7 @@ export default function AddReservation({ isOpen, onClose, onSave }) {
                       {isPast ? <FaCheck size={9} /> : s}
                     </span>
                     <span className="hidden md:inline tracking-wide">{label}</span>
-                  </button>
+                  </div>
                   {idx < steps.length - 1 && <FaChevronRight size={10} className="mx-2 text-slate-300 hidden md:block" />}
                 </div>
               );
@@ -203,25 +329,23 @@ export default function AddReservation({ isOpen, onClose, onSave }) {
           </div>
         </div>
 
-        {/* Body Container */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
           <div className="p-6 space-y-6">
 
-            {/* STEP 1 — Guest */}
+            {stepError && (
+              <div className="bg-red-50 border border-red-100 text-red-700 text-sm px-4 py-3 rounded-xl">
+                {stepError}
+              </div>
+            )}
+
             {currentStep === 1 && (
               <div className={sec}>
-
                 <div>
                   <label className={lbl}>Search Profile</label>
                   <div className="relative">
-                    <FaSearch
-                      size={14}
-                      className="text-slate-400 pointer-events-none"
-                      style={{ position: "absolute", left: "16px", top: "50%", transform: "translateY(-50%)", zIndex: 2 }}
-                    />
-                    <input
-                      className={inp + " hotel-search-input"}
-                      style={{ paddingLeft: "44px" }}
+                    <FaSearch size={14} className="text-slate-400 pointer-events-none"
+                      style={{ position: "absolute", left: "16px", top: "50%", transform: "translateY(-50%)", zIndex: 2 }} />
+                    <input className={inp} style={{ paddingLeft: "44px" }}
                       placeholder="Search by name, email, or phone…"
                       value={form.guestSearch} onChange={(e) => handleGuestSearch(e.target.value)} />
                     {searchLoading && <div className="absolute right-4 top-3 w-5 h-5 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin" />}
@@ -230,12 +354,15 @@ export default function AddReservation({ isOpen, onClose, onSave }) {
                     <div className="mt-2 border border-slate-100 rounded-xl overflow-hidden shadow-xl bg-white max-h-48 overflow-y-auto z-10 relative">
                       {guestResults.map((g) => (
                         <button key={g.guest_id} type="button" onClick={() => selectGuest(g)}
-                          className="w-full text-left px-4 py-3 hover:bg-yellow-50/50 text-sm flex justify-between items-center border-b border-slate-50 last:border-0 transition-colors">
+                          className="w-full text-left px-4 py-3 hover:bg-yellow-50/50 text-sm flex justify-between items-center border-b border-slate-50 last:border-0">
                           <span className="font-semibold text-slate-800">{g.first_name} {g.last_name}</span>
                           <span className="text-slate-500 text-xs">{g.phone}</span>
                         </button>
                       ))}
                     </div>
+                  )}
+                  {form.guestId && (
+                    <p className="text-xs text-emerald-600 font-semibold mt-2">✓ Using existing guest profile — manual fields below are ignored.</p>
                   )}
                 </div>
 
@@ -247,44 +374,51 @@ export default function AddReservation({ isOpen, onClose, onSave }) {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div><label className={lbl}>First Name *</label>
-                    <input className={inp} placeholder="John" value={form.firstName} onChange={field("firstName")} required /></div>
+                    <input className={inp} placeholder="John" value={form.firstName} onChange={field("firstName")} required disabled={!!form.guestId} /></div>
                   <div><label className={lbl}>Last Name *</label>
-                    <input className={inp} placeholder="Smith" value={form.lastName} onChange={field("lastName")} required /></div>
+                    <input className={inp} placeholder="Smith" value={form.lastName} onChange={field("lastName")} required disabled={!!form.guestId} /></div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div><label className={lbl}>Phone Number *</label>
-                    <input className={inp} type="tel" placeholder="+1 (555) 000-0000" value={form.phone} onChange={field("phone")} required /></div>
+                    <input className={inp} type="tel" placeholder="+1 (555) 000-0000" value={form.phone} onChange={field("phone")} required disabled={!!form.guestId} /></div>
                   <div><label className={lbl}>Email Address</label>
-                    <input className={inp} type="email" placeholder="john.smith@example.com" value={form.email} onChange={field("email")} /></div>
+                    <input className={inp} type="email" placeholder="john.smith@example.com" value={form.email} onChange={field("email")} disabled={!!form.guestId} /></div>
                 </div>
 
                 <div><label className={lbl}>Nationality</label>
-                  <input className={inp} placeholder="e.g. Canadian, Japanese" value={form.nationality} onChange={field("nationality")} /></div>
+                  <input className={inp} placeholder="e.g. Canadian, Japanese" value={form.nationality} onChange={field("nationality")} disabled={!!form.guestId} /></div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="md:col-span-1"><label className={lbl}>ID Type *</label>
-                    <select className={sel} value={form.idType} onChange={field("idType")} required>
+                    <select className={sel} value={form.idType} onChange={field("idType")} required disabled={!!form.guestId}>
                       <option value="Passport">Passport</option>
                       <option value="NRC">NRC</option>
                       <option value="Driver's License">Driver's License</option>
                       <option value="National ID">National ID</option>
                     </select></div>
                   <div className="md:col-span-2"><label className={lbl}>Identification Document Number *</label>
-                    <input className={inp} placeholder="Document serial identifier..." value={form.idNumber} onChange={field("idNumber")} required /></div>
+                    <input className={inp} placeholder="Document serial identifier..." value={form.idNumber} onChange={field("idNumber")} required disabled={!!form.guestId} /></div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FileUpload label="ID Document (Front)" name="idFront" value={form.idFront} onChange={(k,v) => set(k,v)} />
-                  <FileUpload label="ID Document (Back)"  name="idBack"  value={form.idBack}  onChange={(k,v) => set(k,v)} />
-                </div>
+                {!form.guestId && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FileUpload label="ID Document (Front)" name="idFront" value={form.idFront} onChange={(k,v) => set(k,v)} />
+                    <FileUpload label="ID Document (Back)"  name="idBack"  value={form.idBack}  onChange={(k,v) => set(k,v)} />
+                  </div>
+                )}
+
+                {form.guestId && (
+                  <button type="button" onClick={() => setForm((p) => ({ ...p, guestId: null, guestSearch: "" }))}
+                    className="text-xs font-semibold text-slate-500 underline">
+                    Clear selection and enter a different guest
+                  </button>
+                )}
               </div>
             )}
 
-            {/* STEP 2 — Room & Stay */}
             {currentStep === 2 && (
               <div className={sec}>
-
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div><label className={lbl}>Check-in Date *</label>
                     <input className={inp} type="date" value={form.checkIn}
@@ -333,10 +467,29 @@ export default function AddReservation({ isOpen, onClose, onSave }) {
                 )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div><label className={lbl}>Adult *</label>
-                    <input className={inp} type="number" placeholder="0" value={form.phone} onChange={field("phone")} required /></div>
-                  <div><label className={lbl}>Child</label>
-                    <input className={inp} type="number" placeholder="0" value={form.email} onChange={field("email")} /></div>
+                  <div><label className={lbl}>Adults *</label>
+                    <input className={inp} type="number" min="1" placeholder="1" value={form.adults} onChange={field("adults")} required /></div>
+                  <div><label className={lbl}>Children</label>
+                    <input className={inp} type="number" min="0" placeholder="0" value={form.children} onChange={field("children")} /></div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div><label className={lbl}>Booking Source</label>
+                    <select className={sel} value={form.bookingSource} onChange={field("bookingSource")}>
+                      <option value="Direct">Direct</option>
+                      <option value="Website">Website</option>
+                      <option value="Walk-in">Walk-in</option>
+                      <option value="Phone">Phone</option>
+                      <option value="OTA">OTA</option>
+                      <option value="Airbnb">Airbnb</option>
+                      <option value="Booking.com">Booking.com</option>
+                    </select></div>
+                  <div><label className={lbl}>Reservation Status *</label>
+                    <select className={sel} value={form.reservationStatus} onChange={field("reservationStatus")}>
+                      <option value="Reserved">Reserved</option>
+                      <option value="Confirmed">Confirmed</option>
+                      <option value="Checked-In">Checked In</option>
+                    </select></div>
                 </div>
 
                 <div><label className={lbl}>Special Requests & Operational Notes</label>
@@ -346,28 +499,26 @@ export default function AddReservation({ isOpen, onClose, onSave }) {
               </div>
             )}
 
-            {/* STEP 3 — Payment */}
             {currentStep === 3 && (
               <div className={sec}>
+                <div><label className={lbl}>Settlement Method *</label>
+                  <select className={sel} value={form.paymentMethod} onChange={field("paymentMethod")}>
+                    <option value="cash">Cash</option>
+                    <option value="credit_card">Credit Card</option>
+                    <option value="bank_transfer">Direct Bank Account</option>
+                    <option value="online">Mobile Bank Transfer</option>
+                  </select></div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div><label className={lbl}>Reservation System Status *</label>
-                    <select className={sel} value={form.reservationStatus} onChange={field("reservationStatus")}>
-                      <option value="pending">Pending Review</option>
-                      <option value="confirmed">Confirmed / Active</option>
-                      <option value="checked_in">Checked In</option>
-                    </select></div>
-                  <div><label className={lbl}>Settlement Method *</label>
-                    <select className={sel} value={form.paymentMethod} onChange={field("paymentMethod")}>
-                      <option value="cash">Cash</option>
-                      <option value="credit_card">Credit Card</option>
-                      <option value="bank_transfer">Direct Bank Account</option>
-                      <option value="online">Mobile Bank Transfer</option>
-                    </select></div>
-                </div>
+                <div><label className={lbl}>Deposit Amount</label>
+                  <input className={inp} type="number" min="0" step="0.01" placeholder="0.00"
+                    value={form.depositAmount} onChange={field("depositAmount")} /></div>
 
+                {form.paymentMethod !== "cash" && (
+                  <div><label className={lbl}>Transaction / Reference No.</label>
+                    <input className={inp} placeholder="e.g. TXN-00234"
+                      value={form.transactionNo} onChange={field("transactionNo")} /></div>
+                )}
 
-                {/* Ledger Breakdown Wrapper */}
                 <div className="bg-slate-900 text-white rounded-2xl p-5 space-y-3 shadow-inner">
                   <div className="flex items-center gap-2 pb-2 border-b border-slate-800">
                     <FaCalculator size={12} className="text-yellow-400" />
@@ -398,28 +549,22 @@ export default function AddReservation({ isOpen, onClose, onSave }) {
                     </div>
                     <div className="flex justify-between font-bold text-white pt-2 border-t border-slate-800">
                       <span>Remaining Outstanding Balance</span>
-                      <span className="text-lg text-amber-400">{fmt(form.remainingAmount)}</span>
+                      <span className="text-lg text-amber-400">{fmt(remainingAmount)}</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Mobile Bank Transfer Proof Upload — replaces Manifest Summary Check */}
                 {form.paymentMethod === "online" && (
-                  <FileUpload
-                    label="Upload Transfer Screenshot / Receipt"
-                    name="paymentProof"
-                    value={form.paymentProof}
-                    onChange={(k, v) => set(k, v)}
-                  />
+                  <FileUpload label="Upload Transfer Screenshot / Receipt" name="paymentProof"
+                    value={form.paymentProof} onChange={(k, v) => set(k, v)} />
                 )}
               </div>
             )}
           </div>
 
-          {/* Footer Control Panel */}
           <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex gap-3 flex-shrink-0">
             {currentStep === 1 && (
-              <button type="button" onClick={onClose}
+              <button type="button" onClick={handleClose}
                 className="flex-1 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold py-3.5 rounded-xl text-sm transition-all">
                 Dismiss File
               </button>
@@ -430,15 +575,22 @@ export default function AddReservation({ isOpen, onClose, onSave }) {
                 Previous Step
               </button>
             )}
-            {currentStep < 3 ? (
-              <button type="button" onClick={() => setCurrentStep((s) => s + 1)}
-                className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-slate-900 font-bold py-3.5 rounded-xl text-sm transition-all shadow-md shadow-yellow-500/20">
-                Continue Next
+            {currentStep === 1 && (
+              <button type="button" disabled={saving} onClick={submitStep1}
+                className="flex-1 bg-yellow-500 hover:bg-yellow-600 disabled:opacity-60 text-slate-900 font-bold py-3.5 rounded-xl text-sm transition-all shadow-md shadow-yellow-500/20">
+                {saving ? "Saving guest…" : "Continue Next"}
               </button>
-            ) : (
-              <button type="submit"
-                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl text-sm transition-all shadow-md shadow-emerald-600/10 flex items-center justify-center gap-2">
-                <FaCheck size={12} /> Authorize Booking
+            )}
+            {currentStep === 2 && (
+              <button type="button" disabled={saving} onClick={submitStep2}
+                className="flex-1 bg-yellow-500 hover:bg-yellow-600 disabled:opacity-60 text-slate-900 font-bold py-3.5 rounded-xl text-sm transition-all shadow-md shadow-yellow-500/20">
+                {saving ? "Saving reservation…" : "Continue Next"}
+              </button>
+            )}
+            {currentStep === 3 && (
+              <button type="submit" disabled={saving}
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-bold py-3.5 rounded-xl text-sm transition-all shadow-md shadow-emerald-600/10 flex items-center justify-center gap-2">
+                <FaCheck size={12} /> {saving ? "Saving…" : "Authorize Booking"}
               </button>
             )}
           </div>

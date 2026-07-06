@@ -22,8 +22,6 @@ Route::get('/user', function (Request $request) {
 Route::post('/register', [AuthController::class, 'register']);
 
 Route::get('/customer/{id}', [CustomerController::class, 'getCustomer']);
-
-// ── Room Types ────────────────────────────────────────────────────────────────
 Route::post('/room-types', [RoomTypeController::class, 'store']);
 Route::get('/room-types', [RoomTypeController::class, 'index']);
 Route::patch('/room-types/{id}/toggle-status', [RoomTypeController::class, 'toggleStatus']);
@@ -31,9 +29,6 @@ Route::put('/room-types/{id}', [RoomTypeController::class, 'update']);
 Route::delete('/room-types/{id}', [RoomTypeController::class, 'destroy']);
 Route::apiResource('room-types', RoomTypeController::class);
 
-// ── Rooms — layout routes MUST come before apiResource ────────────────────────
-// apiResource creates GET /rooms/{room} which would intercept /rooms/layout
-// treating "layout" as a room ID → must define specific routes first
 Route::get('/rooms/layout',  [RoomLayoutController::class, 'getLayout']);
 Route::post('/rooms/layout', [RoomLayoutController::class, 'saveLayout']);
 Route::get('/rooms/available', [RoomController::class, 'available']); // must be BEFORE the next line
