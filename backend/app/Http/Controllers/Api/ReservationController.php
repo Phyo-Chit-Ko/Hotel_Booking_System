@@ -85,14 +85,7 @@ class ReservationController extends Controller
         ], 201);
     }
 
-    /**
-     * Roll back a reservation that was created earlier in the multi-step
-     * flow but abandoned before a payment was recorded (e.g. the user
-     * cancelled the form on step 3). Only used for an EXISTING guest whose
-     * record we must not touch — if the guest was newly created this
-     * session too, GuestController::destroy() is used instead and the
-     * guests.reservations FK cascade handles this reservation for us.
-     */
+  
     public function destroy($id)
     {
         $reservation = Reservation::where('reservation_id', $id)->firstOrFail();

@@ -12,7 +12,8 @@ use App\Http\Controllers\Api\RoomLayoutController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\BookingController;
-
+use App\Http\Controllers\Api\FloorLayoutController;
+use App\Http\Controllers\Api\ReservationGuestController;
 Route::middleware('api')->post('/login', [AuthController::class, 'login']);
 
 Route::get('/user', function (Request $request) {
@@ -55,3 +56,15 @@ Route::post('/reservations', [ReservationController::class, 'store']);
 Route::delete('/reservations/{id}', [ReservationController::class, 'destroy']);
 
 Route::post('/payments', [PaymentController::class, 'store']);
+
+
+Route::get('/floor-layout',       [FloorLayoutController::class, 'index']);
+Route::post('/floor-layout',      [FloorLayoutController::class, 'store']);
+Route::patch('/floor-layout/{id}',[FloorLayoutController::class, 'update']);
+Route::delete('/floor-layout/{id}',[FloorLayoutController::class, 'destroy']);
+
+
+
+Route::get('/reservations/{reservation}/guests', [ReservationGuestController::class, 'index']);
+Route::post('/reservations/{reservation}/guests', [ReservationGuestController::class, 'store']);
+Route::delete('/reservations/{reservation}/guests/{guest}', [ReservationGuestController::class, 'destroy']);

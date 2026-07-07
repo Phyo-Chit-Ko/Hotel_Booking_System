@@ -111,4 +111,16 @@ class Reservation extends Model
             'totalAmount'   => '$' . number_format((float) $this->total_amount, 2),
         ];
     }
+
+    public function additionalGuests()
+{
+    return $this->hasMany(ReservationGuest::class, 'reservation_id', 'reservation_id');
+}
+
+public function guests()
+{
+    return $this->belongsToMany(Guest::class, 'reservation_guests', 'reservation_id', 'guest_id')
+        ->withPivot('guest_type')
+        ->withTimestamps();
+}
 }

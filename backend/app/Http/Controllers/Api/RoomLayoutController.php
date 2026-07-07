@@ -18,7 +18,7 @@ class RoomLayoutController extends Controller
     public function getLayout(Request $request)
     {
         $floor = $request->query('floor', '2');
-
+ 
         $rooms = Room::with('roomType')
             ->where('floor', $floor)
             ->get()

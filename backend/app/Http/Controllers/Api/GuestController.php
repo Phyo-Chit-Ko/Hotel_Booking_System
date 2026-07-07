@@ -69,22 +69,21 @@ class GuestController extends Controller
      * single delete here cleans up both tables for the "new guest"
      * abandonment case.
      */
-    public function destroy($id)
-    {
-        $guest = Guest::where('guest_id', $id)->firstOrFail();
+   public function destroy($id)
+{
+    $guest = Guest::where('guest_id', $id)->firstOrFail();
 
-        $hasCompletedBooking = Reservation::where('guest_id', $guest->guest_id)
-            ->whereHas('payments')
-            ->exists();
+    $hasCompletedBooking = Reservation::where('guest_id', $guest->guest_id)
+            ->whereHas('payments')->exists()
+        || Reservation::whereHas('additionalGuests', fn ($q) => $q->where('guest_id', $guest->guest_id))
+            ->whereHas('payments')->exists();
 
-        if ($hasCompletedBooking) {
-            return response()->json([
-                'message' => 'Cannot delete a guest with a completed booking.',
-            ], 422);
-        }
-
-        $guest->delete();
-
-        return response()->json(['message' => 'Guest deleted.']);
+    if ($hasCompletedBooking) {
+        return response()->json(['message' => 'Cannot delete a guest with a completed booking.'], 422);
     }
+
+    $guest->delete();
+
+    return response()->json(['message' => 'Guest deleted.']);
+}
 }
