@@ -20,21 +20,24 @@ class StoreServiceRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // 1. Changed to integer to match bigint(20) on line 2 of AdobeExpressPhotos_fecd2033c46a40e98b510dc2c0e30262_CopyEdited.jpg
+            // Matches bigint(20) constraint perfectly
             'reservation_id' => ['required', 'integer'], 
             
             'guest_name'     => ['required', 'string', 'max:255'],
             
-            // 2. Matches enum rules precisely on line 4 of AdobeExpressPhotos_fecd2033c46a40e98b510dc2c0e30262_CopyEdited.jpg
             'service_type'   => ['required', 'string', 'in:Laundry,Car Rental,Food'],
             
             'charge_date'    => ['required', 'date'],
+            
             'description'    => ['nullable', 'string'], 
+            
             'quantity'       => ['required', 'integer', 'min:1'],
+            
             'rate'           => ['required', 'numeric', 'min:0'],
             
-            // 3. Kept optional/nullable as allowed on line 10 of AdobeExpressPhotos_fecd2033c46a40e98b510dc2c0e30262_CopyEdited.jpg
-            'food_items'     => ['nullable', 'string'],
+            // 🔥 FIX: Removed 'string' rule constraint so it allows mixed array data payloads 
+            // from your React select element before your controller converts it safely to JSON.
+            'food_items'     => ['nullable'],
         ];
     }
 }

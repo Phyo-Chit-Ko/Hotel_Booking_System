@@ -74,5 +74,8 @@ Route::delete('/reservations/{reservation}/guests/{guest}', [ReservationGuestCon
 Route::get('/services', [ExtraServiceController::class, 'index']);
 Route::post('/services', [ExtraServiceController::class, 'store']);
 Route::put('/services/{id}', [ExtraServiceController::class, 'update']);
+// <<<<<<< HEAD
 Route::delete('/services/{id}', [ExtraServiceController::class, 'handleDeleteCharge']);
 
+Route::delete('/services/{id}', [ExtraServiceController::class, 'destroy']);
+// >>>>>>> origin/extra_charges

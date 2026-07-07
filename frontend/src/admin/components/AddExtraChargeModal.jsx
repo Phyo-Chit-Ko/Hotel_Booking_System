@@ -8,8 +8,6 @@ import {
   FaUser,
 } from "react-icons/fa";
 
-// Scalable menu database mock — kept outside the component so it isn't
-// recreated on every render.
 const FOOD_MENU = [
   { id: "f1", name: "Noodles", price: 8.50 },
   { id: "f2", name: "Fried Rice", price: 9.00 },
@@ -21,7 +19,6 @@ const FOOD_MENU = [
   { id: "f8", name: "Spring Rolls", price: 6.50 },
 ];
 
-// Updated to match your exact backend database/request keys perfectly
 const initialFormState = {
   reservation_id: "",
   guest_name: "",
@@ -34,7 +31,6 @@ const initialFormState = {
 };
 
 export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToEdit = null }) {
-  // All hooks MUST run on every render regardless of isOpen
   const [formData, setFormData] = useState(initialFormState);
   const [errors, setErrors] = useState({});
   const [selectedFoodItems, setSelectedFoodItems] = useState({});
@@ -62,7 +58,6 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
     }
   }, [chargeToEdit, isOpen]);
 
-  // Close food dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -73,7 +68,6 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Safe to bail out AFTER all hooks have been called.
   if (!isOpen) return null;
 
   const calculatedTotal = Number(formData.quantity) * Number(formData.rate);
@@ -95,7 +89,7 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
-  // Smart incremental POS addition logic
+  // FIX: Fixed the incremental accumulation math engine
   const handleAddFoodItem = (foodItem) => {
     setSelectedFoodItems((prevItems) => {
       const updatedItems = { ...prevItems };
@@ -105,22 +99,20 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
         updatedItems[foodItem.id] = { name: foodItem.name, price: foodItem.price, qty: 1 };
       }
 
-      let totalQty = 0;
       let totalCost = 0;
       const descriptionLines = [];
 
       Object.values(updatedItems).forEach((item) => {
-        totalQty += item.qty;
         totalCost += item.price * item.qty;
         descriptionLines.push(`${item.name} (x${item.qty})`);
       });
 
       setFormData((prev) => ({
         ...prev,
-        quantity: totalQty,
-        rate: totalQty > 0 ? Number((totalCost / totalQty).toFixed(2)) : 0,
+        quantity: 1, // 👈 Keep base quantity as 1 order transaction block
+        rate: Number(totalCost.toFixed(2)), // 👈 The rate reflects the total basket cost directly
         food_items: descriptionLines.join(", "),
-        description: `Food Service Order delivery`,
+        description: prev.description || `Food Service Delivery`,
       }));
 
       return updatedItems;
