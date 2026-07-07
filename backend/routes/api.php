@@ -51,7 +51,7 @@ Route::middleware('auth:sanctum')->put('/profile/update', [ProfileController::cl
 Route::get('/guests/search', [GuestController::class, 'search']);
 Route::post('/guests', [GuestController::class, 'store']);
 Route::delete('/guests/{id}', [GuestController::class, 'destroy']);
-
+Route::get('/guests', [GuestController::class, 'index']);
 Route::get('/reservations', [ReservationController::class, 'index']);
 Route::post('/reservations', [ReservationController::class, 'store']);
 Route::delete('/reservations/{id}', [ReservationController::class, 'destroy']);
