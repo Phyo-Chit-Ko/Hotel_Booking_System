@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ExtraServiceController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\RoomTypeController;
 use App\Http\Controllers\RoomController;
@@ -58,6 +59,7 @@ Route::delete('/reservations/{id}', [ReservationController::class, 'destroy']);
 Route::post('/payments', [PaymentController::class, 'store']);
 
 
+
 Route::get('/floor-layout',       [FloorLayoutController::class, 'index']);
 Route::post('/floor-layout',      [FloorLayoutController::class, 'store']);
 Route::patch('/floor-layout/{id}',[FloorLayoutController::class, 'update']);
@@ -68,3 +70,9 @@ Route::delete('/floor-layout/{id}',[FloorLayoutController::class, 'destroy']);
 Route::get('/reservations/{reservation}/guests', [ReservationGuestController::class, 'index']);
 Route::post('/reservations/{reservation}/guests', [ReservationGuestController::class, 'store']);
 Route::delete('/reservations/{reservation}/guests/{guest}', [ReservationGuestController::class, 'destroy']);
+
+Route::get('/services', [ExtraServiceController::class, 'index']);
+Route::post('/services', [ExtraServiceController::class, 'store']);
+Route::put('/services/{id}', [ExtraServiceController::class, 'update']);
+Route::delete('/services/{id}', [ExtraServiceController::class, 'handleDeleteCharge']);
+

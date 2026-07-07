@@ -21,22 +21,20 @@ const FOOD_MENU = [
   { id: "f8", name: "Spring Rolls", price: 6.50 },
 ];
 
-// Also kept OUTSIDE the component, same reasoning as your room-type modal:
-// avoids it being redefined every render and keeps the reset logic simple.
+// Updated to match your exact backend database/request keys perfectly
 const initialFormState = {
-  booking_number: "",
+  reservation_id: "",
   guest_name: "",
   service_type: "Laundry",
-  date: new Date().toISOString().split("T")[0],
+  charge_date: new Date().toISOString().split("T")[0],
   description: "",
   quantity: 1,
   rate: 0.0,
-  tax: 0.0,
+  food_items: "",
 };
 
 export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToEdit = null }) {
-  // All hooks MUST run on every render regardless of `isOpen`, same rule
-  // as AddRoomTypeModal — the `if (!isOpen) return null;` guard comes AFTER them.
+  // All hooks MUST run on every render regardless of isOpen
   const [formData, setFormData] = useState(initialFormState);
   const [errors, setErrors] = useState({});
   const [selectedFoodItems, setSelectedFoodItems] = useState({});
@@ -48,14 +46,14 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
     setIsDropdownOpen(false);
     if (chargeToEdit) {
       setFormData({
-        booking_number: chargeToEdit.booking_number || "",
+        reservation_id: chargeToEdit.reservation_id || "",
         guest_name: chargeToEdit.guest_name || "",
         service_type: chargeToEdit.service_type || "Laundry",
-        date: chargeToEdit.date || new Date().toISOString().split("T")[0],
+        charge_date: chargeToEdit.charge_date || new Date().toISOString().split("T")[0],
         description: chargeToEdit.description || "",
         quantity: chargeToEdit.quantity ?? 1,
         rate: chargeToEdit.rate ?? 0,
-        tax: chargeToEdit.tax ?? 0,
+        food_items: chargeToEdit.food_items || "",
       });
       setSelectedFoodItems({});
     } else {
@@ -78,7 +76,7 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
   // Safe to bail out AFTER all hooks have been called.
   if (!isOpen) return null;
 
-  const calculatedTotal = (Number(formData.quantity) * Number(formData.rate)) + Number(formData.tax);
+  const calculatedTotal = Number(formData.quantity) * Number(formData.rate);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -90,6 +88,7 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
         updated.description = "";
         updated.quantity = 1;
         updated.rate = 0.0;
+        updated.food_items = "";
       }
       return updated;
     });
@@ -120,7 +119,8 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
         ...prev,
         quantity: totalQty,
         rate: totalQty > 0 ? Number((totalCost / totalQty).toFixed(2)) : 0,
-        description: descriptionLines.join(", "),
+        food_items: descriptionLines.join(", "),
+        description: `Food Service Order delivery`,
       }));
 
       return updatedItems;
@@ -131,13 +131,12 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
 
   const validateForm = () => {
     const tempErrors = {};
-    if (!formData.booking_number.trim()) tempErrors.booking_number = "Booking reference is required.";
+    if (!String(formData.reservation_id).trim()) tempErrors.reservation_id = "Reservation ID is required.";
     if (!formData.guest_name.trim()) tempErrors.guest_name = "Guest name is required.";
     else if (formData.guest_name.trim().length < 2) tempErrors.guest_name = "Name looks too short.";
 
     if (!formData.quantity || Number(formData.quantity) <= 0) tempErrors.quantity = "Must be at least 1.";
     if (formData.rate === "" || Number(formData.rate) < 0) tempErrors.rate = "Rate cannot be negative.";
-    if (formData.tax !== "" && Number(formData.tax) < 0) tempErrors.tax = "Tax cannot be negative.";
 
     setErrors(tempErrors);
     return Object.keys(tempErrors).length === 0;
@@ -150,7 +149,7 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
         ...formData,
         quantity: Number(formData.quantity),
         rate: Number(formData.rate),
-        tax: Number(formData.tax),
+        total: calculatedTotal,
       };
       onSave(sanitizedData, chargeToEdit ? chargeToEdit.id : null);
       onClose();
@@ -185,21 +184,21 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
 
         <form onSubmit={handleSubmit} noValidate className="p-6 space-y-5 overflow-y-auto">
 
-          {/* Booking reference */}
+          {/* Reservation ID */}
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Booking / Reservation Link</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">Reservation ID</label>
             <div className="relative">
-              <FaHashtag className={`absolute left-4 top-3.5 text-xs ${errors.booking_number ? "text-rose-400" : "text-slate-400"}`} />
+              <FaHashtag className={`absolute left-4 top-3.5 text-xs ${errors.reservation_id ? "text-rose-400" : "text-slate-400"}`} />
               <input
                 type="text"
-                name="booking_number"
-                value={formData.booking_number}
+                name="reservation_id"
+                value={formData.reservation_id}
                 onChange={handleChange}
-                placeholder="e.g., BK-2026-0012"
-                className={`pl-11 ${inp("booking_number")}`}
+                placeholder="e.g., 12"
+                className={`pl-11 ${inp("reservation_id")}`}
               />
             </div>
-            {errors.booking_number && <p className="text-xs text-rose-500 mt-1.5 ml-1">{errors.booking_number}</p>}
+            {errors.reservation_id && <p className="text-xs text-rose-500 mt-1.5 ml-1">{errors.reservation_id}</p>}
           </div>
 
           {/* Guest name */}
@@ -212,7 +211,7 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
                 name="guest_name"
                 value={formData.guest_name}
                 onChange={handleChange}
-                placeholder="e.g., Alexander Wright"
+                placeholder="e.g., Sophia Bennett"
                 className={`pl-11 ${inp("guest_name")}`}
               />
             </div>
@@ -238,8 +237,8 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
               <label className="block text-sm font-semibold text-slate-700 mb-2">Charge Date</label>
               <input
                 type="date"
-                name="date"
-                value={formData.date}
+                name="charge_date"
+                value={formData.charge_date}
                 onChange={handleChange}
                 className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl w-full text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 text-slate-700"
               />
@@ -279,6 +278,19 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
             </div>
           )}
 
+          {/* Food Items Auto-populated Display */}
+          {formData.service_type === "Food" && formData.food_items && (
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Selected Food Items</label>
+              <input
+                type="text"
+                readOnly
+                value={formData.food_items}
+                className="px-4 py-2.5 bg-amber-50/40 border border-amber-100 rounded-xl w-full text-sm text-amber-900 font-medium outline-none"
+              />
+            </div>
+          )}
+
           {/* Description */}
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-2">Service Details / Description</label>
@@ -287,7 +299,7 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
               rows="2"
               value={formData.description}
               onChange={handleChange}
-              placeholder={formData.service_type === "Food" ? "Selected items will auto-populate here..." : "Provide contextual invoice specifics..."}
+              placeholder="Provide contextual invoice specifics..."
               className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl w-full text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 text-slate-800 resize-none"
             />
           </div>
@@ -296,7 +308,7 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
           <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3.5">
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Cost Accounting Configurator</p>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-[11px] font-medium text-slate-500 mb-1">Quantity</label>
                 <input
@@ -324,20 +336,6 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
                   }`}
                 />
                 {errors.rate && <p className="text-[11px] text-rose-500 mt-1">{errors.rate}</p>}
-              </div>
-              <div>
-                <label className="block text-[11px] font-medium text-slate-500 mb-1">Tax ($)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  name="tax"
-                  value={formData.tax}
-                  onChange={handleChange}
-                  className={`w-full px-3 py-1.5 text-sm bg-white border rounded-lg outline-none focus:ring-2 text-slate-800 font-semibold ${
-                    errors.tax ? "border-rose-300 focus:ring-rose-500/20" : "border-slate-200 focus:ring-amber-500/20"
-                  }`}
-                />
-                {errors.tax && <p className="text-[11px] text-rose-500 mt-1">{errors.tax}</p>}
               </div>
             </div>
 
