@@ -11,15 +11,15 @@ use Illuminate\Support\Facades\DB;
 class ReservationController extends Controller
 {
     public function index(Request $request)
-    {
-        $reservations = Reservation::with(['guest', 'roomType', 'payments'])
-            ->orderByDesc('reservation_id')
-            ->get();
+{
+    $reservations = Reservation::with(['guest', 'roomType', 'payments', 'additionalGuests.guest'])
+        ->orderByDesc('reservation_id')
+        ->get();
 
-        return response()->json([
-            'bookings' => $reservations->map(fn ($r) => $r->toTableRow()),
-        ]);
-    }
+    $rows = $reservations->flatMap(fn ($r) => $r->toTableRows())->values();
+
+    return response()->json(['bookings' => $rows]);
+}
 
     public function store(Request $request)
     {

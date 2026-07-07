@@ -191,50 +191,60 @@ export default function ReservationManagement() {
           <div className="overflow-x-auto border border-slate-100 rounded-xl">
             <table className="w-full text-left text-sm text-slate-600 border-collapse">
               <thead>
-                <tr className="text-slate-500 font-semibold text-xs uppercase tracking-wider border-b border-slate-200 bg-slate-50">
-                  <th className="px-5 py-3.5">ID</th>
-                  <th className="px-5 py-3.5">Res Number</th>
-                  <th className="px-5 py-3.5">Guest Name</th>
-                  <th className="px-5 py-3.5">Room</th>
-                  <th className="px-5 py-3.5">Room Type</th>
-                  <th className="px-5 py-3.5">Check-In</th>
-                  <th className="px-5 py-3.5">Check-Out</th>
-                  <th className="px-5 py-3.5 text-center">Nights</th>
-                  <th className="px-5 py-3.5">Source</th>
-                  <th className="px-5 py-3.5 text-center">Status</th>
-                  <th className="px-5 py-3.5 text-right">Total Amount</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {loading && (
-                  <tr><td colSpan={11} className="px-5 py-6 text-center text-slate-400">Loading reservations…</td></tr>
-                )}
-                {!loading && loadError && (
-                  <tr><td colSpan={11} className="px-5 py-6 text-center text-red-500">{loadError}</td></tr>
-                )}
-                {!loading && !loadError && bookings.length === 0 && (
-                  <tr><td colSpan={11} className="px-5 py-6 text-center text-slate-400">No reservations yet.</td></tr>
-                )}
-                {!loading && !loadError && bookings.map((booking) => (
-                  <tr key={booking.id} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="px-5 py-4 text-slate-500 font-medium font-mono">{booking.id}</td>
-                    <td className="px-5 py-4 font-mono font-semibold text-slate-900 tracking-tight">{booking.bookingNumber}</td>
-                    <td className="px-5 py-4 font-medium text-slate-900">{booking.guestName}</td>
-                    <td className="px-5 py-4 font-mono font-medium text-slate-700">{booking.roomNumber}</td>
-                    <td className="px-5 py-4 text-slate-600">{booking.roomType}</td>
-                    <td className="px-5 py-4 font-mono text-xs text-slate-500">{booking.checkIn}</td>
-                    <td className="px-5 py-4 font-mono text-xs text-slate-500">{booking.checkOut}</td>
-                    <td className="px-5 py-4 text-center font-mono text-slate-700">{booking.nights}</td>
-                    <td className="px-5 py-4 text-slate-600">{booking.source}</td>
-                    <td className="px-5 py-4 text-center">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium inline-block ${getStatusBadgeClass(booking.status)}`}>
-                        {booking.status}
-                      </span>
-                    </td>
-                    <td className="px-5 py-4 text-right font-mono font-semibold text-slate-900">{booking.totalAmount}</td>
-                  </tr>
-                ))}
-              </tbody>
+  <tr className="text-slate-500 font-semibold text-xs uppercase tracking-wider border-b border-slate-200 bg-slate-50">
+    <th className="px-5 py-3.5">ID</th>
+    <th className="px-5 py-3.5">Res Number</th>
+    <th className="px-5 py-3.5">Guest Name</th>
+    <th className="px-5 py-3.5">Guest Type</th>
+    <th className="px-5 py-3.5">Room</th>
+    <th className="px-5 py-3.5">Room Type</th>
+    <th className="px-5 py-3.5">Check-In</th>
+    <th className="px-5 py-3.5">Check-Out</th>
+    <th className="px-5 py-3.5 text-center">Nights</th>
+    <th className="px-5 py-3.5">Source</th>
+    <th className="px-5 py-3.5 text-center">Status</th>
+    <th className="px-5 py-3.5 text-right">Total Amount</th>
+  </tr>
+</thead>
+<tbody className="divide-y divide-slate-100">
+  {loading && (
+    <tr><td colSpan={12} className="px-5 py-6 text-center text-slate-400">Loading reservations…</td></tr>
+  )}
+  {!loading && loadError && (
+    <tr><td colSpan={12} className="px-5 py-6 text-center text-red-500">{loadError}</td></tr>
+  )}
+  {!loading && !loadError && bookings.length === 0 && (
+    <tr><td colSpan={12} className="px-5 py-6 text-center text-slate-400">No reservations yet.</td></tr>
+  )}
+  {!loading && !loadError && bookings.map((booking) => (
+    <tr key={booking.rowId} className="hover:bg-slate-50/70 transition-colors">
+      <td className="px-5 py-4 text-slate-500 font-medium font-mono">{booking.id}</td>
+      <td className="px-5 py-4 font-mono font-semibold text-slate-900 tracking-tight">{booking.bookingNumber}</td>
+      <td className="px-5 py-4 font-medium text-slate-900">{booking.guestName}</td>
+      <td className="px-5 py-4">
+        <span className={`px-2 py-0.5 rounded-md text-xs font-semibold ${
+          booking.guestType === "Primary"
+            ? "bg-amber-50 text-amber-700 border border-amber-100"
+            : "bg-slate-50 text-slate-500 border border-slate-100"
+        }`}>
+          {booking.guestType}
+        </span>
+      </td>
+      <td className="px-5 py-4 font-mono font-medium text-slate-700">{booking.roomNumber}</td>
+      <td className="px-5 py-4 text-slate-600">{booking.roomType}</td>
+      <td className="px-5 py-4 font-mono text-xs text-slate-500">{booking.checkIn}</td>
+      <td className="px-5 py-4 font-mono text-xs text-slate-500">{booking.checkOut}</td>
+      <td className="px-5 py-4 text-center font-mono text-slate-700">{booking.nights}</td>
+      <td className="px-5 py-4 text-slate-600">{booking.source}</td>
+      <td className="px-5 py-4 text-center">
+        <span className={`px-2.5 py-1 rounded-full text-xs font-medium inline-block ${getStatusBadgeClass(booking.status)}`}>
+          {booking.status}
+        </span>
+      </td>
+      <td className="px-5 py-4 text-right font-mono font-semibold text-slate-900">{booking.totalAmount}</td>
+    </tr>
+  ))}
+</tbody>
             </table>
           </div>
 
