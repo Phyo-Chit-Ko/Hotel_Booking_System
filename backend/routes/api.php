@@ -44,6 +44,7 @@ Route::prefix('reservations')->group(function () {
 });
 Route::get('/bookings', [BookingController::class, 'index']);
 Route::post('/bookings', [BookingController::class, 'store']);
+Route::put('/bookings/{id}', [BookingController::class, 'update']);
 
 // Secured — was previously unprotected, now requires an authenticated user
 Route::middleware('auth:sanctum')->put('/profile/update', [ProfileController::class, 'update']);

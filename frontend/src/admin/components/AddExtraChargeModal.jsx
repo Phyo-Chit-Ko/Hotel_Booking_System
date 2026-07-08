@@ -180,14 +180,14 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-2">Reservation ID</label>
             <div className="relative">
-              <FaHashtag className={`absolute left-4 top-3.5 text-xs ${errors.reservation_id ? "text-rose-400" : "text-slate-400"}`} />
+              {/*<FaHashtag className={`absolute left-4 top-3.5 text-xs ${errors.reservation_id ? "text-rose-400" : "text-slate-400"}`} />*/}
               <input
                 type="text"
                 name="reservation_id"
                 value={formData.reservation_id}
                 onChange={handleChange}
                 placeholder="e.g., 12"
-                className={`pl-11 ${inp("reservation_id")}`}
+                className={`pl-4 ${inp("reservation_id")}`}
               />
             </div>
             {errors.reservation_id && <p className="text-xs text-rose-500 mt-1.5 ml-1">{errors.reservation_id}</p>}
@@ -197,14 +197,14 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-2">Guest Full Name</label>
             <div className="relative">
-              <FaUser className={`absolute left-4 top-3.5 text-xs ${errors.guest_name ? "text-rose-400" : "text-slate-400"}`} />
+              {/*<FaUser className={`absolute left-4 top-3.5 text-xs ${errors.guest_name ? "text-rose-400" : "text-slate-400"}`} />*/}
               <input
                 type="text"
                 name="guest_name"
                 value={formData.guest_name}
                 onChange={handleChange}
                 placeholder="e.g., Sophia Bennett"
-                className={`pl-11 ${inp("guest_name")}`}
+                className={`pl-4 ${inp("guest_name")}`}
               />
             </div>
             {errors.guest_name && <p className="text-xs text-rose-500 mt-1.5 ml-1">{errors.guest_name}</p>}
@@ -348,7 +348,7 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
             </button>
             <button
               type="submit"
-              className="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold rounded-xl shadow-sm transition flex items-center gap-2"
+              className="px-6 py-2.5 bg-black hover:bg-slate-900 text-white text-sm font-semibold rounded-xl shadow-sm transition flex items-center gap-2"
             >
               <FaCheckCircle /> {chargeToEdit ? "Update Charge" : "Log Extra Charge"}
             </button>

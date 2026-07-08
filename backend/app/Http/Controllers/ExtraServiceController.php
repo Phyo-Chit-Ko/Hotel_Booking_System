@@ -59,7 +59,7 @@ class ExtraServiceController extends Controller
                 'charge_date'    => $charge->charge_date ? \Carbon\Carbon::parse($charge->charge_date)->format('Y-m-d') : null,
                 'service_type'   => $type,
                 'description'    => $charge->description ?? '',
-                'food_items'     => $rawFoodItems ?? '', // 👈 Now returns a clean readable text string to match React
+                'food_items'     => $rawFoodItems ?? '', 
                 'quantity'       => (int) $charge->quantity,
                 'rate'           => (float) $charge->rate,
                 'total'          => (float) $charge->total,

@@ -2,7 +2,8 @@
 // Lock CORS to your actual dev origin, not '*'
 header("Access-Control-Allow-Origin: http://localhost:5173");
 header("Access-Control-Allow-Methods: POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization");
+// FIXED: Expanded allowed headers to ensure file uploads (multipart data) cross origins smoothly
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept");
 header("Content-Type: application/json");
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -24,10 +25,12 @@ function fail(int $code, string $message): void
 }
 
 // ---- 1. Validate required fields up front ----
+// FIXED: Added 'payment_method' to match your database schema
 $required = [
     'first_name', 'last_name', 'email', 'phone',
     'adult', 'total_room', 'bed_preference',
     'check_in_date', 'check_out_date', 'room_type_id',
+    'payment_method', 
 ];
 
 foreach ($required as $field) {
@@ -69,7 +72,6 @@ $extMap = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/jpg' => 'jpg'];
 $ext = $extMap[$mimeType];
 
 // CHANGED: save into Laravel's public disk location instead of a local uploads/ folder
-// __DIR__ is backend/, so this resolves to backend/storage/app/public/deposit_screenshots/
 $uploadDir = __DIR__ . '/storage/app/public/deposit_screenshots/';
 if (!is_dir($uploadDir)) {
     mkdir($uploadDir, 0755, true);
@@ -84,10 +86,11 @@ if (!move_uploaded_file($file['tmp_name'], $destination)) {
 }
 
 // CHANGED: path stored in DB must be relative to the 'public' disk root
-// (storage/app/public), matching what Storage::url() expects in BookingController
 $screenshotPath = 'deposit_screenshots/' . $filename;
 
 // ---- 3. Sanitize / cast the rest of the input ----
+// FIXED: Sanitized payment method variable
+$payment_method   = trim($_POST['payment_method']); 
 $first_name       = trim($_POST['first_name']);
 $last_name        = trim($_POST['last_name']);
 $email            = trim($_POST['email']);
@@ -116,12 +119,13 @@ try {
     $pdo = new PDO("mysql:host=$host;dbname=$db;charset=utf8mb4", $user, $pass);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
+    // FIXED: Added payment_method column and corresponding ? placeholder
     $sql = "INSERT INTO bookings
         (room_type_id, first_name, last_name, email, phone, bed_preference,
          check_in_date, check_out_date, total_room, adult, child,
-         deposit, deposit_screenshot, special_requests, status)
+         deposit, deposit_screenshot, special_requests, payment_method, status)
         VALUES
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')";
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')";
 
     $stmt = $pdo->prepare($sql);
     $stmt->execute([
@@ -139,6 +143,7 @@ try {
         $deposit,
         $screenshotPath,
         $special_requests,
+        $payment_method, // FIXED: Sent payload value inside array
     ]);
 
     echo json_encode([
@@ -150,7 +155,6 @@ try {
     if (file_exists($destination)) {
         unlink($destination);
     }
-    // Don't leak raw DB error details to the client in production
     error_log($e->getMessage());
     fail(500, "Something went wrong while saving your booking. Please try again.");
 }
