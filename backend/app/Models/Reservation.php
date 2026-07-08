@@ -115,11 +115,39 @@ class Reservation extends Model
         return max(0, (float) $this->total_amount - (float) $paid);
     }
 
+    /**
+     * The status shown to staff, derived from reservation_status + today's date.
+     *
+     * - Reserved/Confirmed + check-in date is today  -> "Check-In" (action needed, not stored)
+     * - No-Show (set nightly by reservations:mark-no-shows) -> "No-Show"
+     * - Checked-In -> "Occupied"
+     * - anything else (Reserved/Confirmed in the future, Checked-Out) -> unchanged
+     */
+    public function computeDisplayStatus(): string
+    {
+        $status = $this->reservation_status;
+        $today  = \Carbon\Carbon::today();
+
+        if (in_array($status, ['Reserved', 'Confirmed']) && $this->check_in_date->isSameDay($today)) {
+            return 'Check-In';
+        }
+
+        return match ($status) {
+            'No-Show'    => 'No-Show',
+            'Checked-In' => 'Occupied',
+            default      => $status,
+        };
+    }
+
     // ── Presentation helpers for ReservationManagement.jsx ──────────────
 
     /**
      * Shape one guest's view of this reservation for the table.
      * Pass the primary guest by default, or an additional guest + their type.
+     *
+     * NOTE: 'remainingAmount' / 'totalAmountRaw' require the 'payments'
+     * relation to be eager-loaded on the reservation (see index()/detail()
+     * in ReservationController) to avoid an N+1 query per row.
      */
     public function toTableRow(?Guest $guestOverride = null, string $guestType = 'Primary'): array
     {
@@ -137,16 +165,22 @@ class Reservation extends Model
             'checkOut'      => $this->check_out_date->format('Y-m-d'),
             'nights'        => $this->nights,
             'source'        => $this->booking_source,
-            'status'        => $this->reservation_status,
+            'status'        => $this->computeDisplayStatus(),
+            'rawStatus'     => $this->reservation_status,
             'totalAmount'   => '$' . number_format((float) $this->total_amount, 2),
+            // Numeric (unformatted) counterparts — used by the payment /
+            // checkout UI for math and > 0 comparisons instead of parsing
+            // the display string above.
+            'totalAmountRaw'  => (float) $this->total_amount,
+            'remainingAmount' => $this->remaining_amount,
         ];
     }
 
     /**
      * Expand this single reservation into one row per guest sharing the room:
      * the primary guest, plus every guest linked via reservation_guests.
-     * Requires 'guest', 'roomType', and 'additionalGuests.guest' to be
-     * eager-loaded to avoid N+1 queries.
+     * Requires 'guest', 'roomType', 'payments', and 'additionalGuests.guest'
+     * to be eager-loaded to avoid N+1 queries.
      */
     public function toTableRows(): array
     {
