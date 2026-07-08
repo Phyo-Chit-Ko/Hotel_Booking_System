@@ -21,9 +21,13 @@ return [
  
     // Specific origin for your React development server
     // Change this if your React app uses a different port
+// <<<<<<< Updated upstream
     'allowed_origins' => ['http://localhost:5173',
     'http://localhost:5174'],
  
+// =======
+    'allowed_origins' => ['http://localhost:5173'],
+// >>>>>>> Stashed changes
     'allowed_origins_patterns' => [],
  
     // Allow all headers (Content-Type, Authorization, etc.)

@@ -1,5 +1,7 @@
 <?php
-
+//new edit ppsp
+use App\Http\Controllers\UserController;
+// new edit ppsp
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ExtraServiceController;
@@ -17,11 +19,19 @@ use App\Http\Controllers\Api\FloorLayoutController;
 use App\Http\Controllers\Api\ReservationGuestController;
 // <<<<<<< HEAD
 
+// <<<<<<< Updated upstream
 // =======
 use App\Http\Controllers\Api\RestaurantItemController;
 
  
 // >>>>>>> origin/restaurant_backend
+// =======
+
+//new edit ppsp
+Route::apiResource('users', UserController::class);
+//new edit ppsp
+
+// >>>>>>> Stashed changes
 Route::middleware('api')->post('/login', [AuthController::class, 'login']);
 
 Route::get('/user', function (Request $request) {

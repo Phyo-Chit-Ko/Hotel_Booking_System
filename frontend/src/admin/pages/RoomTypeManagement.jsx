@@ -44,7 +44,6 @@ export default function RoomTypeManagement() {
 
   const handleSaveRoomType = async (formData, id = null) => {
     try {
-      // Always send numOfRooms (camelCase) — controller maps it to num_of_rooms
       const payload = {
         name:       formData.name,
         code:       formData.code,
@@ -111,145 +110,162 @@ export default function RoomTypeManagement() {
 
   return (
     <AdminLayout>
-      {/* Toast */}
+      {/* Toast Notification */}
       {toast.show && (
         <div className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 shadow-2xl rounded-2xl px-6 py-3.5 text-white text-sm font-semibold border ${
-          toast.type === "success"
-            ? "bg-emerald-600 border-emerald-500"
-            : "bg-rose-600 border-rose-500"
+          toast.type === "success" ? "bg-emerald-600 border-emerald-500" : "bg-rose-600 border-rose-500"
         }`}>
           {toast.message}
         </div>
       )}
 
-      {/* Header */}
-      <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-3xl p-8 shadow-sm mb-6 flex justify-between items-center">
-        <div>
-          <h1 className="text-4xl font-bold text-slate-800">Room Type Management</h1>
-          <p className="text-slate-500 mt-2">Room type capacity, amenities and default rates.</p>
-        </div>
-        <button onClick={handleOpenAddModal}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl flex items-center gap-2 shadow-sm transition">
-          <FaPlus /> Add New
-        </button>
-      </div>
+      {/* Main Container Card Wrapper */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden p-5 space-y-5 mt-2">
+        
+        {/* Top Control Section */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+          
+          <div className="flex flex-row items-center gap-3">
+            
+            {/* Compact Search Bar Layout */}
+            <div className="relative flex items-center h-10 w-64 bg-white rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-slate-500/20 focus-within:border-slate-500 transition-all">
+              <input 
+                type="text" 
+                placeholder="Search room type..."
+                value={typedQuery}
+                onChange={(e) => setTypedQuery(e.target.value)}
+                onKeyDown={handleKeyDown}
+                className="w-full bg-transparent h-full pl-3.5 pr-9 text-sm text-slate-800 outline-none"
+              />
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
+                {typedQuery ? (
+                  <button type="button" onClick={handleClearSearch} className="text-rose-500 hover:text-rose-700 transition">
+                    <FaTimes className="w-3.5 h-3.5" />
+                  </button>
+                ) : (
+                  <button type="button" onClick={handleSearchSubmit} className="text-slate-400 hover:text-slate-600 transition">
+                    <FaSearch className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
 
-      {/* Filters */}
-      <div className="bg-white rounded-2xl shadow-md p-5 mb-6">
-        <div className="flex gap-4">
-          <div className="relative flex items-center">
-            <input type="text" placeholder="Search room type..."
-              value={typedQuery}
-              onChange={(e) => setTypedQuery(e.target.value)}
-              onKeyDown={handleKeyDown}
-              className="pl-4 pr-14 py-3 border border-slate-200 rounded-xl w-80 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
-            />
-            {activeSearch ? (
-              <button type="button" onClick={handleClearSearch}
-                className="absolute right-2 p-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg border border-rose-100">
-                <FaTimes className="w-4 h-4" />
-              </button>
-            ) : (
-              <button type="button" onClick={handleSearchSubmit}
-                className="absolute right-2 p-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg border border-blue-100">
-                <FaSearch className="w-4 h-4" />
-              </button>
-            )}
+            {/* Compact Status Selector Dropdown */}
+            <div className="relative h-10 w-40">
+              <select 
+                value={statusFilter} 
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full h-full appearance-none bg-white border border-slate-200 rounded-xl pl-3.5 pr-8 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-slate-500/20 focus:border-slate-500 cursor-pointer transition-all"
+              >
+                <option value="All Active">All Statuses</option>
+                <option value="Active">Active Only</option>
+                <option value="Inactive">Inactive Only</option>
+              </select>
+              <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center text-slate-400">
+                <svg className="fill-current h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                  <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+                </svg>
+              </div>
+            </div>
+
           </div>
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
-            className="border rounded-xl px-4 py-3 bg-white text-slate-700 focus:outline-none text-sm">
-            <option value="All Active">All Statuses</option>
-            <option value="Active">Active Only</option>
-            <option value="Inactive">Inactive Only</option>
-          </select>
-        </div>
-      </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-2xl shadow-md overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr className="text-left text-sm text-gray-600">
-              <th className="p-4">#</th>
-              <th className="p-4">Room Type</th>
-              <th className="p-4">Code</th>
-              <th className="p-4">Rooms Count</th>
-              <th className="p-4">Capacity</th>
-              <th className="p-4">Base Rate</th>
-              <th className="p-4">Amenities</th>
-              <th className="p-4">Status</th>
-              <th className="p-4">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              <tr><td colSpan="9" className="p-8 text-center text-slate-400">Loading...</td></tr>
-            ) : filteredRoomTypes.length === 0 ? (
-              <tr><td colSpan="9" className="p-8 text-center text-slate-400">No room types found.</td></tr>
-            ) : (
-              filteredRoomTypes.map((room, index) => (
-                <tr key={room.room_type_id} className="border-t hover:bg-gray-50 transition-colors">
-                  <td className="p-4 text-slate-500 font-medium">{index + 1}</td>
-                  <td className="p-4 font-semibold text-slate-800">{room.name}</td>
-                  <td className="p-4">
-                    {room.code
-                      ? <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md text-xs font-mono font-bold">{room.code}</span>
-                      : <span className="text-slate-300 text-xs italic">—</span>
-                    }
-                  </td>
-                  {/* ↓ Use num_of_rooms (DB column name returned by API) */}
-                  <td className="p-4 text-slate-600">{room.num_of_rooms ?? 0} Rooms</td>
-                  <td className="p-4 text-slate-600">{room.capacity} Pax</td>
-                  <td className="p-4 text-slate-800 font-medium">${room.base_price}</td>
-                  <td className="p-4">
-                    <div className="flex gap-1.5 flex-wrap">
-                      {room.breakfast === 1 || room.breakfast === true
-                        ? <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-md border border-amber-200 text-xs">Free Breakfast</span>
-                        : null}
-                      {room.bathtub === 1 || room.bathtub === true
-                        ? <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md border border-blue-200 text-xs">Bathtub</span>
-                        : null}
-                      {!room.breakfast && !room.bathtub
-                        ? <span className="text-slate-400 italic text-xs">Standard</span>
-                        : null}
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center gap-3">
-                      <button type="button"
-                        onClick={() => handleToggleStatus(room.room_type_id, room.status)}
-                        className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ${
-                          room.status === "Active" ? "bg-green-500" : "bg-slate-300"
-                        }`}>
-                        <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200 ${
-                          room.status === "Active" ? "translate-x-5" : "translate-x-0"
-                        }`} />
-                      </button>
-                      <span className={`text-xs font-semibold ${room.status === "Active" ? "text-green-600" : "text-slate-400"}`}>
-                        {room.status}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex gap-2">
-                      <button onClick={() => handleOpenEditModal(room)}
-                        className="bg-slate-100 hover:bg-slate-200 p-2 rounded-lg text-slate-600 transition">
-                        <FaEdit />
-                      </button>
-                      <button onClick={() => handleDeleteRoomType(room.room_type_id, room.name)}
-                        className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg transition">
-                        <FaTrash />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-        <div className="p-4 border-t text-gray-500 text-sm">
-          Showing {filteredRoomTypes.length} of {roomTypes.length} records
+          {/* "+ Add New" Button */}
+          <button 
+            onClick={handleOpenAddModal}
+            className="flex items-center justify-center gap-1.5 h-10 px-4 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 active:scale-[0.98] transition rounded-xl shadow-sm"
+          >
+            <FaPlus className="w-2.5 h-2.5" /> Add New
+          </button>
+
         </div>
+
+        {/* Clean Table Layout Section */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-white border-b border-slate-100">
+                <th className="px-5 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">#</th>
+                <th className="px-5 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Room Type</th>
+                <th className="px-5 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Code</th>
+                <th className="px-5 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Rooms Count</th>
+                <th className="px-5 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Capacity</th>
+                <th className="px-5 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Base Rate</th>
+                <th className="px-5 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Amenities</th>
+                <th className="px-5 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                <th className="px-5 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {isLoading ? (
+                <tr><td colSpan="9" className="text-center py-10 text-sm font-medium text-slate-400">Loading room types records...</td></tr>
+              ) : filteredRoomTypes.length === 0 ? (
+                <tr><td colSpan="9" className="text-center py-10 text-sm font-medium text-slate-400">No room types found matching your search criteria.</td></tr>
+              ) : (
+                filteredRoomTypes.map((room, index) => (
+                  <tr key={room.room_type_id} className="hover:bg-slate-50/40 transition group">
+                    <td className="px-5 py-2 text-sm font-medium text-slate-400">{index + 1}</td>
+                    <td className="px-5 py-2 text-sm font-bold text-slate-800">{room.name}</td>
+                    <td className="px-5 py-2 text-sm">
+                      {room.code ? (
+                        <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md text-xs font-mono font-bold">{room.code}</span>
+                      ) : (
+                        <span className="text-slate-300 text-xs italic">—</span>
+                      )}
+                    </td>
+                    <td className="px-5 py-2 text-sm text-slate-500">{room.num_of_rooms ?? 0} Rooms</td>
+                    <td className="px-5 py-2 text-sm text-slate-500">{room.capacity} Pax</td>
+                    <td className="px-5 py-2 text-sm text-slate-800 font-semibold">${room.base_price}</td>
+                    <td className="px-5 py-2 text-sm">
+                      <div className="flex gap-1 flex-wrap">
+                        {room.breakfast === 1 || room.breakfast === true ? (
+                          <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-md border border-amber-100 text-xs">Free Breakfast</span>
+                        ) : null}
+                        {room.bathtub === 1 || room.bathtub === true ? (
+                          <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md border border-blue-100 text-xs">Bathtub</span>
+                        ) : null}
+                        {!room.breakfast && !room.bathtub ? (
+                          <span className="text-slate-400 italic text-xs">Standard</span>
+                        ) : null}
+                      </div>
+                    </td>
+                    <td className="px-5 py-2 text-sm">
+                      <div className="flex items-center gap-2">
+                        <button 
+                          type="button"
+                          onClick={() => handleToggleStatus(room.room_type_id, room.status)}
+                          className={`relative inline-flex h-4.5 w-8 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${room.status === "Active" ? "bg-green-500" : "bg-slate-300"}`}
+                        >
+                          <span className={`pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${room.status === "Active" ? "translate-x-3.5" : "translate-x-0"}`} />
+                        </button>
+                        <span className={`text-xs font-semibold ${room.status === "Active" ? "text-green-600" : "text-slate-400"}`}>
+                          {room.status}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-5 py-2 text-sm">
+                      <div className="flex items-center justify-center gap-1">
+                        <button 
+                          onClick={() => handleOpenEditModal(room)}
+                          className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md transition"
+                        >
+                          <FaEdit className="w-3.5 h-3.5" />
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteRoomType(room.room_type_id, room.name)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition"
+                        >
+                          <FaTrash className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
       </div>
 
       <AddRoomTypeModal

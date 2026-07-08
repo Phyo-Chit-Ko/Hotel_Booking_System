@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { FaTimes, FaBed, FaDollarSign, FaUsers, FaCoffee, FaHotTub } from "react-icons/fa";
+import { FaTimes, FaChevronDown } from "react-icons/fa"; // 
 
 // Move this OUTSIDE the component so it never causes a lifecycle/scope compilation error
 const initialFormState = {
@@ -14,10 +14,6 @@ const initialFormState = {
 
 export default function AddRoomTypeModal({ isOpen, onClose, onSave, roomToEdit = null }) {
   // All hooks MUST run on every render, regardless of `isOpen`.
-  // The `if (!isOpen) return null;` guard has to come AFTER these,
-  // otherwise this component calls a different number of hooks
-  // depending on isOpen, which breaks React's Rules of Hooks and
-  // is very likely why saving/editing was misbehaving.
   const [formData, setFormData] = useState(initialFormState);
   const [errors, setErrors] = useState({});
 
@@ -68,7 +64,6 @@ export default function AddRoomTypeModal({ isOpen, onClose, onSave, roomToEdit =
   const handleSubmit = (e) => {
     e.preventDefault();
     if (validateForm()) {
-      // Convert booleans explicitly to 1 or 0 so Laravel's 'boolean' validation passes seamlessly
       const sanitizedData = {
         ...formData,
         breakfast: formData.breakfast ? 1 : 0,
@@ -81,10 +76,10 @@ export default function AddRoomTypeModal({ isOpen, onClose, onSave, roomToEdit =
   };
 
   const inp = (field) =>
-    `pl-11 pr-4 py-2.5 bg-slate-50 border rounded-xl w-full text-sm focus:outline-none focus:ring-2 transition-all ${
+    `px-4 py-2.5 bg-slate-50 border rounded-xl w-full text-sm focus:outline-none focus:ring-2 transition-all ${
       errors[field]
         ? "border-rose-300 focus:ring-rose-500/20 focus:border-rose-500 bg-rose-50/10"
-        : "border-slate-200 focus:ring-blue-500/20 focus:border-blue-500"
+        : "border-slate-200 focus:ring-slate-500/20 focus:border-slate-500"
     }`;
 
   return (
@@ -112,7 +107,6 @@ export default function AddRoomTypeModal({ isOpen, onClose, onSave, roomToEdit =
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-2">Room Type Name</label>
             <div className="relative">
-              <FaBed className={`absolute left-4 top-3.5 ${errors.name ? "text-rose-400" : "text-slate-400"}`} />
               <input type="text" name="name" value={formData.name} onChange={handleChange}
                 placeholder="e.g. Deluxe Suite" className={inp("name")} />
             </div>
@@ -130,7 +124,7 @@ export default function AddRoomTypeModal({ isOpen, onClose, onSave, roomToEdit =
                 onChange={handleChange}
                 placeholder="Dlx"
                 className={`px-4 py-2.5 bg-slate-50 border rounded-xl w-full text-sm focus:outline-none focus:ring-2 transition-all ${
-                  errors.code ? "border-rose-300 focus:ring-rose-500/20" : "border-slate-200 focus:ring-blue-500/20 focus:border-blue-500"
+                  errors.code ? "border-rose-300 focus:ring-rose-500/20" : "border-slate-200 focus:ring-slate-500/20 focus:border-slate-500"
                 }`} 
               />
               {errors.code && <p className="text-xs text-rose-500 mt-1.5 ml-1">{errors.code}</p>}
@@ -140,7 +134,7 @@ export default function AddRoomTypeModal({ isOpen, onClose, onSave, roomToEdit =
               <input type="number" name="numOfRooms" value={formData.numOfRooms} onChange={handleChange}
                 placeholder="e.g. 10"
                 className={`px-4 py-2.5 bg-slate-50 border rounded-xl w-full text-sm focus:outline-none focus:ring-2 transition-all ${
-                  errors.numOfRooms ? "border-rose-300 focus:ring-rose-500/20" : "border-slate-200 focus:ring-blue-500/20 focus:border-blue-500"
+                  errors.numOfRooms ? "border-rose-300 focus:ring-rose-500/20" : "border-slate-200 focus:ring-slate-500/20 focus:border-slate-500"
                 }`} />
               {errors.numOfRooms && <p className="text-xs text-rose-500 mt-1.5 ml-1">{errors.numOfRooms}</p>}
             </div>
@@ -150,10 +144,10 @@ export default function AddRoomTypeModal({ isOpen, onClose, onSave, roomToEdit =
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">Max Guest Capacity</label>
-              <div className="relative">
-                <FaUsers className="absolute left-4 top-3.5 text-slate-400" />
+              <div className="relative flex items-center">
+                
                 <select name="capacity" value={formData.capacity} onChange={handleChange}
-                  className="pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 appearance-none">
+                  className="px-4 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl w-full text-sm focus:outline-none focus:ring-2 focus:ring-slate-500/20 appearance-none bg-white cursor-pointer">
                   <option value="1">1 Person</option>
                   <option value="2">2 People</option>
                   <option value="3">3 People</option>
@@ -161,12 +155,14 @@ export default function AddRoomTypeModal({ isOpen, onClose, onSave, roomToEdit =
                   <option value="5">5 People</option>
                   <option value="6">6+ People</option>
                 </select>
+                <div className="absolute right-4 pointer-events-none text-slate-500 text-xs">
+                  <FaChevronDown />
+                </div>
               </div>
             </div>
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">Base Price / Night</label>
               <div className="relative">
-                <FaDollarSign className={`absolute left-4 top-3.5 ${errors.base_price ? "text-rose-400" : "text-slate-400"}`} />
                 <input type="number" name="base_price" step="0.01" value={formData.base_price} onChange={handleChange}
                   placeholder="0.00" className={inp("base_price")} />
               </div>
@@ -182,7 +178,6 @@ export default function AddRoomTypeModal({ isOpen, onClose, onSave, roomToEdit =
                 formData.breakfast ? "bg-amber-50/40 border-amber-300" : "bg-slate-50/50 border-slate-200"
               }`}>
                 <div className="flex items-center gap-3">
-                  <FaCoffee className={formData.breakfast ? "text-amber-600" : "text-slate-400"} />
                   <span className="text-sm font-medium text-slate-700">Free Breakfast</span>
                 </div>
                 <input type="checkbox" name="breakfast" checked={formData.breakfast} onChange={handleChange}
@@ -192,7 +187,6 @@ export default function AddRoomTypeModal({ isOpen, onClose, onSave, roomToEdit =
                 formData.bathtub ? "bg-blue-50/40 border-blue-300" : "bg-slate-50/50 border-slate-200"
               }`}>
                 <div className="flex items-center gap-3">
-                  <FaHotTub className={formData.bathtub ? "text-blue-600" : "text-slate-400"} />
                   <span className="text-sm font-medium text-slate-700">Luxury Bathtub</span>
                 </div>
                 <input type="checkbox" name="bathtub" checked={formData.bathtub} onChange={handleChange}
@@ -208,7 +202,7 @@ export default function AddRoomTypeModal({ isOpen, onClose, onSave, roomToEdit =
               Cancel
             </button>
             <button type="submit"
-              className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl shadow-sm transition">
+              className="px-6 py-2.5 bg-slate-950 hover:bg-slate-900 text-white text-sm font-semibold rounded-xl shadow-sm transition active:scale-[0.98]">
               {roomToEdit ? "Update Changes" : "Save Room Type"}
             </button>
           </div>

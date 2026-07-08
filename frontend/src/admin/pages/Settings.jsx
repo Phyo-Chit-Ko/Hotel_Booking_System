@@ -56,17 +56,10 @@ export default function Settings() {
 
   return (
     <AdminLayout>
-      <div className="space-y-8 font-sans">
+      {/* စာသားအပေါ်က space ရောစေရန် pt-4 ထည့်ပေးထားပါသည် */}
+      <div className="space-y-8 font-sans pt-4">
 
-        {/* Header */}
-        <div>
-          <h1 className="text-4xl font-bold text-slate-900 tracking-tight">
-            Settings
-          </h1>
-          <p className="text-slate-500 mt-2">
-            Manage your profile details and account security configurations.
-          </p>
-        </div>
+        {/* 🛑 Header Section (Settings နှင့် Manage your profile စာကြောင်းများ) ကို ဖယ်ရှားလိုက်ပါပြီ */}
 
         {/* Profile Section Workspace */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
@@ -104,7 +97,7 @@ export default function Settings() {
                   </h3>
                   <button 
                     onClick={() => { setProfileForm({ ...user }); setIsEditing(true); }}
-                    className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-amber-500 hover:bg-amber-600 rounded-xl shadow-md shadow-amber-500/10 transition"
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-slate-950 hover:bg-slate-900 rounded-xl shadow-md transition"
                   >
                     <FaEdit size={14} /> Edit Profile
                   </button>
@@ -157,15 +150,14 @@ export default function Settings() {
                   {/* Full Name Input */}
                   <div className="flex flex-col">
                     <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Full Name *</label>
-                    <div className="relative flex items-center bg-slate-50 rounded-xl border border-slate-200/80 focus-within:ring-2 focus-within:ring-amber-500/20 focus-within:border-amber-500">
-                      <FaUser className="absolute left-4 text-slate-400" size={14} />
+                    <div className="relative flex items-center bg-slate-50 rounded-xl border border-slate-200/80 focus-within:ring-2 focus-within:ring-slate-500/20 focus-within:border-slate-500">
                       <input
                         type="text"
                         required
                         name="name"
                         value={profileForm.name}
                         onChange={handleProfileChange}
-                        className="w-full bg-transparent pl-11 pr-4 py-3 text-sm text-slate-800 outline-none"
+                        className="w-full bg-transparent px-4 py-3 text-sm text-slate-800 outline-none"
                       />
                     </div>
                   </div>
@@ -173,14 +165,13 @@ export default function Settings() {
                   {/* Phone Input */}
                   <div className="flex flex-col">
                     <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Phone Number</label>
-                    <div className="relative flex items-center bg-slate-50 rounded-xl border border-slate-200/80 focus-within:ring-2 focus-within:ring-amber-500/20 focus-within:border-amber-500">
-                      <FaPhone className="absolute left-4 text-slate-400" size={14} />
+                    <div className="relative flex items-center bg-slate-50 rounded-xl border border-slate-200/80 focus-within:ring-2 focus-within:ring-slate-500/20 focus-within:border-slate-500">
                       <input
                         type="text"
                         name="phone"
                         value={profileForm.phone}
                         onChange={handleProfileChange}
-                        className="w-full bg-transparent pl-11 pr-4 py-3 text-sm text-slate-800 outline-none"
+                        className="w-full bg-transparent px-4 py-3 text-sm text-slate-800 outline-none"
                       />
                     </div>
                   </div>
@@ -189,15 +180,14 @@ export default function Settings() {
                 {/* Email Input (Full Width Input Line row) */}
                 <div className="flex flex-col">
                   <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Email Address *</label>
-                  <div className="relative flex items-center bg-slate-50 rounded-xl border border-slate-200/80 focus-within:ring-2 focus-within:ring-amber-500/20 focus-within:border-amber-500">
-                    <FaEnvelope className="absolute left-4 text-slate-400" size={14} />
+                  <div className="relative flex items-center bg-slate-50 rounded-xl border border-slate-200/80 focus-within:ring-2 focus-within:ring-slate-500/20 focus-within:border-slate-500">
                     <input
                       type="email"
                       required
                       name="email"
                       value={profileForm.email}
                       onChange={handleProfileChange}
-                      className="w-full bg-transparent pl-11 pr-4 py-3 text-sm text-slate-800 outline-none"
+                      className="w-full bg-transparent px-4 py-3 text-sm text-slate-800 outline-none"
                     />
                   </div>
                 </div>
@@ -213,7 +203,7 @@ export default function Settings() {
                   </button>
                   <button
                     type="submit"
-                    className="flex items-center gap-2 px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold text-sm rounded-xl shadow-lg shadow-amber-500/20 transition-all"
+                    className="flex items-center gap-2 px-6 py-2.5 bg-slate-950 hover:bg-slate-900 text-white font-semibold text-sm rounded-xl shadow-md transition-all"
                   >
                     <FaSave size={14} /> Save Changes
                   </button>
@@ -227,7 +217,7 @@ export default function Settings() {
         {/* Change Password Block Panel Section */}
         <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
           <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-amber-50 rounded-xl text-amber-600"><FaLock size={16} /></div>
+            <div className="p-2 bg-slate-50 rounded-xl text-slate-700 border border-slate-100"><FaLock size={16} /></div>
             <h3 className="text-xl font-bold text-slate-800">
               Change Password
             </h3>
@@ -236,7 +226,7 @@ export default function Settings() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             <div className="flex flex-col">
               <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Current Password</label>
-              <div className="relative flex items-center bg-slate-50 rounded-xl border border-slate-200/80 focus-within:ring-2 focus-within:ring-amber-500/20 focus-within:border-amber-500">
+              <div className="relative flex items-center bg-slate-50 rounded-xl border border-slate-200/80 focus-within:ring-2 focus-within:ring-slate-500/20 focus-within:border-slate-500">
                 <input
                   type="password"
                   name="currentPassword"
@@ -250,7 +240,7 @@ export default function Settings() {
 
             <div className="flex flex-col">
               <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">New Password</label>
-              <div className="relative flex items-center bg-slate-50 rounded-xl border border-slate-200/80 focus-within:ring-2 focus-within:ring-amber-500/20 focus-within:border-amber-500">
+              <div className="relative flex items-center bg-slate-50 rounded-xl border border-slate-200/80 focus-within:ring-2 focus-within:ring-slate-500/20 focus-within:border-slate-500">
                 <input
                   type="password"
                   name="newPassword"
@@ -264,7 +254,7 @@ export default function Settings() {
 
             <div className="flex flex-col">
               <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Confirm Password</label>
-              <div className="relative flex items-center bg-slate-50 rounded-xl border border-slate-200/80 focus-within:ring-2 focus-within:ring-amber-500/20 focus-within:border-amber-500">
+              <div className="relative flex items-center bg-slate-50 rounded-xl border border-slate-200/80 focus-within:ring-2 focus-within:ring-slate-500/20 focus-within:border-slate-500">
                 <input
                   type="password"
                   name="confirmPassword"
@@ -280,7 +270,7 @@ export default function Settings() {
           <button
             type="button"
             onClick={handleUpdatePassword}
-            className="mt-6 bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition-all"
+            className="mt-6 bg-slate-950 hover:bg-slate-900 text-white px-6 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 shadow-md transition-all"
           >
             <FaSave />
             Update Password

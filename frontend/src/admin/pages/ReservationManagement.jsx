@@ -95,6 +95,7 @@ export default function ReservationManagement() {
   };
 
   return (
+    //form design//
     <AdminLayout>
       <div className="w-full space-y-6 p-1">
 
