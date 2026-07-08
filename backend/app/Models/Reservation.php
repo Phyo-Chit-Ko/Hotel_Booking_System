@@ -45,6 +45,8 @@ class Reservation extends Model
      */
     protected $appends = ['booking_number', 'remaining_amount'];
 
+    // ── Relationships ───────────────────────────────────────────────────
+
     public function guest()
     {
         return $this->belongsTo(Guest::class, 'guest_id', 'guest_id');
@@ -71,6 +73,28 @@ class Reservation extends Model
     }
 
     /**
+     * Pivot rows linking additional guests (beyond the primary guest_id)
+     * to this reservation, via the reservation_guests table.
+     */
+    public function additionalGuests()
+    {
+        return $this->hasMany(ReservationGuest::class, 'reservation_id', 'reservation_id');
+    }
+
+    /**
+     * Convenience many-to-many view of the same relationship, if you
+     * ever want direct Guest models with the pivot's guest_type attached.
+     */
+    public function guests()
+    {
+        return $this->belongsToMany(Guest::class, 'reservation_guests', 'reservation_id', 'guest_id')
+            ->withPivot('guest_type')
+            ->withTimestamps();
+    }
+
+    // ── Computed attributes ─────────────────────────────────────────────
+
+    /**
      * e.g. "BK-2026-0001"
      */
     public function getBookingNumberAttribute(): string
@@ -91,16 +115,22 @@ class Reservation extends Model
         return max(0, (float) $this->total_amount - (float) $paid);
     }
 
+    // ── Presentation helpers for ReservationManagement.jsx ──────────────
+
     /**
-     * Shape this reservation the way ReservationManagement.jsx expects it.
-     * Requires guest and roomType to be eager-loaded to avoid N+1 queries.
+     * Shape one guest's view of this reservation for the table.
+     * Pass the primary guest by default, or an additional guest + their type.
      */
-    public function toTableRow(): array
+    public function toTableRow(?Guest $guestOverride = null, string $guestType = 'Primary'): array
     {
+        $g = $guestOverride ?? $this->guest;
+
         return [
             'id'            => $this->reservation_id,
+            'rowId'         => $this->reservation_id . '-' . ($g?->guest_id ?? 'na'),
             'bookingNumber' => $this->booking_number,
-            'guestName'     => $this->guest?->full_name ?? '',
+            'guestName'     => $g?->full_name ?? '',
+            'guestType'     => $guestType,
             'roomNumber'    => $this->room_number,
             'roomType'      => $this->roomType?->name ?? '',
             'checkIn'       => $this->check_in_date->format('Y-m-d'),
@@ -112,15 +142,20 @@ class Reservation extends Model
         ];
     }
 
-    public function additionalGuests()
-{
-    return $this->hasMany(ReservationGuest::class, 'reservation_id', 'reservation_id');
-}
+    /**
+     * Expand this single reservation into one row per guest sharing the room:
+     * the primary guest, plus every guest linked via reservation_guests.
+     * Requires 'guest', 'roomType', and 'additionalGuests.guest' to be
+     * eager-loaded to avoid N+1 queries.
+     */
+    public function toTableRows(): array
+    {
+        $rows = [$this->toTableRow($this->guest, 'Primary')];
 
-public function guests()
-{
-    return $this->belongsToMany(Guest::class, 'reservation_guests', 'reservation_id', 'guest_id')
-        ->withPivot('guest_type')
-        ->withTimestamps();
-}
+        foreach ($this->additionalGuests as $link) {
+            $rows[] = $this->toTableRow($link->guest, $link->guest_type ?? 'Additional');
+        }
+
+        return $rows;
+    }
 }

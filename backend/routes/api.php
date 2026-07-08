@@ -15,6 +15,13 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\Api\FloorLayoutController;
 use App\Http\Controllers\Api\ReservationGuestController;
+// <<<<<<< HEAD
+
+// =======
+use App\Http\Controllers\Api\RestaurantItemController;
+
+ 
+// >>>>>>> origin/restaurant_backend
 Route::middleware('api')->post('/login', [AuthController::class, 'login']);
 
 Route::get('/user', function (Request $request) {
@@ -52,7 +59,7 @@ Route::middleware('auth:sanctum')->put('/profile/update', [ProfileController::cl
 Route::get('/guests/search', [GuestController::class, 'search']);
 Route::post('/guests', [GuestController::class, 'store']);
 Route::delete('/guests/{id}', [GuestController::class, 'destroy']);
-
+Route::get('/guests', [GuestController::class, 'index']);
 Route::get('/reservations', [ReservationController::class, 'index']);
 Route::post('/reservations', [ReservationController::class, 'store']);
 Route::delete('/reservations/{id}', [ReservationController::class, 'destroy']);
@@ -75,8 +82,23 @@ Route::delete('/reservations/{reservation}/guests/{guest}', [ReservationGuestCon
 Route::get('/services', [ExtraServiceController::class, 'index']);
 Route::post('/services', [ExtraServiceController::class, 'store']);
 Route::put('/services/{id}', [ExtraServiceController::class, 'update']);
-// <<<<<<< HEAD
-Route::delete('/services/{id}', [ExtraServiceController::class, 'handleDeleteCharge']);
-
 Route::delete('/services/{id}', [ExtraServiceController::class, 'destroy']);
-// >>>>>>> origin/extra_charges
+
+// <<<<<<< HEAD
+
+Route::get('/reservations/{id}/detail', [ReservationController::class, 'detail']);
+Route::post('/reservations/{id}/check-in', [ReservationController::class, 'checkIn']);
+Route::patch('/reservations/{id}/check-out', [ReservationController::class, 'checkOut']);
+
+// =======
+Route::get('/restaurant-items', [RestaurantItemController::class, 'index']);
+
+Route::post('/restaurant-items', [RestaurantItemController::class, 'store']);
+
+Route::put('/restaurant-items/{id}', [RestaurantItemController::class, 'update']);
+
+Route::patch('/restaurant-items/{id}/toggle-status', [RestaurantItemController::class, 'toggleStatus']);
+
+Route::delete('/restaurant-items/{id}', [RestaurantItemController::class, 'destroy']);
+ 
+// >>>>>>> origin/restaurant_backend

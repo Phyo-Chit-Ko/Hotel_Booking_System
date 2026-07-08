@@ -226,6 +226,8 @@ export default function AddReservation({ isOpen, isMinimized = false, onClose, o
         if (g.nationality) gPayload.append("nationality", g.nationality);
         gPayload.append("idType", g.idType);
         gPayload.append("idNumber", g.idNumber);
+        if (g.idFront) gPayload.append("idFront", g.idFront);
+        if (g.idBack) gPayload.append("idBack", g.idBack);
       }
       gPayload.append("guestType", g.guestType);
 
@@ -324,6 +326,7 @@ setCurrentStep(1);
   guestId: null, guestSearch: "", guestResults: [],
   firstName: "", lastName: "", phone: "", email: "", nationality: "",
   idType: "Passport", idNumber: "", guestType: "Adult",
+  idFront: null, idBack: null,
   saved: false, savedGuestId: null, createdThisSession: false, error: "",
 });
 
@@ -625,26 +628,36 @@ const selectGuestForRow = (localId, guest) => {
               Using existing profile: {g.firstName} {g.lastName}
             </p>
           ) : (
-           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-  <input className={inp + " py-2.5"} placeholder="First Name *" value={g.firstName} disabled={g.saved}
-    onChange={(e) => updateGuestRow(g.localId, "firstName", e.target.value)} />
-  <input className={inp + " py-2.5"} placeholder="Last Name *" value={g.lastName} disabled={g.saved}
-    onChange={(e) => updateGuestRow(g.localId, "lastName", e.target.value)} />
-  <input className={inp + " py-2.5"} placeholder="Phone *" value={g.phone} disabled={g.saved}
-    onChange={(e) => updateGuestRow(g.localId, "phone", e.target.value)} />
-  <input className={inp + " py-2.5"} placeholder="Email" value={g.email} disabled={g.saved}
-    onChange={(e) => updateGuestRow(g.localId, "email", e.target.value)} />
-  <input className={inp + " py-2.5"} placeholder="Nationality" value={g.nationality} disabled={g.saved}
-    onChange={(e) => updateGuestRow(g.localId, "nationality", e.target.value)} />
-  <select className={sel + " py-2.5"} value={g.idType} disabled={g.saved}
-    onChange={(e) => updateGuestRow(g.localId, "idType", e.target.value)}>
-    <option value="Passport">Passport</option>
-    <option value="NRC">NRC</option>
-    <option value="Driver's License">Driver's License</option>
-    <option value="National ID">National ID</option>
-  </select>
-  
-</div>
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <input className={inp + " py-2.5"} placeholder="First Name *" value={g.firstName} disabled={g.saved}
+                  onChange={(e) => updateGuestRow(g.localId, "firstName", e.target.value)} />
+                <input className={inp + " py-2.5"} placeholder="Last Name *" value={g.lastName} disabled={g.saved}
+                  onChange={(e) => updateGuestRow(g.localId, "lastName", e.target.value)} />
+                <input className={inp + " py-2.5"} placeholder="Phone *" value={g.phone} disabled={g.saved}
+                  onChange={(e) => updateGuestRow(g.localId, "phone", e.target.value)} />
+                <input className={inp + " py-2.5"} placeholder="Email" value={g.email} disabled={g.saved}
+                  onChange={(e) => updateGuestRow(g.localId, "email", e.target.value)} />
+                <input className={inp + " py-2.5"} placeholder="Nationality" value={g.nationality} disabled={g.saved}
+                  onChange={(e) => updateGuestRow(g.localId, "nationality", e.target.value)} />
+                <select className={sel + " py-2.5"} value={g.idType} disabled={g.saved}
+                  onChange={(e) => updateGuestRow(g.localId, "idType", e.target.value)}>
+                  <option value="Passport">Passport</option>
+                  <option value="NRC">NRC</option>
+                  <option value="Driver's License">Driver's License</option>
+                  <option value="National ID">National ID</option>
+                </select>
+              </div>
+
+              {!g.saved && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                  <FileUpload label="ID Document (Front)" name="idFront"
+                    value={g.idFront} onChange={(k, v) => updateGuestRow(g.localId, k, v)} />
+                  <FileUpload label="ID Document (Back)" name="idBack"
+                    value={g.idBack} onChange={(k, v) => updateGuestRow(g.localId, k, v)} />
+                </div>
+              )}
+            </>
           )}
 
           <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">

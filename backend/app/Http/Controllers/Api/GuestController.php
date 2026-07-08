@@ -9,6 +9,36 @@ use Illuminate\Http\Request;
 
 class GuestController extends Controller
 {
+    public function index(Request $request)
+{
+    $query = Guest::query();
+
+    if ($request->filled('search')) {
+        $search = $request->search;
+        $query->where(function ($q) use ($search) {
+            $q->where('first_name', 'like', "%{$search}%")
+              ->orWhere('last_name', 'like', "%{$search}%")
+              ->orWhere('email', 'like', "%{$search}%");
+        });
+    }
+
+    if ($request->filled('nationality')) {
+        $query->where('nationality', $request->nationality);
+    }
+
+    if ($request->filled('id_type')) {
+        $query->where('id_type', $request->id_type);
+    }
+
+    if ($request->filled('vip')) {
+        $query->where('is_vip', $request->vip === 'true' || $request->vip === '1');
+    }
+
+    $guests = $query->orderByDesc('guest_id')->get();
+
+    return response()->json($guests);
+}
+
     public function search(Request $request)
     {
         $q = $request->query('q', '');
