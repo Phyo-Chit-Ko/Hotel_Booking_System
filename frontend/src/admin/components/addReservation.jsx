@@ -318,6 +318,7 @@ export default function AddReservation({
 
       const payload = new FormData();
       if (mode !== "checkin") payload.append("reservationId", form.reservationId);
+      if (mode === "checkin" && form.guestId) payload.append("guestId", form.guestId);
       payload.append("depositAmount", form.depositAmount || 0);
       payload.append("paymentMethod", form.paymentMethod);
       if (form.transactionNo) payload.append("transactionNo", form.transactionNo);
@@ -326,7 +327,6 @@ export default function AddReservation({
       const res = await fetch(endpoint, { method: "POST", headers: { Accept: "application/json" }, body: payload });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || "Failed to save");
       const data = await res.json();
-
       onSave(data.booking);
       setForm(EMPTY);
       setAdditionalGuests([]);
