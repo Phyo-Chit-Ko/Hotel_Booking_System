@@ -81,3 +81,7 @@ Route::delete('/services/{id}', [ExtraServiceController::class, 'handleDeleteCha
 Route::delete('/services/{id}', [ExtraServiceController::class, 'destroy']);
 
 
+Route::get('/reservations/{id}/detail', [ReservationController::class, 'detail']);
+Route::post('/reservations/{id}/check-in', [ReservationController::class, 'checkIn']);
+Route::patch('/reservations/{id}/check-out', [ReservationController::class, 'checkOut']);
+
