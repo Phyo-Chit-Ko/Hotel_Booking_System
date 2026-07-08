@@ -1,13 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+
 import AdminLayout from "../layouts/AdminLayout";
 import { 
   FaUtensils, FaCoins, FaClipboardList, FaPlus, 
-  FaEdit, FaTrashAlt, FaCheckCircle, FaTimes, 
-  FaSearch, FaCircle
+  FaEdit, FaTimes, FaSearch, FaCircle, FaTrash
 } from "react-icons/fa";
 
 export default function RestaurantManagement() {
-  // Master state mapping the updated core categories
+  // Default static dataset fallback records
   const [menuItems, setMenuItems] = useState([
     { item_id: 1, item_name: "Ribeye Steak with Garlic Butter", category: "Food", price: 38.50, status: "Available" },
     { item_id: 2, item_name: "Club Sandwich with Fries", category: "Snack", price: 14.00, status: "Available" },
@@ -16,38 +16,171 @@ export default function RestaurantManagement() {
     { item_id: 5, item_name: "Fresh Mint Mojito", category: "Drink", price: 8.00, status: "Out of Stock" },
     { item_id: 6, item_name: "Matcha Cheesecake Slice", category: "Dessert", price: 10.50, status: "Available" }
   ]);
-
-  const [activeOrders, setActiveOrders] = useState([
-    { order_id: 4001, service_id: 902, table_or_room: "Room 201", total_amount: "$52.99", status: "Preparing", time: "12m ago" },
-    { order_id: 4002, service_id: 905, table_or_room: "Table 4", total_amount: "$26.50", status: "Ready", time: "4m ago" }
-  ]);
-
+  
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
+  
+  // Modal State Controllers
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [formItem, setFormItem] = useState({ item_id: null, item_name: "", category: "Food", price: "", status: "Available" });
 
-  // Form initialization updated to reflect standard groups
-  const [formItem, setFormItem] = useState({ item_name: "", category: "Food", price: "", status: "Available" });
+  useEffect(() => {
+    fetchItemsFromDB();
+  }, [searchQuery, selectedCategory]);
 
-  const handleAddItem = (e) => {
-    e.preventDefault();
-    const newItem = {
-      item_id: menuItems.length + 1,
-      ...formItem,
-      price: parseFloat(formItem.price) || 0
-    };
-    setMenuItems([...menuItems, newItem]);
+  const API = "http://localhost/Hotel-Booking-System/backend/public/api";
+
+const fetchItemsFromDB = async () => {
+  try {
+    const response = await fetch(
+      `${API}/restaurant-items?search=${encodeURIComponent(
+        searchQuery
+      )}&category=${encodeURIComponent(selectedCategory)}`
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (Array.isArray(data)) {
+  setMenuItems(
+    data.map(item => ({
+      ...item,
+      price: Number(item.price)
+    }))
+  );
+} else {
+  setMenuItems([]);
+}
+  } catch (error) {
+    console.error("Backend Error:", error);
+    alert("Failed to connect to the backend server.");
+  }
+};
+
+  const handleOpenAddModal = () => {
+    setIsEditMode(false);
+    setFormItem({ item_id: null, item_name: "", category: "Food", price: "", status: "Available" });
+    setIsFormOpen(true);
+  };
+
+  const handleOpenEditModal = (item) => {
+    setIsEditMode(true);
+    setFormItem({
+      item_id: item.item_id,
+      item_name: item.item_name,
+      category: item.category,
+      price: item.price.toString(),
+      status: item.status
+    });
+    setIsFormOpen(true);
+  };
+
+  const handleFormSubmit = async (e) => {
+  e.preventDefault();
+
+  const url = isEditMode
+    ? `${API}/restaurant-items/${formItem.item_id}`
+    : `${API}/restaurant-items`;
+
+  const method = isEditMode ? "PUT" : "POST";
+
+  try {
+    const response = await fetch(url, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        item_name: formItem.item_name,
+        category: formItem.category,
+        price: parseFloat(formItem.price),
+        status: formItem.status,
+      }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.message || "Operation failed.");
+    }
+
+    alert(
+      isEditMode
+        ? "Item updated successfully!"
+        : "Item added successfully!"
+    );
+
     setIsFormOpen(false);
-    setFormItem({ item_name: "", category: "Food", price: "", status: "Available" });
-  };
 
-  const toggleStatus = (id) => {
-    setMenuItems(menuItems.map(item => 
-      item.item_id === id 
-        ? { ...item, status: item.status === "Available" ? "Out of Stock" : "Available" } 
-        : item
-    ));
-  };
+    setFormItem({
+      item_id: null,
+      item_name: "",
+      category: "Food",
+      price: "",
+      status: "Available",
+    });
+
+    fetchItemsFromDB();
+  } catch (error) {
+    console.error(error);
+    alert(error.message);
+  }
+};
+
+const handleDelete = async (id) => {
+  if (!window.confirm("Delete this menu item?")) return;
+
+  try {
+    const response = await fetch(
+      `${API}/restaurant-items/${id}`,
+      {
+        method: "DELETE",
+        headers: {
+          "Accept": "application/json",
+        },
+      }
+    );
+
+    const result = await response.json();
+
+    console.log("Delete response:", result);
+
+    if (!response.ok) {
+      throw new Error(result.message || result.error || "Delete failed");
+    }
+
+    alert("Item deleted successfully!");
+
+    fetchItemsFromDB();
+
+  } catch (error) {
+    console.error("Delete error:", error);
+    alert(error.message);
+  }
+};
+
+const handleToggleStatus = async (id) => {
+  try {
+    const response = await fetch(
+      `${API}/restaurant-items/${id}/toggle-status`,
+      {
+        method: "PATCH",
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error("Unable to update status.");
+    }
+
+    fetchItemsFromDB();
+  } catch (error) {
+    alert(error.message);
+  }
+};
 
   const filteredItems = menuItems.filter(item => {
     const matchesSearch = item.item_name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -57,218 +190,202 @@ export default function RestaurantManagement() {
 
   return (
     <AdminLayout>
-      {/* Viewport Lock Wrapper: Completely prevents full-page scrolling layout issues */}
+      {/* Container wrapper set up to structure viewport content rows seamlessly */}
       <div className="w-full h-[calc(100vh-110px)] flex flex-col gap-5 overflow-hidden p-1">
         
-        {/* 1. Control Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-200 shrink-0">
-          <div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Restaurant Operations</h1>
-            <p className="text-sm font-medium text-slate-500 mt-0.5">Manage culinary menus, item pricing matrices, and live room orders</p>
-          </div>
-          
-          <button 
-            onClick={() => setIsFormOpen(true)}
-            className="bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold px-5 py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-sm transition active:scale-95"
-          >
-            <FaPlus className="text-xs" />
-            <span>Add New Item</span>
-          </button>
-        </div>
+        {/* Top spacer separator border lines */}
+        <div className="border-b border-slate-200 shrink-0"></div>
 
-        {/* 2. Restaurant Performance Analytics Row */}
+        {/* Analytics Metadata Metrics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 shrink-0">
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex items-center justify-between">
+          <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-xs flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="p-3.5 bg-amber-50 rounded-xl border border-amber-100 text-xl text-amber-600"><FaUtensils /></div>
+              <div className="p-3.5 bg-amber-50 rounded-xl border border-amber-100 text-md text-amber-600"><FaUtensils /></div>
               <div>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Menu Items</p>
-                <h3 className="text-3xl font-black text-slate-900 tracking-tight mt-0.5">{menuItems.length}</h3>
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Menu Items</p>
+                <h3 className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">{menuItems.length}</h3>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex items-center justify-between">
+          <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-xs flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="p-3.5 bg-amber-50 rounded-xl border border-amber-100 text-xl text-amber-600"><FaClipboardList /></div>
+              <div className="p-3.5 bg-amber-50 rounded-xl border border-amber-100 text-md text-amber-600"><FaClipboardList /></div>
               <div>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Active Restaurant Orders</p>
-                <h3 className="text-3xl font-black text-slate-900 tracking-tight mt-0.5">{activeOrders.length}</h3>
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Active Restaurant Orders</p>
+                <h3 className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">2</h3>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex items-center justify-between">
+          <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-xs flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="p-3.5 bg-amber-50 rounded-xl border border-amber-100 text-xl text-amber-600"><FaCoins /></div>
+              <div className="p-3.5 bg-amber-50 rounded-xl border border-amber-100 text-md text-amber-600"><FaCoins /></div>
               <div>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">F&B Room Charge Total</p>
-                <h3 className="text-3xl font-black text-slate-900 tracking-tight mt-0.5">$1,424.50</h3>
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">F&B Room Charge Total</p>
+                <h3 className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">$1,424.50</h3>
               </div>
             </div>
           </div>
         </div>
 
-        {/* 3. Main Operational Split Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 flex-1 min-h-0">
+        {/* Main Interface Layout Area */}
+        <div className="w-full flex-1 min-h-0 bg-white rounded-2xl border border-slate-100 p-5 shadow-xs flex flex-col">
           
-          {/* LEFT & CENTER INTERFACE: Menu Catalog Grid & Pricing Manager */}
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm lg:col-span-2 flex flex-col min-h-0">
+          {/* Controls Bar: Sequential execution flow across inline elements */}
+          <div className="flex flex-col sm:flex-row gap-3 items-center pb-4 shrink-0 w-full">
             
-            {/* Search and Updated Category Filters Panel */}
-            <div className="flex flex-col sm:flex-row gap-3 justify-between items-center pb-4 shrink-0">
-              <div className="relative w-full sm:w-72">
-                <FaSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm" />
-                <input 
-                  type="text" 
-                  placeholder="Search item or recipe..." 
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-slate-400 transition"
-                />
-              </div>
-
-              <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
-                {["All", "Food", "Snack", "Drink", "Dessert"].map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => setSelectedCategory(cat)}
-                    className={`px-4 py-2 text-xs font-bold rounded-lg border whitespace-nowrap transition ${
-                      selectedCategory === cat 
-                        ? "bg-slate-900 border-slate-900 text-white shadow-xs" 
-                        : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
+            {/* Search Input field with internal text alignment and right bounds icon placement */}
+            <div className="relative w-full sm:w-64 flex items-center">
+              <input 
+                type="text" 
+                placeholder="Search item or recipe..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200/80 rounded-xl pl-4 pr-9 py-1.5 text-xs font-semibold text-slate-600 outline-none focus:border-slate-300 transition"
+              />
+              <FaSearch className="absolute right-3.5 text-slate-400 text-xs pointer-events-none" />
             </div>
 
-            {/* Structured Table Container matching the Restaurant_Item schema layout */}
-            <div className="flex-1 overflow-y-auto border border-slate-100 rounded-xl bg-slate-50/50 min-h-0">
-              <table className="w-full text-left border-collapse">
-                <thead className="bg-white sticky top-0 border-b border-slate-200 shadow-xs z-10">
-                  <tr>
-                    <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Item Name</th>
-                    <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Category</th>
-                    <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Price Base</th>
-                    <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Status</th>
-                    <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 bg-white/40">
-                  {filteredItems.map((item) => (
-                    <tr key={item.item_id} className="hover:bg-white transition-colors">
-                      <td className="p-4 text-sm font-bold text-slate-800">{item.item_name}</td>
-                      <td className="p-4 text-sm font-semibold text-slate-500">{item.category}</td>
-                      <td className="p-4 text-sm font-mono font-bold text-slate-900">${item.price.toFixed(2)}</td>
-                      <td className="p-4 text-sm">
-                        <button 
-                          onClick={() => toggleStatus(item.item_id)}
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition border ${
-                            item.status === "Available" 
-                              ? "bg-emerald-50 border-emerald-100 text-emerald-700" 
-                              : "bg-rose-50 border-rose-100 text-rose-700"
-                          }`}
-                        >
-                          <FaCircle className="text-[6px]" />
-                          {item.status}
-                        </button>
-                      </td>
-                      <td className="p-4 text-sm text-right space-x-2">
-                        <button className="text-slate-500 hover:text-slate-800 p-1.5 rounded-lg border border-slate-200 hover:border-slate-300 transition bg-white inline-flex shadow-xs">
-                          <FaEdit className="text-xs" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                  {filteredItems.length === 0 && (
-                    <tr>
-                      <td colSpan="5" className="text-center py-10 text-sm font-semibold text-slate-400">No menu items match the filter parameters.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+            {/* Filter Category Tabs and Actions button mapped sequentially straight next to filters */}
+            <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto sm:ml-auto">
+              {["All", "Food", "Snack", "Drink", "Dessert"].map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`px-3.5 py-1.5 text-xs font-bold rounded-lg border whitespace-nowrap transition ${
+                    selectedCategory === cat 
+                      ? "bg-[#1E293B] border-slate-900 text-white" 
+                      : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50"
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+
+              {/* + Add New Item Button strictly appended after Dessert filter option element */}
+              <button 
+                onClick={handleOpenAddModal}
+                className="bg-[#1E293B] hover:bg-slate-800 text-white text-xs font-bold px-4 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm transition active:scale-95 ml-1.5 h-[30px]"
+              >
+                <FaPlus className="text-[10px]" />
+                <span className="whitespace-nowrap">Add New Item</span>
+              </button>
             </div>
 
           </div>
 
-          {/* RIGHT PANEL: Live Order Fulfillment Window */}
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between min-h-0">
-            <div className="flex flex-col flex-1 min-h-0">
-              <div className="shrink-0 pb-3 border-b border-slate-100">
-                <h3 className="text-base font-bold text-slate-900">Live Services Dispatch</h3>
-                <p className="text-xs text-slate-400 mt-0.5">Active kitchen tickets assigned to property bookings</p>
-              </div>
-
-              {/* Localized Scrolling Feed */}
-              <div className="flex-1 overflow-y-auto mt-4 pr-1 space-y-3.5 min-h-0 scrollbar-none">
-                {activeOrders.map((order) => (
-                  <div key={order.order_id} className="p-3.5 border border-slate-200 bg-slate-50/50 rounded-xl flex flex-col gap-3 relative group">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <span className="text-xs font-bold text-slate-400">TICKET #{order.order_id}</span>
-                        <h4 className="text-sm font-black text-slate-800 mt-0.5">{order.table_or_room}</h4>
-                      </div>
-                      <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-md uppercase tracking-wider ${
-                        order.status === "Ready" ? "bg-amber-500 text-white" : "bg-slate-900 text-white"
+          {/* Catalog Data Grid Table Layout render matrix container */}
+          <div className="flex-1 overflow-y-auto border border-slate-100 rounded-xl min-h-0">
+            <table className="w-full text-left border-collapse">
+              <thead className="bg-slate-50/50 sticky top-0 border-b border-slate-200/60 z-10">
+                <tr>
+                  <th className="p-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Item Name</th>
+                  <th className="p-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Category</th>
+                  <th className="p-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Price Base</th>
+                  <th className="p-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</th>
+                  <th className="p-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {filteredItems.map((item) => (
+                  <tr key={item.item_id} className="hover:bg-slate-50/40 transition-colors">
+                    <td className="p-3.5 text-xs font-bold text-slate-700">{item.item_name}</td>
+                    <td className="p-3.5 text-xs font-semibold text-slate-400">{item.category}</td>
+                    <td className="p-3.5 text-xs font-mono font-bold text-slate-700">
+  ${Number(item.price).toFixed(2)}
+</td>
+                    <td className="p-3.5 text-xs">
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                        item.status === "Available" 
+                          ? "bg-emerald-50 border-emerald-100 text-emerald-600" 
+                          : "bg-rose-50 border-rose-100 text-rose-500"
                       }`}>
-                        {order.status}
+                        <FaCircle className="text-[4px]" />
+                        {item.status}
                       </span>
-                    </div>
+                    </td>
+                    <td className="p-3.5 text-xs text-right">
+  <div className="flex justify-end items-center gap-2">
 
-                    <div className="flex justify-between items-center pt-2 border-t border-slate-100">
-                      <span className="text-xs text-slate-400 font-mono font-medium">{order.time}</span>
-                      <span className="text-sm font-black text-slate-900 font-mono">{order.total_amount}</span>
-                    </div>
-                  </div>
+    {/* Edit Button */}
+    <button 
+      onClick={() => handleOpenEditModal(item)}
+      className="text-slate-400 hover:text-blue-600 p-1.5 rounded-lg hover:bg-blue-50 transition"
+      title="Edit Item"
+    >
+      <FaEdit className="text-xs" />
+    </button>
+
+    {/* Delete Button */}
+    <button 
+      onClick={() => handleDelete(item.item_id)}
+      className="text-slate-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition"
+      title="Delete Item"
+    >
+      <FaTrash className="text-xs" />
+    </button>
+
+  </div>
+</td>
+                  </tr>
                 ))}
-              </div>
-            </div>
-
-            <button className="w-full text-center text-xs font-bold text-slate-700 border border-slate-200 py-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 transition mt-4 shrink-0">
-              View Order History Ledger
-            </button>
+                {filteredItems.length === 0 && (
+                  <tr>
+                    <td colSpan="5" className="text-center py-10 text-xs font-semibold text-slate-400">No menu items match the criteria.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
-
         </div>
       </div>
 
-      {/* 4. Overlay Form Modal Layer: Add New Restaurant_Item with clean categories */}
+      {/* Pop-up Form Modal View Layer Context wrapper */}
       {isFormOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs" onClick={() => setIsFormOpen(false)} />
+          <div className="fixed inset-0 bg-slate-950/20 backdrop-blur-xs" onClick={() => setIsFormOpen(false)} />
           
-          <form onSubmit={handleAddItem} className="bg-white w-full max-w-md rounded-2xl border border-slate-200 shadow-2xl relative z-10 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between p-5 border-b border-slate-100">
+          <form onSubmit={handleFormSubmit} className="bg-[#FAF9F6] w-full max-w-md rounded-2xl border border-slate-200/60 shadow-xl relative z-10 overflow-hidden flex flex-col">
+            
+            <div className="flex items-center justify-between p-5 border-b border-slate-200/50 bg-white">
               <div>
-                <h3 className="text-md font-bold text-slate-900">Add New Menu Entity</h3>
-                <p className="text-xs text-slate-400 mt-0.5">Appends values to the Restaurant_Item master records</p>
+                <h3 className="text-sm font-black text-slate-800 tracking-tight">
+                  {isEditMode ? "Modify Menu Item" : "Add New Menu Item"}
+                </h3>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  {isEditMode ? "Update details inside the core master catalog" : "Append new items into the kitchen management records"}
+                </p>
               </div>
-              <button type="button" onClick={() => setIsFormOpen(false)} className="text-slate-400 hover:text-slate-600 p-1"><FaTimes className="text-sm" /></button>
+              <button 
+                type="button" 
+                onClick={() => setIsFormOpen(false)} 
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-50 transition"
+              >
+                <FaTimes className="text-xs" />
+              </button>
             </div>
 
             <div className="p-5 flex flex-col gap-4">
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Item Name</label>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Item Name</label>
                 <input 
                   type="text" 
                   required
                   placeholder="e.g. Buffalo Chicken Wings" 
                   value={formItem.item_name}
                   onChange={(e) => setFormItem({ ...formItem, item_name: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-slate-400 transition"
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-slate-400 shadow-2xs transition"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Category</label>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Category</label>
                   <select 
                     value={formItem.category}
                     onChange={(e) => setFormItem({ ...formItem, category: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-800 outline-none focus:border-slate-400 transition cursor-pointer"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-800 outline-none focus:border-slate-400 shadow-2xs transition cursor-pointer"
                   >
                     {["Food", "Snack", "Drink", "Dessert"].map((cat) => (
                       <option key={cat} value={cat}>{cat}</option>
@@ -276,8 +393,8 @@ export default function RestaurantManagement() {
                   </select>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Price ($)</label>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Price ($)</label>
                   <input 
                     type="number" 
                     step="0.01" 
@@ -285,18 +402,40 @@ export default function RestaurantManagement() {
                     placeholder="12.50" 
                     value={formItem.price}
                     onChange={(e) => setFormItem({ ...formItem, price: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-mono font-bold text-slate-800 outline-none focus:border-slate-400 transition"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-sm font-mono font-bold text-slate-800 outline-none focus:border-slate-400 shadow-2xs transition"
                   />
                 </div>
               </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Status</label>
+                <select 
+                  value={formItem.status}
+                  onChange={(e) => setFormItem({ ...formItem, status: e.target.value })}
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-800 outline-none focus:border-slate-400 shadow-2xs transition cursor-pointer"
+                >
+                  <option value="Available">Available</option>
+                  <option value="Out of Stock">Out of Stock</option>
+                </select>
+              </div>
             </div>
 
-            <div className="bg-slate-50 px-5 py-4 flex items-center justify-end gap-2 border-t border-slate-100">
-              <button type="button" onClick={() => setIsFormOpen(false)} className="text-xs font-semibold text-slate-500 hover:text-slate-700 px-4 py-2">Cancel</button>
-              <button type="submit" className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold px-4 py-2 rounded-lg transition shadow-sm">
-                Commit to Catalog
+            <div className="bg-slate-50 px-5 py-3.5 flex items-center justify-end gap-2 border-t border-slate-200/40">
+              <button 
+                type="button" 
+                onClick={() => setIsFormOpen(false)} 
+                className="text-xs font-bold text-slate-500 hover:text-slate-700 px-4 py-2 hover:bg-slate-100 rounded-xl transition"
+              >
+                Cancel
+              </button>
+              <button 
+                type="submit" 
+                className="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-xs hover:shadow-md transition active:scale-95"
+              >
+                {isEditMode ? "Save Changes" : "Log Menu Item"}
               </button>
             </div>
+
           </form>
         </div>
       )}
