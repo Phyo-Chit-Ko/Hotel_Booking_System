@@ -16,10 +16,13 @@ export default function BookingManagement() {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All Status");
-  const [selectedDate, setSelectedDate] = useState(""); // empty = no date filter
+  const [selectedDate, setSelectedDate] = useState(""); 
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Total number of columns in the table — keep this in sync with <thead>
+  // NEW EDIT MODAL STATES
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [bookingToEdit, setBookingToEdit] = useState(null);
+
   const COLUMN_COUNT = 13;
 
   const fetchBookings = useCallback(async () => {
@@ -31,12 +34,12 @@ export default function BookingManagement() {
       if (statusFilter !== "All Status") params.append("status", statusFilter);
       if (selectedDate) params.append("date", selectedDate);
 
-      const res = await fetch(`/api/bookings?${params.toString()}`);
+      const res = await fetch(`http://localhost:8000/api/bookings?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to load bookings");
       const json = await res.json();
 
-      setBookings(json.data);
-      setStats(json.stats);
+      setBookings(json.data || []);
+      setStats(json.stats || { total: 0, confirmed: 0, pending: 0 });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -44,7 +47,6 @@ export default function BookingManagement() {
     }
   }, [searchTerm, statusFilter, selectedDate]);
 
-  // Debounce search + refetch on filter change
   useEffect(() => {
     const timeout = setTimeout(() => {
       fetchBookings();
@@ -52,13 +54,35 @@ export default function BookingManagement() {
     return () => clearTimeout(timeout);
   }, [fetchBookings]);
 
+  // HANDLE EDIT SUBMISSION TO BACKEND
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await fetch(`http://localhost:8000/api/bookings/${bookingToEdit.raw_id || bookingToEdit.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify(bookingToEdit),
+      });
+
+      if (!res.ok) throw new Error("Failed to update booking data");
+      
+      setIsEditModalOpen(false);
+      fetchBookings(); // Refresh list automatically
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
   const getStatusStyle = (status) => {
-    switch (status) {
-      case "Confirmed":
+    switch (status?.toLowerCase()) {
+      case "confirmed":
         return "bg-emerald-50 text-emerald-700 border border-emerald-200";
-      case "Pending":
+      case "pending":
         return "bg-amber-50 text-amber-700 border border-amber-200";
-      case "Cancelled":
+      case "cancelled":
         return "bg-rose-50 text-rose-700 border border-rose-200";
       default:
         return "bg-slate-50 text-slate-700 border border-slate-200";
@@ -70,7 +94,7 @@ export default function BookingManagement() {
       <div className="w-full space-y-6 p-1">
 
         {/* Statistics Panels */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-100 text-xl text-slate-700">
@@ -112,7 +136,7 @@ export default function BookingManagement() {
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-5">
 
           {/* Controls Horizontal Row */}
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="relative w-[355px] h-11">
               <input
                 type="text"
@@ -203,7 +227,7 @@ export default function BookingManagement() {
                 )}
 
                 {!loading && !error && bookings.map((booking) => (
-                  <tr key={booking.raw_id} className="hover:bg-slate-50/70 transition-colors">
+                  <tr key={booking.raw_id || booking.id} className="hover:bg-slate-50/70 transition-colors">
                     <td className="px-5 py-4 font-mono font-medium text-slate-900">
                       {booking.id}
                     </td>
@@ -241,7 +265,7 @@ export default function BookingManagement() {
                     </td>
 
                     <td className="px-5 py-4 font-mono font-semibold text-slate-900">
-                      ${(booking.amount ?? 0).toFixed(2)}
+                      ${parseFloat(booking.amount || 0).toFixed(2)}
                     </td>
 
                     <td className="px-5 py-4">
@@ -267,7 +291,14 @@ export default function BookingManagement() {
 
                     <td className="px-5 py-4">
                       <div className="flex justify-center items-center gap-1.5">
-                        <button className="px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium hover:bg-slate-100 transition active:scale-95" title="Edit Booking">
+                        <button 
+                          className="px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium hover:bg-slate-100 transition active:scale-95" 
+                          title="Edit Booking"
+                          onClick={() => {
+                            setBookingToEdit({ ...booking });
+                            setIsEditModalOpen(true);
+                          }}
+                        >
                           Edit
                         </button>
                       </div>
@@ -282,11 +313,97 @@ export default function BookingManagement() {
 
       </div>
 
+      {/* RENDER DYNAMIC POPUP EDIT OVERLAY SCREEN */}
+      {isEditModalOpen && bookingToEdit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 backdrop-blur-sm">
+          <div className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-xl border border-slate-100 max-h-[90vh] overflow-y-auto">
+            
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <h3 className="text-base font-semibold text-slate-800">Edit Details — Booking #{bookingToEdit.id}</h3>
+              <button 
+                onClick={() => setIsEditModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 text-sm p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleEditSubmit} className="mt-4 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1">First Name</label>
+                  <input 
+                    type="text" 
+                    required
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    value={bookingToEdit.first_name || ""}
+                    onChange={(e) => setBookingToEdit({ ...bookingToEdit, first_name: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1">Last Name</label>
+                  <input 
+                    type="text" 
+                    required
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    value={bookingToEdit.last_name || ""}
+                    onChange={(e) => setBookingToEdit({ ...bookingToEdit, last_name: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1">Phone Number</label>
+                  <input 
+                    type="tel" 
+                    required
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    value={bookingToEdit.phone || ""}
+                    onChange={(e) => setBookingToEdit({ ...bookingToEdit, phone: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1">Status</label>
+                  <select 
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    value={bookingToEdit.status || "Pending"}
+                    onChange={(e) => setBookingToEdit({ ...bookingToEdit, status: e.target.value })}
+                  >
+                    <option value="Pending">Pending</option>
+                    <option value="Confirmed">Confirmed</option>
+                    <option value="Cancelled">Cancelled</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-2.5 border-t border-slate-100 pt-4 mt-6">
+                <button 
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="px-4 py-2 text-xs font-medium text-slate-500 hover:text-slate-700 bg-slate-50 border border-slate-200 rounded-xl transition"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  className="px-4 py-2 text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <AddBookingModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         selectedRoom={{ title: "New Suite Room" }}
-        onSuccess={fetchBookings} // refresh table after adding a booking
+        onSuccess={fetchBookings} 
       />
     </AdminLayout>
   );
