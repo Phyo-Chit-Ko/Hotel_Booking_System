@@ -15,6 +15,9 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\Api\FloorLayoutController;
 use App\Http\Controllers\Api\ReservationGuestController;
+use App\Http\Controllers\Api\RestaurantItemController;
+
+ 
 Route::middleware('api')->post('/login', [AuthController::class, 'login']);
 
 Route::get('/user', function (Request $request) {
@@ -74,8 +77,15 @@ Route::delete('/reservations/{reservation}/guests/{guest}', [ReservationGuestCon
 Route::get('/services', [ExtraServiceController::class, 'index']);
 Route::post('/services', [ExtraServiceController::class, 'store']);
 Route::put('/services/{id}', [ExtraServiceController::class, 'update']);
-// <<<<<<< HEAD
-Route::delete('/services/{id}', [ExtraServiceController::class, 'handleDeleteCharge']);
-
 Route::delete('/services/{id}', [ExtraServiceController::class, 'destroy']);
-// >>>>>>> origin/extra_charges
+
+Route::get('/restaurant-items', [RestaurantItemController::class, 'index']);
+
+Route::post('/restaurant-items', [RestaurantItemController::class, 'store']);
+
+Route::put('/restaurant-items/{id}', [RestaurantItemController::class, 'update']);
+
+Route::patch('/restaurant-items/{id}/toggle-status', [RestaurantItemController::class, 'toggleStatus']);
+
+Route::delete('/restaurant-items/{id}', [RestaurantItemController::class, 'destroy']);
+ 

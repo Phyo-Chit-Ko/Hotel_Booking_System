@@ -3,106 +3,225 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios"; // Ensure you ran 'npm install axios'
 import "./Account.css";
 import { useAuth } from "../../context/AuthContext";
-
+import Swal from "sweetalert2";
+ 
 export default function Account() {
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({ name: "", email: "", password: "" });
+  const [errors, setErrors] = useState({
+  name: "",
+  email: "",
+  password: "",
+});
   const navigate = useNavigate();
   const { setUser } = useAuth();
-
+  const [showPassword, setShowPassword] = useState(false);
+ 
+  const validateRegister = () => {
+  let newErrors = {};
+ 
+  // Name
+  if (!formData.name.trim()) {
+    newErrors.name = "Full name is required.";
+  } else if (formData.name.trim().length < 3) {
+    newErrors.name = "Name must be at least 3 characters.";
+  } else if (!/^[A-Za-z ]+$/.test(formData.name)) {
+    newErrors.name = "Name can contain only letters and spaces.";
+  }
+ 
+  // Email
+  if (!formData.email.trim()) {
+    newErrors.email = "Email is required.";
+  } else if (
+    !/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(formData.email)
+  ) {
+    newErrors.email = "Please enter a valid email address.";
+  }
+ 
+  // Password
+  if (!formData.password) {
+    newErrors.password = "Password is required.";
+  } else if (formData.password.length < 8) {
+    newErrors.password = "Password must be at least 8 characters.";
+  } else if (!/[A-Z]/.test(formData.password)) {
+    newErrors.password =
+      "Password must contain at least one uppercase letter.";
+  } else if (!/[0-9]/.test(formData.password)) {
+    newErrors.password =
+      "Password must contain at least one number.";
+  } else if (!/[!@#$%^&*(),.?":{}|<>]/.test(formData.password)) {
+    newErrors.password =
+      "Password must contain at least one special character.";
+  }
+ 
+  setErrors(newErrors);
+ 
+  return Object.keys(newErrors).length === 0;
+};
+ 
  const handleSubmit = async (e) => {
     e.preventDefault();
-
+ 
+    // Validate only when registering
+if (!isLogin) {
+  if (!validateRegister()) {
+    return;
+  }
+}
+ 
     try {
       await axios.get("/sanctum/csrf-cookie");
-
+ 
       if (isLogin) {
         const response = await axios.post("/api/login", {
           email: formData.email,
           password: formData.password,
         });
-
+ 
         // Ensure response.data.user contains { name, role, ... }
         if (response.data.success) {
-  const userData = response.data.user;
-
-  // Save token
-  localStorage.setItem("token", response.data.token);
-
-  // Save user
-  localStorage.setItem("user", JSON.stringify(userData));
-
-  setUser(userData);
-
-  const { role } = userData;
-
-  if (role === "manager") navigate("/admin/dashboard");
-  else if (role === "reception") navigate("/reception-dashboard");
-  else navigate("/homepage");
-}
+          const userData = response.data.user;
+          console.log("Setting user state to:", userData); // DEBUG: Check console
+         
+          setUser(userData); // This triggers the Navbar update
+ 
+          await Swal.fire({
+  icon: "success",
+  title: "Login Successful!",
+  text: `Welcome back, ${userData.name}!`,
+  width: "320px",          // Smaller popup
+  padding: "1em",
+  confirmButtonColor: "#28a745",
+  confirmButtonText: "OK",
+  timer: 1800,
+  timerProgressBar: true,
+  showConfirmButton: false,
+});
+ 
+          const { role } = userData;
+          if (role === 'manager') navigate("/admin/dashboard");
+          else if (role === 'reception') navigate("/reception-dashboard");
+          else navigate("/homepage");
+        }
       } else {
         const response = await axios.post("/api/register", {
           name: formData.name,
           email: formData.email,
           password: formData.password,
         });
-
+ 
         if (response.data.success) {
-          alert("Account created successfully! Please log in.");
+         Swal.fire({
+  icon: "success",
+  title: "Registration Successful!",
+  text: "Your account has been created successfully.",
+  width: "320px",
+  padding: "1em",
+  confirmButtonColor: "#28a745",
+  confirmButtonText: "OK",
+});
           setIsLogin(true);
         }
       }
     } catch (error) {
   console.log(error);
   console.log(error.response);
-
+ 
   alert(JSON.stringify(error.response?.data || error.message));
 }
   };
-
+ 
   return (
     <div className="account-page">
       <div className="auth-card">
         <h2>{isLogin ? "Welcome Back" : "Create Account"}</h2>
-
+ 
         <form onSubmit={handleSubmit}>
           {!isLogin && (
             <div className="form-row">
               <label>Full Name</label>
-              <input 
-                type="text" 
-                onChange={(e) => setFormData({...formData, name: e.target.value})} 
-                required 
-              />
+              <input
+  type="text"
+  value={formData.name}
+  onChange={(e) => {
+    setFormData({ ...formData, name: e.target.value });
+ 
+    if (errors.name) {
+      setErrors({ ...errors, name: "" });
+    }
+  }}
+/>
+ 
+{errors.name && (
+  <small className="error">{errors.name}</small>
+)}
             </div>
           )}
-
+ 
           <div className="form-row">
             <label>Email</label>
-            <input 
-              type="email" 
-              onChange={(e) => setFormData({...formData, email: e.target.value})} 
-              required 
-            />
+            <input
+  type="email"
+  value={formData.email}
+  onChange={(e) => {
+    setFormData({ ...formData, email: e.target.value });
+ 
+    if (errors.email) {
+      setErrors({ ...errors, email: "" });
+    }
+  }}
+/>
+ 
+{errors.email && (
+  <small className="error">{errors.email}</small>
+)}
           </div>
-
-          <div className="form-row">
-            <label>Password</label>
-            <input 
-              type="password" 
-              onChange={(e) => setFormData({...formData, password: e.target.value})} 
-              required 
-            />
-          </div>
-
-          <button type="submit" className="submit-btn">
-            {isLogin ? "Login" : "REGISTER"}
-          </button>
+ 
+         <div className="form-row">
+  <label>Password</label>
+ 
+  <div className="password-wrapper">
+    <input
+      type={showPassword ? "text" : "password"}
+      value={formData.password}
+      onChange={(e) => {
+        setFormData({ ...formData, password: e.target.value });
+ 
+        if (errors.password) {
+          setErrors({ ...errors, password: "" });
+        }
+      }}
+    />
+ 
+    <span
+      className="toggle-password"
+      onClick={() => setShowPassword(!showPassword)}
+    >
+      {showPassword ? "🙈" : "👁️"}
+    </span>
+  </div>
+ 
+  {errors.password && (
+    <small className="error">{errors.password}</small>
+  )}
+</div>
+ 
+           <button type="submit" className="submit-btn">
+  {isLogin ? "Login" : "REGISTER"}
+</button>
+ 
+{isLogin && (
+  <div className="forgot-password">
+    <span onClick={() => navigate("/forgot-password")}>
+      Forgot Password?
+    </span>
+  </div>
+)}
         </form>
         <div className="divider">
           <span>OR</span>
         </div>
-
+ 
         {/* Google Login */}
         <button className="google-btn" type="button">
           <svg
@@ -130,7 +249,7 @@ export default function Account() {
           </svg>
           Continue with Google
         </button>
-
+ 
         <p
           className="toggle-text"
           onClick={() => setIsLogin(!isLogin)}
@@ -143,3 +262,4 @@ export default function Account() {
     </div>
   );
 }
+ 
