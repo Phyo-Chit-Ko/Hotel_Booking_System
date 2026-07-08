@@ -25,6 +25,7 @@ class Booking extends Model
         'total_room',
         'adult',
         'child',
+        'room_number',
         'deposit',
         'deposit_screenshot',
         'special_requests',

@@ -26,53 +26,58 @@ class ReservationController extends Controller
      * Full detail for the Check-In flow — feeds AddReservation's prefill.
      */
     public function detail($id)
-    {
-        $reservation = Reservation::with(['guest', 'roomType', 'additionalGuests.guest'])->findOrFail($id);
+{
+    $reservation = Reservation::with(['guest', 'roomType', 'additionalGuests.guest'])->findOrFail($id);
 
-        $ratePerNight = $reservation->nights > 0
-            ? (float) $reservation->room_charge / $reservation->nights
-            : 0;
+    $ratePerNight = $reservation->nights > 0
+        ? (float) $reservation->room_charge / $reservation->nights
+        : 0;
 
-        return response()->json([
-            'reservation' => [
-                'reservationId'     => $reservation->reservation_id,
-                'guestId'           => $reservation->guest_id,
-                'firstName'         => $reservation->guest->first_name,
-                'lastName'          => $reservation->guest->last_name,
-                'phone'             => $reservation->guest->phone,
-                'email'             => $reservation->guest->email,
-                'nationality'       => $reservation->guest->nationality,
-                'idType'            => $reservation->guest->id_type,
-                'idNumber'          => $reservation->guest->id_number,
-                'isVip'             => $reservation->guest->is_vip,
-                'roomNumber'        => $reservation->room_number,
-                'roomType'          => $reservation->roomType->name ?? '',
-                'checkIn'           => $reservation->check_in_date->format('Y-m-d'),
-                'checkOut'          => $reservation->check_out_date->format('Y-m-d'),
-                'adults'            => $reservation->adults,
-                'children'          => $reservation->children,
-                'bookingSource'     => $reservation->booking_source,
-                'specialRequests'   => $reservation->special_requests,
-                'reservationStatus' => $reservation->reservation_status,
-                'nights'            => $reservation->nights,
-                'roomCharge'        => $reservation->room_charge,
-                'extraPersonCharge' => $reservation->extra_person_charge,
-                'taxAmount'         => $reservation->tax_amount,
-                'totalAmount'       => $reservation->total_amount,
-                'ratePerNight'      => $ratePerNight,
-            ],
-            'additionalGuests' => $reservation->additionalGuests->map(fn ($ag) => [
-                'guestId'     => $ag->guest_id,
-                'guestType'   => $ag->guest_type,
-                'firstName'   => $ag->guest->first_name,
-                'lastName'    => $ag->guest->last_name,
-                'phone'       => $ag->guest->phone,
-                'email'       => $ag->guest->email,
-                'nationality' => $ag->guest->nationality,
-                'idNumber'    => $ag->guest->id_number,
-            ]),
-        ]);
-    }
+    $guest = $reservation->guest; // null if not yet linked
+
+    // split "First Last" snapshot back into two fields for the form
+    [$snapFirst, $snapLast] = array_pad(explode(' ', $reservation->guest_name ?? '', 2), 2, '');
+
+    return response()->json([
+        'reservation' => [
+            'reservationId'     => $reservation->reservation_id,
+            'guestId'           => $reservation->guest_id, // null until real check-in
+            'firstName'         => $guest->first_name ?? $snapFirst,
+            'lastName'          => $guest->last_name ?? $snapLast,
+            'phone'             => $guest->phone ?? $reservation->guest_phone,
+            'email'             => $guest->email ?? $reservation->guest_email,
+            'nationality'       => $guest->nationality ?? '',
+            'idType'            => $guest->id_type ?? 'Passport',
+            'idNumber'          => $guest->id_number ?? '',
+            'isVip'             => $guest->is_vip ?? false,
+            'roomNumber'        => $reservation->room_number,
+            'roomType'          => $reservation->roomType->name ?? '',
+            'checkIn'           => $reservation->check_in_date->format('Y-m-d'),
+            'checkOut'          => $reservation->check_out_date->format('Y-m-d'),
+            'adults'            => $reservation->adults,
+            'children'          => $reservation->children,
+            'bookingSource'     => $reservation->booking_source,
+            'specialRequests'   => $reservation->special_requests,
+            'reservationStatus' => $reservation->reservation_status,
+            'nights'            => $reservation->nights,
+            'roomCharge'        => $reservation->room_charge,
+            'extraPersonCharge' => $reservation->extra_person_charge,
+            'taxAmount'         => $reservation->tax_amount,
+            'totalAmount'       => $reservation->total_amount,
+            'ratePerNight'      => $ratePerNight,
+        ],
+        'additionalGuests' => $reservation->additionalGuests->map(fn ($ag) => [
+            'guestId'     => $ag->guest_id,
+            'guestType'   => $ag->guest_type,
+            'firstName'   => $ag->guest->first_name,
+            'lastName'    => $ag->guest->last_name,
+            'phone'       => $ag->guest->phone,
+            'email'       => $ag->guest->email,
+            'nationality' => $ag->guest->nationality,
+            'idNumber'    => $ag->guest->id_number,
+        ]),
+    ]);
+}
 
     public function store(Request $request)
     {
@@ -143,46 +148,57 @@ class ReservationController extends Controller
      * deposit/payment at the same time. Flips reservation_status -> Checked-In.
      */
     public function checkIn(Request $request, $id)
-    {
-        $validated = $request->validate([
-            'depositAmount' => 'nullable|numeric|min:0',
-            'paymentMethod' => 'nullable|string|in:cash,credit_card,bank_transfer,online',
-            'transactionNo' => 'nullable|string|max:100',
-            'paymentProof'  => 'nullable|file|max:5120',
-        ]);
+{
+    $validated = $request->validate([
+        'guestId'       => 'nullable|integer|exists:guests,guest_id',
+        'depositAmount' => 'nullable|numeric|min:0',
+        'paymentMethod' => 'nullable|string|in:cash,credit_card,bank_transfer,online',
+        'transactionNo' => 'nullable|string|max:100',
+        'paymentProof'  => 'nullable|file|max:5120',
+    ]);
 
-        $reservation = Reservation::findOrFail($id);
+    $reservation = Reservation::findOrFail($id);
 
-        $booking = DB::transaction(function () use ($validated, $request, $reservation) {
-            $deposit = (float) ($validated['depositAmount'] ?? 0);
+    if (!$reservation->guest_id && empty($validated['guestId'])) {
+        return response()->json([
+            'message' => 'Guest identification is required before check-in.',
+        ], 422);
+    }
 
-            if ($deposit > 0) {
-                $paymentData = [
-                    'reservation_id' => $reservation->reservation_id,
-                    'amount'         => $deposit,
-                    'payment_method' => $validated['paymentMethod'] ?? 'cash',
-                    'date'           => now()->toDateString(),
-                    'transaction_no' => $validated['transactionNo'] ?? null,
-                    'description'    => 'Payment recorded at check-in',
-                ];
+    $booking = DB::transaction(function () use ($validated, $request, $reservation) {
+        if (!empty($validated['guestId'])) {
+            $reservation->guest_id = $validated['guestId'];
+        }
 
-                if ($request->hasFile('paymentProof')) {
-                    $paymentData['payment_proof_path'] = $request->file('paymentProof')->store('payment-proofs', 'public');
-                }
+        $deposit = (float) ($validated['depositAmount'] ?? 0);
 
-                Payment::create($paymentData);
-                $reservation->deposit_amount = (float) $reservation->deposit_amount + $deposit;
+        if ($deposit > 0) {
+            $paymentData = [
+                'reservation_id' => $reservation->reservation_id,
+                'amount'         => $deposit,
+                'payment_method' => $validated['paymentMethod'] ?? 'cash',
+                'date'           => now()->toDateString(),
+                'transaction_no' => $validated['transactionNo'] ?? null,
+                'description'    => 'Payment recorded at check-in',
+            ];
+
+            if ($request->hasFile('paymentProof')) {
+                $paymentData['payment_proof_path'] = $request->file('paymentProof')->store('payment-proofs', 'public');
             }
 
-            $reservation->reservation_status = 'Checked-In';
-            $reservation->save();
-            $reservation->load(['guest', 'roomType', 'payments', 'additionalGuests.guest']);
+            Payment::create($paymentData);
+            $reservation->deposit_amount = (float) $reservation->deposit_amount + $deposit;
+        }
 
-            return $reservation;
-        });
+        $reservation->reservation_status = 'Checked-In';
+        $reservation->save();
+        $reservation->load(['guest', 'roomType', 'payments', 'additionalGuests.guest']);
 
-        return response()->json(['booking' => $booking->toTableRow()], 200);
-    }
+        return $reservation;
+    });
+
+    return response()->json(['booking' => $booking->toTableRow()], 200);
+}
 
     /**
      * Confirm check-out for an existing (currently occupied) reservation.

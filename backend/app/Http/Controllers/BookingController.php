@@ -3,9 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Models\Booking;
-use App\Models\Guest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use App\Models\Room;
+use App\Models\RoomType;
+use App\Models\Reservation;
+use App\Models\Payment;
+use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
 
 class BookingController extends Controller
 {
@@ -46,14 +52,15 @@ class BookingController extends Controller
                     'email'              => $b->email,
                     'phone'              => $b->phone,
                     'roomType'           => $b->roomType->name ?? 'N/A',
+                    'roomNumber'         => $b->room_number,
                     'adult'              => $b->adult,
                     'child'              => $b->child,
                     'checkIn'            => $b->check_in_date ? $b->check_in_date->format('Y-m-d') : null,
                     'checkOut'           => $b->check_out_date ? $b->check_out_date->format('Y-m-d') : null,
                     'amount'             => (float) $b->deposit,
                     'depositScreenshot'  => $b->deposit_screenshot
-                    ? Storage::disk('public')->url($b->deposit_screenshot)
-                    : null,
+                        ? Storage::disk('public')->url($b->deposit_screenshot)
+                        : null,
                     'status'             => ucfirst($b->status),
                 ];
             }),
@@ -65,7 +72,7 @@ class BookingController extends Controller
         ]);
     }
 
-    public function store(Request $request) 
+    public function store(Request $request)
     {
         // 1. Validate your incoming data
         $validated = $request->validate([
@@ -99,40 +106,123 @@ class BookingController extends Controller
         $booking = Booking::create($validated);
 
         return response()->json([
-            'status' => 'success',
+            'status'  => 'success',
             'message' => 'Booking saved successfully!',
-            'data' => $booking
+            'data'    => $booking,
         ], 201);
     }
 
     /**
-     * Update an existing booking record.
+     * Update an existing booking record. If the admin confirms the booking
+     * AND assigns a room in the same request, the booking is converted into
+     * a real Reservation:
+     *   - No Guest record is created here. guest_name / guest_email /
+     *     guest_phone are snapshotted directly onto the reservation.
+     *     A real Guest (with ID type/number) only gets created later,
+     *     at actual front-desk check-in.
+     *   - room_charge / extra_person_charge / tax_amount / total_amount
+     *     are calculated the same way as ReservationController::store(),
+     *     so both creation paths stay consistent.
+     *   - The booking's $45 deposit is recorded as an actual Payment row,
+     *     so Reservation Management's Balance column (which is derived
+     *     from payments.sum('amount'), not deposit_amount) reflects it
+     *     correctly.
      */
     public function update(Request $request, $id)
     {
-        // FIXED: Find using custom primary column 'booking_id' explicitly 
         $booking = Booking::where('booking_id', $id)->firstOrFail();
 
-        // Validate the incoming fields sent by the edit form
         $validated = $request->validate([
-            'first_name' => 'required|string|max:255',
-            'last_name'  => 'required|string|max:255',
-            'phone'      => 'required|string|max:50',
-            'status'     => 'required|string',
+            'first_name'  => 'required|string|max:255',
+            'last_name'   => 'required|string|max:255',
+            'phone'       => 'required|string|max:50',
+            'status'      => 'required|string',
+            'room_number' => 'nullable|string|exists:rooms,room_number',
         ]);
 
-        // Clean values before DB commit: standard lowercase status formatting
         if (isset($validated['status'])) {
             $validated['status'] = strtolower($validated['status']);
         }
 
-        // Update the record fields directly
         $booking->update($validated);
 
+        // Only attempt conversion when the admin confirmed AND assigned a room.
+        $shouldConvert = $validated['status'] === 'confirmed'
+            && !empty($validated['room_number']);
+
+        if ($shouldConvert) {
+            $conflict = Reservation::where('room_number', $validated['room_number'])
+                ->whereNotIn('reservation_status', ['Checked-Out', 'Cancelled'])
+                ->where('check_in_date', '<', $booking->check_out_date)
+                ->where('check_out_date', '>', $booking->check_in_date)
+                ->exists();
+
+            if ($conflict) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => "Room {$validated['room_number']} is already booked for those dates.",
+                ], 422);
+            }
+
+            DB::transaction(function () use ($booking, $validated) {
+                $nights = Carbon::parse($booking->check_in_date)
+                    ->diffInDays(Carbon::parse($booking->check_out_date));
+                $nights = max(1, $nights);
+
+                $room      = Room::with('roomType')->where('room_number', $validated['room_number'])->firstOrFail();
+                $rateNight = (float) ($room->roomType->base_price ?? 0);
+
+                $adults      = (int) $booking->adult;
+                $children    = (int) $booking->child;
+                $totalGuests = $adults + $children;
+
+                $roomCharge        = $nights * $rateNight;
+                $extraPersonCharge = max(0, $totalGuests - 2) * 20 * $nights;
+                $taxAmount         = ($roomCharge + $extraPersonCharge) * 0.1;
+                $totalAmount       = $roomCharge + $extraPersonCharge + $taxAmount;
+                $deposit           = (float) $booking->deposit;
+
+                $reservation = Reservation::create([
+                    'guest_id'            => null,
+                    'guest_name'          => trim($booking->first_name . ' ' . $booking->last_name),
+                    'guest_email'         => $booking->email,
+                    'guest_phone'         => $booking->phone,
+                    'room_type_id'        => $booking->room_type_id,
+                    'room_number'         => $validated['room_number'],
+                    'check_in_date'       => $booking->check_in_date,
+                    'check_out_date'      => $booking->check_out_date,
+                    'adults'              => $adults,
+                    'children'            => $children,
+                    'booking_source'      => 'Website',
+                    'special_requests'    => $booking->special_requests,
+                    'nights'              => $nights,
+                    'room_charge'         => $roomCharge,
+                    'extra_person_charge' => $extraPersonCharge,
+                    'tax_amount'          => $taxAmount,
+                    'total_amount'        => $totalAmount,
+                    'deposit_amount'      => $deposit,
+                    'reservation_status'  => 'Confirmed',
+                    'created_by'          => Auth::id(),
+                ]);
+
+                if ($deposit > 0) {
+                    Payment::create([
+                        'reservation_id' => $reservation->reservation_id,
+                        'amount'         => $deposit,
+                        'payment_method' => $booking->payment_method ?? 'online',
+                        'date'           => now()->toDateString(),
+                        'description'    => 'Deposit paid at online booking',
+                    ]);
+                }
+
+                $booking->update(['status' => 'converted']);
+            });
+        }
+
         return response()->json([
-            'status' => 'success',
-            'message' => 'Booking updated successfully!',
-            'data' => $booking
+            'status'  => 'success',
+            'message' => $shouldConvert ? 'Booking confirmed and reservation created!' : 'Booking updated successfully!',
+            'data'    => $booking->fresh(),
         ], 200);
     }
-    }
+}

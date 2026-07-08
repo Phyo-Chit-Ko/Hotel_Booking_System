@@ -11,6 +11,9 @@ class Reservation extends Model
 
     protected $fillable = [
         'guest_id',
+        'guest_name',
+        'guest_email',
+        'guest_phone',
         'room_type_id',
         'room_number',
         'check_in_date',
@@ -157,7 +160,7 @@ class Reservation extends Model
             'id'            => $this->reservation_id,
             'rowId'         => $this->reservation_id . '-' . ($g?->guest_id ?? 'na'),
             'bookingNumber' => $this->booking_number,
-            'guestName'     => $g?->full_name ?? '',
+            'guestName' => $g?->full_name ?? $this->guest_name ?? '',
             'guestType'     => $guestType,
             'roomNumber'    => $this->room_number,
             'roomType'      => $this->roomType?->name ?? '',
