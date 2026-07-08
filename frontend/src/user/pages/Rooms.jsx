@@ -111,37 +111,49 @@ export default function Rooms() {
 
     const data = new FormData();
 
-    // Send every form field once, matching the bookings table columns
+    // Loop and append every form state property securely
     Object.entries(formData).forEach(([key, value]) => {
-      data.append(key, value);
+      // Fallback: If room_type_id is missing, make sure it evaluates using the selectedRoom state item context
+      if (key === "room_type_id" && !value) {
+        data.append(key, selectedRoom?.id || 1);
+      } else {
+        data.append(key, value);
+      }
     });
 
-    // File field name matches the migration column: deposit_screenshot
-    data.append("deposit_screenshot", paymentFile);
+    // File payload mapped to match what Laravel's input validator expects ('payment_screenshot')
+    data.append("payment_screenshot", paymentFile);
 
     setSubmitting(true);
 
     try {
-      const response = await fetch(
-        "http://localhost/cob/Hotel-Booking-System/backend/save_booking.php",
-        {
-          method: "POST",
-          body: data,
-        }
-      );
+      // Sent directly to your unified API framework context endpoint
+      const response = await fetch("http://localhost:8000/api/bookings", {
+        method: "POST",
+        headers: {
+          "Accept": "application/json", // Prevents the 302 Web Redirect loops when handling exceptions
+        },
+        body: data,
+      });
 
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.message || "Server responded with " + response.status);
+        // Parse custom field error structural tracking lists thrown by Laravel
+        if (result.errors) {
+          const errorMessages = Object.values(result.errors).flat().join("\n");
+          throw new Error(errorMessages);
+        }
+        throw new Error(result.message || "Server responded with status: " + response.status);
       }
+
       console.log("Success:", result);
-      alert(result.message);
+      alert(result.message || "Booking saved successfully!");
       setShowForm(false);
       resetForm();
     } catch (err) {
       console.error("Fetch error details:", err);
-      alert("Error: " + err.message);
+      alert("Submission Failed:\n" + err.message);
     } finally {
       setSubmitting(false);
     }
@@ -202,7 +214,7 @@ export default function Rooms() {
                       setSelectedRoom(room);
                       setFormData((prev) => ({
                         ...prev,
-                        room_type_id: room.id,
+                        room_type_id: room.id, // Sets it directly to the button component state tracker
                       }));
                       setShowForm(true);
                     }}
@@ -219,7 +231,7 @@ export default function Rooms() {
       {showForm && (
         <div className="modal-overlay">
           <div className="reservation-form">
-            <h2>Book {selectedRoom.title}</h2>
+            <h2>Book {selectedRoom?.title}</h2>
             <form onSubmit={handleSubmit}>
               <div className="form-columns">
                 {/* LEFT COLUMN — guest & stay details */}
@@ -364,7 +376,6 @@ export default function Rooms() {
                     </select>
                   </div>
 
-                  {/* QR code appears once a payment method is chosen */}
                   {formData.payment_method && QR_CODES[formData.payment_method] && (
                     <div className="qr-payment-box">
                       <p className="qr-payment-label">
@@ -378,7 +389,6 @@ export default function Rooms() {
                     </div>
                   )}
 
-                  {/* Realistic file upload with preview */}
                   <div className="field-group">
                     <label>Payment Screenshot*</label>
 
