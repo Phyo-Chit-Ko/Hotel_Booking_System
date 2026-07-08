@@ -18,7 +18,7 @@ export default function BookingManagement() {
   const [statusFilter, setStatusFilter] = useState("All Status");
   const [selectedDate, setSelectedDate] = useState(""); 
   const [isModalOpen, setIsModalOpen] = useState(false);
-
+  const [editError, setEditError] = useState("");
   // NEW EDIT MODAL STATES
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [bookingToEdit, setBookingToEdit] = useState(null);
@@ -56,25 +56,28 @@ export default function BookingManagement() {
 
   // HANDLE EDIT SUBMISSION TO BACKEND
   const handleEditSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const res = await fetch(`http://localhost:8000/api/bookings/${bookingToEdit.raw_id || bookingToEdit.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json"
-        },
-        body: JSON.stringify(bookingToEdit),
-      });
+  e.preventDefault();
+  setEditError("");
+  try {
+    const res = await fetch(`http://localhost:8000/api/bookings/${bookingToEdit.raw_id || bookingToEdit.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify(bookingToEdit),
+    });
 
-      if (!res.ok) throw new Error("Failed to update booking data");
-      
-      setIsEditModalOpen(false);
-      fetchBookings(); // Refresh list automatically
-    } catch (err) {
-      alert(err.message);
+    const json = await res.json();
+
+    if (!res.ok) {
+      setEditError(json.message || "Failed to update booking data");
+      return; // keep modal open so they can fix the room number
     }
-  };
+
+    setIsEditModalOpen(false);
+    fetchBookings();
+  } catch (err) {
+    setEditError(err.message);
+  }
+};
 
   const getStatusStyle = (status) => {
     switch (status?.toLowerCase()) {
@@ -327,7 +330,11 @@ export default function BookingManagement() {
                 ✕
               </button>
             </div>
-
+{editError && (
+  <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
+    {editError}
+  </p>
+)}
             <form onSubmit={handleEditSubmit} className="mt-4 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -378,6 +385,16 @@ export default function BookingManagement() {
                   </select>
                 </div>
               </div>
+              <div>
+  <label className="block text-xs font-semibold text-slate-500 mb-1">Assign Room</label>
+  <input
+    type="text"
+    placeholder="e.g. 101"
+    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500"
+    value={bookingToEdit.room_number || ""}
+    onChange={(e) => setBookingToEdit({ ...bookingToEdit, room_number: e.target.value })}
+  />
+</div>
 
               <div className="flex justify-end space-x-2.5 border-t border-slate-100 pt-4 mt-6">
                 <button 

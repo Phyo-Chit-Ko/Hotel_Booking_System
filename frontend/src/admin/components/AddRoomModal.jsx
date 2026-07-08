@@ -101,7 +101,7 @@ export default function AddRoomModal({ isOpen, onClose, onSave, roomToEdit = nul
                 className={`w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm focus:outline-none focus:ring-2 transition-all disabled:bg-slate-100 ${
                   errors.room_number 
                     ? "border-rose-300 focus:ring-rose-500/20 focus:border-rose-500" 
-                    : "border-slate-200 focus:ring-blue-500/20 focus:border-blue-500"
+                    : "border-slate-200 focus:ring-slate-500/20 focus:border-slate-500"
                 }`}
               />
               {errors.room_number && <p className="text-xs font-medium text-rose-500 mt-1.5 ml-1">{errors.room_number}</p>}
@@ -114,7 +114,7 @@ export default function AddRoomModal({ isOpen, onClose, onSave, roomToEdit = nul
                 name="room_type_id"
                 value={formData.room_type_id}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-500/20"
               >
                 {roomTypes.map((type) => (
                   <option key={type.room_type_id} value={type.room_type_id}>{type.name}</option>
@@ -129,7 +129,7 @@ export default function AddRoomModal({ isOpen, onClose, onSave, roomToEdit = nul
                 name="floor"
                 value={formData.floor}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-500/20"
               >
                 <option value="Ground">Ground</option>
                 <option value="1st Floor">1st Floor</option>
@@ -146,7 +146,7 @@ export default function AddRoomModal({ isOpen, onClose, onSave, roomToEdit = nul
                 name="capacity"
                 value={formData.capacity}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-500/20"
               />
             </div>
 
@@ -157,7 +157,7 @@ export default function AddRoomModal({ isOpen, onClose, onSave, roomToEdit = nul
                 name="bed_type"
                 value={formData.bed_type}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-500/20"
               >
                 <option value="Single">Single</option>
                 <option value="Double">Double</option>
@@ -174,7 +174,7 @@ export default function AddRoomModal({ isOpen, onClose, onSave, roomToEdit = nul
                 name="extra_person_rate"
                 value={formData.extra_person_rate}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-500/20"
               />
             </div>
 
@@ -185,7 +185,7 @@ export default function AddRoomModal({ isOpen, onClose, onSave, roomToEdit = nul
                 name="status"
                 value={formData.status}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-500/20"
               >
                 <option value="Available">Available</option>
                 <option value="Clean">Clean</option>
@@ -208,9 +208,10 @@ export default function AddRoomModal({ isOpen, onClose, onSave, roomToEdit = nul
             >
               Cancel
             </button>
+          
             <button
               type="submit"
-              className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl shadow-sm transition flex items-center gap-2"
+              className="px-6 py-2.5 bg-slate-950 hover:bg-slate-900 active:scale-[0.98] text-white text-sm font-semibold rounded-xl transition shadow-sm flex items-center gap-2"
             >
               <FaSave /> Save Room
             </button>
