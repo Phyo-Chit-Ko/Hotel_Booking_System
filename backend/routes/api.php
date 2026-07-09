@@ -8,6 +8,7 @@ use App\Http\Controllers\ExtraServiceController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\RoomTypeController;
 use App\Http\Controllers\RoomController;
+use App\Http\Controllers\RestaurantOrderController;
 use App\Http\Controllers\Api\GuestController;
 use App\Http\Controllers\Api\ReservationController;
 use App\Http\Controllers\Api\PaymentController;
@@ -17,6 +18,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\Api\FloorLayoutController;
 use App\Http\Controllers\Api\ReservationGuestController;
+
 // <<<<<<< HEAD
  
 // <<<<<<< Updated upstream
