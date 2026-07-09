@@ -62,6 +62,7 @@ class BookingController extends Controller
                         ? Storage::disk('public')->url($b->deposit_screenshot)
                         : null,
                     'status'             => ucfirst($b->status),
+                    'reservationId'  => $b->reservation_id,
                 ];
             }),
             'stats' => [
@@ -129,100 +130,116 @@ class BookingController extends Controller
      *     correctly.
      */
     public function update(Request $request, $id)
-    {
-        $booking = Booking::where('booking_id', $id)->firstOrFail();
+{
+    $booking = Booking::where('booking_id', $id)->firstOrFail();
 
-        $validated = $request->validate([
-            'first_name'  => 'required|string|max:255',
-            'last_name'   => 'required|string|max:255',
-            'phone'       => 'required|string|max:50',
-            'status'      => 'required|string',
-            'room_number' => 'nullable|string|exists:rooms,room_number',
-        ]);
+    $validated = $request->validate([
+        'first_name'  => 'required|string|max:255',
+        'last_name'   => 'required|string|max:255',
+        'phone'       => 'required|string|max:50',
+        'status'      => 'required|string',
+        'room_number' => 'required|string|exists:rooms,room_number',
+    ]);
 
-        if (isset($validated['status'])) {
-            $validated['status'] = strtolower($validated['status']);
+    if (isset($validated['status'])) {
+        $validated['status'] = strtolower($validated['status']);
+    }
+
+    $shouldConvert = $validated['status'] === 'confirmed'
+        && !empty($validated['room_number']);
+
+    $room = null;
+
+    if ($shouldConvert) {
+        $room = Room::with('roomType')->where('room_number', $validated['room_number'])->firstOrFail();
+
+        // NEW: reject if the assigned room isn't the type the guest actually booked
+        if ((int) $room->room_type_id !== (int) $booking->room_type_id) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => "Room {$validated['room_number']} is a {$room->roomType->name}, but this guest booked a "
+                    . ($booking->roomType->name ?? 'different room type') . ". Assign a matching room.",
+            ], 422);
         }
 
-        $booking->update($validated);
+        $conflict = Reservation::where('room_number', $validated['room_number'])
+            ->whereNotIn('reservation_status', ['Checked-Out', 'Cancelled'])
+            ->where('check_in_date', '<', $booking->check_out_date)
+            ->where('check_out_date', '>', $booking->check_in_date)
+            ->exists();
 
-        // Only attempt conversion when the admin confirmed AND assigned a room.
-        $shouldConvert = $validated['status'] === 'confirmed'
-            && !empty($validated['room_number']);
+        if ($conflict) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => "Room {$validated['room_number']} is already booked for those dates.",
+            ], 422);
+        }
+    }
 
-        if ($shouldConvert) {
-            $conflict = Reservation::where('room_number', $validated['room_number'])
-                ->whereNotIn('reservation_status', ['Checked-Out', 'Cancelled'])
-                ->where('check_in_date', '<', $booking->check_out_date)
-                ->where('check_out_date', '>', $booking->check_in_date)
-                ->exists();
+    $booking->update($validated);
 
-            if ($conflict) {
-                return response()->json([
-                    'status'  => 'error',
-                    'message' => "Room {$validated['room_number']} is already booked for those dates.",
-                ], 422);
+    if ($shouldConvert) {
+        DB::transaction(function () use ($booking, $room) {
+            $nights = Carbon::parse($booking->check_in_date)
+                ->diffInDays(Carbon::parse($booking->check_out_date));
+            $nights = max(1, $nights);
+
+            $rateNight = (float) ($room->roomType->base_price ?? 0);
+
+            $adults      = (int) $booking->adult;
+            $children    = (int) $booking->child;
+            $totalGuests = $adults + $children;
+
+            $roomCharge        = $nights * $rateNight;
+            $extraPersonCharge = max(0, $totalGuests - 2) * (float) $room->extra_person_rate * $nights;
+            $taxAmount         = ($roomCharge + $extraPersonCharge) * 0.1;
+            $totalAmount       = $roomCharge + $extraPersonCharge + $taxAmount;
+            $deposit           = (float) $booking->deposit;
+
+            $reservation = Reservation::create([
+                'guest_id'            => null,
+                'guest_name'          => trim($booking->first_name . ' ' . $booking->last_name),
+                'guest_email'         => $booking->email,
+                'guest_phone'         => $booking->phone,
+                'room_type_id'        => $booking->room_type_id,
+                'room_number'         => $room->room_number,
+                'check_in_date'       => $booking->check_in_date,
+                'check_out_date'      => $booking->check_out_date,
+                'adults'              => $adults,
+                'children'            => $children,
+                'booking_source'      => 'Website',
+                'special_requests'    => $booking->special_requests,
+                'nights'              => $nights,
+                'room_charge'         => $roomCharge,
+                'extra_person_charge' => $extraPersonCharge,
+                'tax_amount'          => $taxAmount,
+                'total_amount'        => $totalAmount,
+                'deposit_amount'      => $deposit,
+                'reservation_status'  => 'Confirmed',
+                'created_by'          => Auth::id(),
+            ]);
+
+            if ($deposit > 0) {
+                Payment::create([
+                    'reservation_id' => $reservation->reservation_id,
+                    'amount'         => $deposit,
+                    'payment_method' => $booking->payment_method ?? 'online',
+                    'date'           => now()->toDateString(),
+                    'description'    => 'Deposit paid at online booking',
+                ]);
             }
 
-            DB::transaction(function () use ($booking, $validated) {
-                $nights = Carbon::parse($booking->check_in_date)
-                    ->diffInDays(Carbon::parse($booking->check_out_date));
-                $nights = max(1, $nights);
-
-                $room      = Room::with('roomType')->where('room_number', $validated['room_number'])->firstOrFail();
-                $rateNight = (float) ($room->roomType->base_price ?? 0);
-
-                $adults      = (int) $booking->adult;
-                $children    = (int) $booking->child;
-                $totalGuests = $adults + $children;
-
-                $roomCharge        = $nights * $rateNight;
-                $extraPersonCharge = max(0, $totalGuests - 2) * 20 * $nights;
-                $taxAmount         = ($roomCharge + $extraPersonCharge) * 0.1;
-                $totalAmount       = $roomCharge + $extraPersonCharge + $taxAmount;
-                $deposit           = (float) $booking->deposit;
-
-                $reservation = Reservation::create([
-                    'guest_id'            => null,
-                    'guest_name'          => trim($booking->first_name . ' ' . $booking->last_name),
-                    'guest_email'         => $booking->email,
-                    'guest_phone'         => $booking->phone,
-                    'room_type_id'        => $booking->room_type_id,
-                    'room_number'         => $validated['room_number'],
-                    'check_in_date'       => $booking->check_in_date,
-                    'check_out_date'      => $booking->check_out_date,
-                    'adults'              => $adults,
-                    'children'            => $children,
-                    'booking_source'      => 'Website',
-                    'special_requests'    => $booking->special_requests,
-                    'nights'              => $nights,
-                    'room_charge'         => $roomCharge,
-                    'extra_person_charge' => $extraPersonCharge,
-                    'tax_amount'          => $taxAmount,
-                    'total_amount'        => $totalAmount,
-                    'deposit_amount'      => $deposit,
-                    'reservation_status'  => 'Confirmed',
-                    'created_by'          => Auth::id(),
-                ]);
-
-                if ($deposit > 0) {
-                    Payment::create([
-                        'reservation_id' => $reservation->reservation_id,
-                        'amount'         => $deposit,
-                        'payment_method' => $booking->payment_method ?? 'online',
-                        'date'           => now()->toDateString(),
-                        'description'    => 'Deposit paid at online booking',
-                    ]);
-                }
-
-                $booking->update(['status' => 'converted']);
-            });
-        }
-
-        return response()->json([
-            'status'  => 'success',
-            'message' => $shouldConvert ? 'Booking confirmed and reservation created!' : 'Booking updated successfully!',
-            'data'    => $booking->fresh(),
-        ], 200);
+            $booking->update([
+                'status'         => 'converted',
+                'reservation_id' => $reservation->reservation_id,
+            ]);
+        });
     }
+
+    return response()->json([
+        'status'  => 'success',
+        'message' => $shouldConvert ? 'Booking confirmed and reservation created!' : 'Booking updated successfully!',
+        'data'    => $booking->fresh(),
+    ], 200);
+}
 }

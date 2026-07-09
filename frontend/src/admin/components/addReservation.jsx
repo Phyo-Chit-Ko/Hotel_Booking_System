@@ -42,7 +42,8 @@ const EMPTY = {
 
   // step 2 -> reservations table
   reservationId: null,
-  roomNumber: "", roomType: "", floor: "", bedType: "", ratePerNight: 0,
+  roomNumber: "", roomType: "", floor: "", bedType: "",
+  ratePerNight: 0, extraPersonRate: 0,
   checkIn: "", checkOut: "", adults: 1, children: 0,
   bookingSource: "Direct", specialRequests: "", reservationStatus: "Confirmed",
   nights: 0, roomCharge: 0, extraPersonCharge: 0, taxAmount: 0, totalAmount: 0,
@@ -86,19 +87,20 @@ export default function AddReservation({
         const r = data.reservation;
 
         setForm((p) => ({
-          ...p,
-          guestId: r.guestId, guestSearch: `${r.firstName} ${r.lastName}`,
-          firstName: r.firstName, lastName: r.lastName, phone: r.phone,
-          email: r.email, nationality: r.nationality, idType: r.idType,
-          idNumber: r.idNumber, isVip: r.isVip,
-          reservationId: r.reservationId,
-          roomNumber: r.roomNumber, roomType: r.roomType, ratePerNight: r.ratePerNight,
-          checkIn: r.checkIn, checkOut: r.checkOut, adults: r.adults, children: r.children,
-          bookingSource: r.bookingSource, specialRequests: r.specialRequests,
-          reservationStatus: r.reservationStatus,
-          nights: r.nights, roomCharge: r.roomCharge, extraPersonCharge: r.extraPersonCharge,
-          taxAmount: r.taxAmount, totalAmount: r.totalAmount,
-        }));
+  ...p,
+  guestId: r.guestId, guestSearch: `${r.firstName} ${r.lastName}`,
+  firstName: r.firstName, lastName: r.lastName, phone: r.phone,
+  email: r.email, nationality: r.nationality, idType: r.idType,
+  idNumber: r.idNumber, isVip: r.isVip,
+  reservationId: r.reservationId,
+  roomNumber: r.roomNumber, roomType: r.roomType,
+  ratePerNight: r.ratePerNight, extraPersonRate: r.extraPersonRate, // <-- add extraPersonRate here
+  checkIn: r.checkIn, checkOut: r.checkOut, adults: r.adults, children: r.children,
+  bookingSource: r.bookingSource, specialRequests: r.specialRequests,
+  reservationStatus: r.reservationStatus,
+  nights: r.nights, roomCharge: r.roomCharge, extraPersonCharge: r.extraPersonCharge,
+  taxAmount: r.taxAmount, totalAmount: r.totalAmount,
+}));
 
         setAdditionalGuests((data.additionalGuests || []).map((g) => ({
           localId: `existing_${g.guestId}`,
@@ -129,11 +131,11 @@ export default function AddReservation({
     const nights      = Math.max(0, Math.round((new Date(form.checkOut) - new Date(form.checkIn)) / 86400000));
     const totalGuests = (parseInt(form.adults) || 0) + (parseInt(form.children) || 0);
     const roomCharge  = nights * form.ratePerNight;
-    const extra       = Math.max(0, totalGuests - 2) * 20 * nights;
+    const extra       = Math.max(0, totalGuests - 2) * form.extraPersonRate * nights;
     const tax         = (roomCharge + extra) * 0.1;
     const total       = roomCharge + extra + tax;
     setForm((p) => ({ ...p, nights, roomCharge, extraPersonCharge: extra, taxAmount: tax, totalAmount: total }));
-  }, [form.checkIn, form.checkOut, form.ratePerNight, form.adults, form.children]);
+  }, [form.checkIn, form.checkOut, form.ratePerNight, form.extraPersonRate, form.adults, form.children]);
 
   const remainingAmount = Math.max(0, form.totalAmount - (parseFloat(form.depositAmount) || 0));
 
@@ -175,10 +177,11 @@ export default function AddReservation({
       if (data.room) {
         setForm((p) => ({
           ...p, roomNumber,
-          roomType:     data.room.room_type?.name || "",
-          floor:        data.room.floor,
-          bedType:      data.room.bed_type,
-          ratePerNight: parseFloat(data.room.room_type?.base_price) || 0,
+          roomType:        data.room.room_type?.name || "",
+          floor:           data.room.floor,
+          bedType:         data.room.bed_type,
+          ratePerNight:    parseFloat(data.room.room_type?.base_price) || 0,
+          extraPersonRate: parseFloat(data.room.extra_person_rate) || 0,
         }));
       }
     } catch {}
@@ -792,7 +795,7 @@ export default function AddReservation({
                     </div>
                     {form.extraPersonCharge > 0 && (
                       <div className="flex justify-between text-slate-300">
-                        <span>Surplus Headcount Surcharge</span>
+                        <span>Extra person charges fee</span>
                         <span>{fmt(form.extraPersonCharge)}</span>
                       </div>
                     )}

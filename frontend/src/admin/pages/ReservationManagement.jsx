@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import AdminLayout from "../layouts/AdminLayout";
 import AddReservation from "../components/AddReservation";
 import RecordPayment from "../components/RecordPayment";
+import MoveRoomModal from "../components/MoveRoomModal";
 import {
   FaPlus,
   FaSearch,
@@ -10,6 +11,8 @@ import {
   FaTimes,
   FaMoneyBillWave,
   FaExclamationTriangle,
+  FaCalendarPlus,
+  FaExchangeAlt,
 } from "react-icons/fa";
 
 export default function ReservationManagement() {
@@ -49,6 +52,15 @@ export default function ReservationManagement() {
   const [checkoutBooking, setCheckoutBooking] = useState(null);
   const [checkoutSaving, setCheckoutSaving] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
+
+  // Booking row currently open in the Move Room modal.
+  const [moveRoomBooking, setMoveRoomBooking] = useState(null);
+
+  // Booking row currently open in the Extend Stay modal.
+  // NOTE: ExtendStayModal isn't built yet — this state exists so the
+  // "Extend Stay" button doesn't throw, but clicking it won't open
+  // anything until that modal is added.
+  const [extendBooking, setExtendBooking] = useState(null);
 
   const loadBookings = async () => {
     setLoading(true);
@@ -223,6 +235,13 @@ export default function ReservationManagement() {
     setIsMinimized(false);
     setMinimizedStep(null);
     setCheckinReservationId(null);
+    await loadBookings();
+  };
+
+  // After a room move succeeds, close the modal and refresh the table
+  // so room/roomType/charges reflect the new assignment everywhere.
+  const handleRoomMoved = async () => {
+    setMoveRoomBooking(null);
     await loadBookings();
   };
 
@@ -428,29 +447,36 @@ export default function ReservationManagement() {
                     <td className="px-5 py-4 text-center">
                       <div className="flex flex-col items-center gap-1.5">
                         {booking.guestType === "Primary" && (booking.status === "Check-In" || booking.status === "No-Show") && (
-                          <button
-                            onClick={() => handleOpenCheckIn(booking.id)}
-                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition w-full"
-                          >
+                          <button onClick={() => handleOpenCheckIn(booking.id)}
+                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition w-full">
                             Check-In
                           </button>
                         )}
+
                         {booking.guestType === "Primary" && booking.status === "Occupied" && (
-                          <button
-                            onClick={() => handleCheckOutClick(booking)}
-                            className="px-3 py-1.5 bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg transition w-full"
-                          >
+                          <button onClick={() => handleCheckOutClick(booking)}
+                            className="px-3 py-1.5 bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg transition w-full">
                             Check-Out
                           </button>
                         )}
-                        {booking.guestType === "Primary" && booking.remainingAmount > 0 && (
-                          <button
-                            onClick={() => setPaymentBooking(booking)}
-                            className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-700 text-xs font-semibold rounded-lg transition w-full flex items-center justify-center gap-1.5"
-                          >
-                            <FaMoneyBillWave className="text-[10px]" />
-                            Record Payment
-                          </button>
+
+                        {booking.guestType === "Primary" && booking.rawStatus !== "Checked-Out" && (
+                          <div className="flex gap-1 w-full">
+                            {booking.remainingAmount > 0 && (
+                              <button title="Record Payment" onClick={() => setPaymentBooking(booking)}
+                                className="flex-1 px-2 py-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-700 text-[11px] font-semibold rounded-lg transition">
+                                <FaMoneyBillWave className="mx-auto" />
+                              </button>
+                            )}
+                            <button title="Extend Stay" onClick={() => setExtendBooking(booking)}
+                              className="flex-1 px-2 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 text-[11px] font-semibold rounded-lg transition">
+                              <FaCalendarPlus className="mx-auto" />
+                            </button>
+                            <button title="Move Room" onClick={() => setMoveRoomBooking(booking)}
+                              className="flex-1 px-2 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 text-[11px] font-semibold rounded-lg transition">
+                              <FaExchangeAlt className="mx-auto" />
+                            </button>
+                          </div>
                         )}
                       </div>
                     </td>
@@ -478,6 +504,14 @@ export default function ReservationManagement() {
           booking={paymentBooking}
           onClose={() => setPaymentBooking(null)}
           onSaved={handlePaymentSaved}
+        />
+      )}
+
+      {moveRoomBooking && (
+        <MoveRoomModal
+          booking={moveRoomBooking}
+          onClose={() => setMoveRoomBooking(null)}
+          onMoved={handleRoomMoved}
         />
       )}
 

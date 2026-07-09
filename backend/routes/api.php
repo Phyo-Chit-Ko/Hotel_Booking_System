@@ -61,7 +61,7 @@ Route::prefix('reservations')->group(function () {
 });
 Route::get('/bookings', [BookingController::class, 'index']);
 Route::post('/bookings', [BookingController::class, 'store']);
-Route::put('/bookings/{id}', [BookingController::class, 'update']);
+Route::middleware('auth:sanctum')->put('/bookings/{id}', [BookingController::class, 'update']);
 
 // Secured — was previously unprotected, now requires an authenticated user
 Route::middleware('auth:sanctum')->put('/profile/update', [ProfileController::class, 'update']);
@@ -99,7 +99,8 @@ Route::delete('/services/{id}', [ExtraServiceController::class, 'destroy']);
 Route::get('/reservations/{id}/detail', [ReservationController::class, 'detail']);
 Route::post('/reservations/{id}/check-in', [ReservationController::class, 'checkIn']);
 Route::patch('/reservations/{id}/check-out', [ReservationController::class, 'checkOut']);
-
+Route::patch('/reservations/{id}/extend', [ReservationController::class, 'extend']);
+Route::patch('/reservations/{id}/move-room', [ReservationController::class, 'moveRoom']);
 // =======
 Route::get('/restaurant-items', [RestaurantItemController::class, 'index']);
 

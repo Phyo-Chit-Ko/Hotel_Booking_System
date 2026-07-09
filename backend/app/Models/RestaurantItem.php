@@ -32,13 +32,13 @@ class RestaurantItem extends Model
  
     // Restaurant_Order_Item.item_id -> Restaurant_Item.item_id
 
-    public function orderItems()
+    // public function orderItems()
 
-    {
+    // {
 
-        return $this->hasMany(RestaurantOrderItem::class, 'item_id', 'item_id');
+    //     return $this->hasMany(RestaurantOrderItem::class, 'item_id', 'item_id');
 
-    }
+    // }
 
 }
  

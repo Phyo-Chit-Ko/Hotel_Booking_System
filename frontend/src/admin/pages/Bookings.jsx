@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import AdminLayout from "../layouts/AdminLayout";
 import AddBookingModal from "../components/AddBookingModal";
+import { useNavigate } from "react-router-dom";
 import {
   FaSearch,
   FaCalendarCheck,
@@ -13,7 +14,7 @@ export default function BookingManagement() {
   const [stats, setStats] = useState({ total: 0, confirmed: 0, pending: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All Status");
   const [selectedDate, setSelectedDate] = useState(""); 
@@ -59,9 +60,15 @@ export default function BookingManagement() {
   e.preventDefault();
   setEditError("");
   try {
+    const token = sessionStorage.getItem("auth_token");
+
     const res = await fetch(`http://localhost:8000/api/bookings/${bookingToEdit.raw_id || bookingToEdit.id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify(bookingToEdit),
     });
 
@@ -293,19 +300,29 @@ export default function BookingManagement() {
                     </td>
 
                     <td className="px-5 py-4">
-                      <div className="flex justify-center items-center gap-1.5">
-                        <button 
-                          className="px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium hover:bg-slate-100 transition active:scale-95" 
-                          title="Edit Booking"
-                          onClick={() => {
-                            setBookingToEdit({ ...booking });
-                            setIsEditModalOpen(true);
-                          }}
-                        >
-                          Edit
-                        </button>
-                      </div>
-                    </td>
+  <div className="flex justify-center items-center gap-1.5">
+    {booking.status?.toLowerCase() === "converted" ? (
+      <button
+        className="px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-medium hover:bg-emerald-100 transition active:scale-95"
+        title="See Reservation"
+        onClick={() => navigate(`/admin/reservations?highlight=${booking.reservationId}`)}
+      >
+        See Reservation
+      </button>
+    ) : (
+      <button
+        className="px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium hover:bg-slate-100 transition active:scale-95"
+        title="Edit Booking"
+        onClick={() => {
+          setBookingToEdit({ ...booking });
+          setIsEditModalOpen(true);
+        }}
+      >
+        Edit
+      </button>
+    )}
+  </div>
+</td>
                   </tr>
                 ))}
               </tbody>
