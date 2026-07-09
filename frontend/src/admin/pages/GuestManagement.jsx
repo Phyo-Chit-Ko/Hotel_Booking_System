@@ -6,7 +6,6 @@ import {
 } from "react-icons/fa";
 import axios from "axios";
 
-// 🟢 Set this to your Laravel backend URL
 const BACKEND_URL = "http://localhost:8000";
 
 export default function GuestManagement() {
@@ -42,11 +41,8 @@ export default function GuestManagement() {
         idNumber: g.id_number,
         docFront: g.id_front_path ? "View" : "Missing",
         docBack: g.id_back_path ? "View" : "Missing",
-        
-        // 🟢 Absolute URLs pointing straight to your Laravel server assets
         docFrontUrl: g.id_front_path ? `${BACKEND_URL}/storage/${g.id_front_path}` : null,
         docBackUrl: g.id_back_path ? `${BACKEND_URL}/storage/${g.id_back_path}` : null,
-        
         vip: !!g.is_vip,
       }));
 
@@ -70,33 +66,19 @@ export default function GuestManagement() {
 
   return (
     <AdminLayout>
-      <div className="bg-gradient-to-r from-sky-100 via-blue-50 to-indigo-50 rounded-3xl p-8 shadow-sm mb-6 flex justify-between items-center">
-        <div>
-          <h1 className="text-4xl font-bold text-slate-800">Guest Management</h1>
-          <p className="text-slate-500 mt-2 text-base">
-            Guest profiles, tax details, ID documents, preferences, and history
-          </p>
-        </div>
-
-        <button className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-5 py-3 rounded-xl flex items-center gap-2 shadow-sm transition">
-          <FaPlus className="text-sm" />
-          Add New
-        </button>
-      </div>
-
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
         <form
           onSubmit={handleFilterSubmit}
           className="flex flex-wrap gap-3 items-center mb-4"
         >
           <div className="relative flex-1 min-w-[240px]">
-            <FaSearch className="absolute left-4 top-3.5 text-gray-400" />
+            <FaSearch className="absolute right-4 top-3.5 text-gray-400" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search Guest Name.."
-              className="pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              className="pl-4 pr-11 py-2.5 bg-slate-50 border border-slate-200 rounded-xl w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
 
@@ -175,7 +157,6 @@ export default function GuestManagement() {
                     <td className="p-4 text-slate-600">{guest.idType}</td>
                     <td className="p-4 text-slate-700 font-mono tracking-tight">{guest.idNumber}</td>
 
-                    {/* ✅ Corrected Front Anchor Tag */}
                     <td className="p-4 text-center">
                       {guest.docFront === "View" ? (
                         <a
@@ -193,7 +174,6 @@ export default function GuestManagement() {
                       )}
                     </td>
 
-                    {/* ✅ Corrected Back Anchor Tag */}
                     <td className="p-4 text-center">
                       {guest.docBack === "View" ? (
                         <a
