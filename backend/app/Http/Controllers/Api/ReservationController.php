@@ -5,9 +5,12 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
 use App\Models\Reservation;
+use App\Models\ReservationGuest;
+use App\Models\RoomTransfer;
 use App\Models\Room;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class ReservationController extends Controller
 {
@@ -27,7 +30,7 @@ class ReservationController extends Controller
      */
     public function detail($id)
 {
-    $reservation = Reservation::with(['guest', 'roomType', 'additionalGuests.guest'])->findOrFail($id);
+    $reservation = Reservation::with(['guest', 'roomType','room', 'additionalGuests.guest'])->findOrFail($id);
 
     $ratePerNight = $reservation->nights > 0
         ? (float) $reservation->room_charge / $reservation->nights
@@ -52,6 +55,7 @@ class ReservationController extends Controller
             'isVip'             => $guest->is_vip ?? false,
             'roomNumber'        => $reservation->room_number,
             'roomType'          => $reservation->roomType->name ?? '',
+            'extraPersonRate'   => (float) ($reservation->room->extra_person_rate ?? 0), 
             'checkIn'           => $reservation->check_in_date->format('Y-m-d'),
             'checkOut'          => $reservation->check_out_date->format('Y-m-d'),
             'adults'            => $reservation->adults,
@@ -106,7 +110,7 @@ class ReservationController extends Controller
             $totalGuests = $adults + $children;
 
             $roomCharge        = $nights * $ratePerNight;
-            $extraPersonCharge = max(0, $totalGuests - 2) * 20 * $nights;
+            $extraPersonCharge = max(0, $totalGuests - 2) * (float) $room->extra_person_rate * $nights;
             $taxAmount         = ($roomCharge + $extraPersonCharge) * 0.1;
             $totalAmount       = $roomCharge + $extraPersonCharge + $taxAmount;
 
@@ -234,4 +238,221 @@ class ReservationController extends Controller
 
         return response()->json(['message' => 'Reservation deleted.']);
     }
+
+
+    /**
+ * Push back check-out date on an active reservation. Recalculates
+ * nights/charges the same way store() does; existing payments are untouched.
+ */
+public function extend(Request $request, $id)
+{
+    $validated = $request->validate([
+        'checkOut' => 'required|date',
+    ]);
+
+   $reservation = Reservation::with(['roomType', 'room'])->findOrFail($id);
+
+    if (!in_array($reservation->reservation_status, ['Reserved', 'Confirmed', 'No-Show', 'Checked-In'])) {
+        return response()->json(['message' => 'This reservation can no longer be extended.'], 422);
+    }
+
+    $newCheckOut = Carbon::parse($validated['checkOut']);
+
+    if ($newCheckOut->lte($reservation->check_out_date)) {
+        return response()->json(['message' => 'New check-out date must be after the current one.'], 422);
+    }
+
+    $conflict = Reservation::where('room_number', $reservation->room_number)
+        ->where('reservation_id', '!=', $reservation->reservation_id)
+        ->whereNotIn('reservation_status', ['Checked-Out', 'No-Show'])
+        ->where('check_in_date', '<', $newCheckOut)
+        ->where('check_out_date', '>', $reservation->check_out_date)
+        ->exists();
+
+    if ($conflict) {
+        return response()->json(['message' => "Room {$reservation->room_number} is booked by someone else during the extended dates."], 422);
+    }
+
+     DB::transaction(function () use ($reservation, $newCheckOut) {
+        $nights            = max(1, $reservation->check_in_date->diffInDays($newCheckOut));
+        $rateNight         = (float) ($reservation->roomType->base_price ?? 0);
+        $extraRate         = (float) ($reservation->room->extra_person_rate ?? 0);
+        $totalGuests       = $reservation->adults + $reservation->children;
+        $roomCharge        = $nights * $rateNight;
+        $extraPersonCharge = max(0, $totalGuests - 2) * $extraRate * $nights;
+        $taxAmount         = ($roomCharge + $extraPersonCharge) * 0.1;
+
+        $reservation->update([
+            'check_out_date'      => $newCheckOut,
+            'nights'              => $nights,
+            'room_charge'         => $roomCharge,
+            'extra_person_charge' => $extraPersonCharge,
+            'tax_amount'          => $taxAmount,
+            'total_amount'        => $roomCharge + $extraPersonCharge + $taxAmount,
+        ]);
+    });
+
+    $reservation->load(['guest', 'roomType', 'payments', 'additionalGuests.guest']);
+    return response()->json(['booking' => $reservation->toTableRow()]);
+}
+
+/**
+ * Reassign this reservation to a different room, recalculating charges
+ * against the new room's rate (nights stay the same).
+ */
+
+    /**
+ * Reassign this reservation to a different room, recalculating charges
+ * against the new room's rate, and logging the move in room_transfers.
+ */
+public function moveRoom(Request $request, $id)
+{
+    $validated = $request->validate([
+        'roomNumber' => 'required|string|exists:rooms,room_number',
+        'reason'     => 'nullable|string|max:255',
+    ]);
+
+    $reservation = Reservation::with(['roomType', 'additionalGuests'])->findOrFail($id);
+
+    if (!in_array($reservation->reservation_status, ['Reserved', 'Confirmed', 'No-Show', 'Checked-In'])) {
+        return response()->json(['message' => 'This reservation can no longer be moved.'], 422);
+    }
+
+    if ($validated['roomNumber'] === $reservation->room_number) {
+        return response()->json(['message' => 'Reservation is already in that room.'], 422);
+    }
+
+    $newRoom = Room::with('roomType')->where('room_number', $validated['roomNumber'])->firstOrFail();
+
+    $isOccupied     = $reservation->reservation_status === 'Checked-In';
+    $conflictStart  = $isOccupied ? Carbon::today() : $reservation->check_in_date;
+
+    $conflict = Reservation::where('room_number', $newRoom->room_number)
+        ->where('reservation_id', '!=', $reservation->reservation_id)
+        ->whereNotIn('reservation_status', ['Checked-Out', 'No-Show'])
+        ->where('check_in_date', '<', $reservation->check_out_date)
+        ->where('check_out_date', '>', $conflictStart)
+        ->exists();
+
+    if ($conflict) {
+        return response()->json([
+            'message' => "Room {$newRoom->room_number} is already booked for these dates.",
+        ], 422);
+    }
+
+    $oldRoomNum = $reservation->room_number;
+
+    $result = DB::transaction(function () use ($reservation, $newRoom, $oldRoomNum, $validated, $request, $isOccupied) {
+
+        if ($isOccupied) {
+            // Guest is mid-stay: close the old room's record as history and
+            // open a fresh record for the new room, instead of overwriting
+            // the room_number in place and losing the first leg of the stay.
+            $today            = Carbon::today();
+            $originalCheckOut = $reservation->check_out_date->copy();
+            $totalGuests      = $reservation->adults + $reservation->children;
+
+            // Recalculate the OLD reservation for the shortened stay actually spent there.
+            $oldNights    = max(1, $reservation->check_in_date->diffInDays($today));
+            $oldRate      = (float) ($reservation->roomType->base_price ?? 0);
+            $oldExtraRate = (float) (Room::where('room_number', $oldRoomNum)->value('extra_person_rate') ?? 0);
+
+            $oldRoomCharge  = $oldNights * $oldRate;
+            $oldExtraCharge = max(0, $totalGuests - 2) * $oldExtraRate * $oldNights;
+            $oldTax         = ($oldRoomCharge + $oldExtraCharge) * 0.1;
+
+            $reservation->update([
+                'check_out_date'      => $today,
+                'nights'              => $oldNights,
+                'room_charge'         => $oldRoomCharge,
+                'extra_person_charge' => $oldExtraCharge,
+                'tax_amount'          => $oldTax,
+                'total_amount'        => $oldRoomCharge + $oldExtraCharge + $oldTax,
+                'reservation_status'  => 'Checked-Out',
+            ]);
+
+            // Create the NEW reservation covering the rest of the stay in the new room.
+            $newNights    = max(1, $today->diffInDays($originalCheckOut));
+            $newRate      = (float) ($newRoom->roomType->base_price ?? 0);
+            $newExtraRate = (float) ($newRoom->extra_person_rate ?? 0);
+
+            $newRoomCharge  = $newNights * $newRate;
+            $newExtraCharge = max(0, $totalGuests - 2) * $newExtraRate * $newNights;
+            $newTax         = ($newRoomCharge + $newExtraCharge) * 0.1;
+
+            $newReservation = Reservation::create([
+                'guest_id'            => $reservation->guest_id,
+                'guest_name'          => $reservation->guest_name,
+                'guest_email'         => $reservation->guest_email,
+                'guest_phone'         => $reservation->guest_phone,
+                'room_type_id'        => $newRoom->room_type_id,
+                'room_number'         => $newRoom->room_number,
+                'check_in_date'       => $today,
+                'check_out_date'      => $originalCheckOut,
+                'adults'              => $reservation->adults,
+                'children'            => $reservation->children,
+                'booking_source'      => $reservation->booking_source,
+                'special_requests'    => $reservation->special_requests,
+                'nights'              => $newNights,
+                'room_charge'         => $newRoomCharge,
+                'extra_person_charge' => $newExtraCharge,
+                'tax_amount'          => $newTax,
+                'total_amount'        => $newRoomCharge + $newExtraCharge + $newTax,
+                'deposit_amount'      => 0,
+                'reservation_status'  => 'Checked-In',
+                'created_by'          => $request->user()?->user_id ?? 1,
+            ]);
+
+            // Carry over any additional guests sharing the room to the new record.
+            foreach ($reservation->additionalGuests as $ag) {
+                ReservationGuest::create([
+                    'reservation_id' => $newReservation->reservation_id,
+                    'guest_id'       => $ag->guest_id,
+                    'guest_type'     => $ag->guest_type,
+                ]);
+            }
+
+            RoomTransfer::create([
+                'reservation_id' => $newReservation->reservation_id,
+                'old_room_num'   => $oldRoomNum,
+                'new_room_num'   => $newRoom->room_number,
+                'transferred_by' => $request->user()?->user_id,
+                'transfer_date'  => $today->toDateString(),
+                'reason'         => $validated['reason'] ?? null,
+            ]);
+
+            return ['oldReservationId' => $reservation->reservation_id, 'newReservationId' => $newReservation->reservation_id];
+        }
+
+        // Not yet checked in — nothing to split yet, just reassign the room.
+        $rateNight   = (float) ($newRoom->roomType->base_price ?? 0);
+        $extraRate   = (float) ($newRoom->extra_person_rate ?? 0);
+        $totalGuests = $reservation->adults + $reservation->children;
+        $roomCharge  = $reservation->nights * $rateNight;
+        $extraCharge = max(0, $totalGuests - 2) * $extraRate * $reservation->nights;
+        $taxAmount   = ($roomCharge + $extraCharge) * 0.1;
+
+        $reservation->update([
+            'room_number'         => $newRoom->room_number,
+            'room_type_id'        => $newRoom->room_type_id,
+            'room_charge'         => $roomCharge,
+            'extra_person_charge' => $extraCharge,
+            'tax_amount'          => $taxAmount,
+            'total_amount'        => $roomCharge + $extraCharge + $taxAmount,
+        ]);
+
+        RoomTransfer::create([
+            'reservation_id' => $reservation->reservation_id,
+            'old_room_num'   => $oldRoomNum,
+            'new_room_num'   => $newRoom->room_number,
+            'transferred_by' => $request->user()?->user_id,
+            'transfer_date'  => now()->toDateString(),
+            'reason'         => $validated['reason'] ?? null,
+        ]);
+
+        return ['oldReservationId' => null, 'newReservationId' => $reservation->reservation_id];
+    });
+
+    return response()->json(['message' => 'Room moved successfully.', 'result' => $result]);
+}
 }

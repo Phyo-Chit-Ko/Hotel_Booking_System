@@ -31,6 +31,7 @@ class Booking extends Model
         'special_requests',
         'payment_method', // Safely mass-assignable now!
         'status',
+        'reservation_id',
     ];
 
     protected $casts = [

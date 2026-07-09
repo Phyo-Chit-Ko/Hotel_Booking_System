@@ -84,7 +84,7 @@ if (!isLogin) {
           console.log("Setting user state to:", userData); // DEBUG: Check console
          
           setUser(userData); // This triggers the Navbar update
- 
+          sessionStorage.setItem("auth_token", response.data.token);
           await Swal.fire({
   icon: "success",
   title: "Login Successful!",
@@ -100,7 +100,7 @@ if (!isLogin) {
  
           const { role } = userData;
           if (role === 'manager') navigate("/admin/dashboard");
-          else if (role === 'reception') navigate("/reception-dashboard");
+          else if (role === 'Receptionist') navigate("/admin/dashboard"); // no separate reception-dashboard route exists in App.jsx — sending to admin instead
           else navigate("/homepage");
         }
       } else {

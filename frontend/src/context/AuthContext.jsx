@@ -3,23 +3,27 @@ import { createContext, useState, useContext, useEffect } from 'react';
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-    // 1. Initialize state from localStorage
     const [user, setUser] = useState(() => {
-        const saved = localStorage.getItem('user');
+        const saved = sessionStorage.getItem('user');
         return saved ? JSON.parse(saved) : null;
     });
 
-    // 2. IMPORTANT: Sync localStorage whenever 'user' state changes
     useEffect(() => {
         if (user) {
-            localStorage.setItem('user', JSON.stringify(user));
+            sessionStorage.setItem('user', JSON.stringify(user));
         } else {
-            localStorage.removeItem('user');
+            sessionStorage.removeItem('user');
         }
-    }, [user]); // Runs every time the user state updates
+    }, [user]);
+
+    const logout = () => {
+        setUser(null);
+        sessionStorage.removeItem('user');
+        sessionStorage.removeItem('auth_token');
+    };
 
     return (
-        <AuthContext.Provider value={{ user, setUser }}>
+        <AuthContext.Provider value={{ user, setUser, logout }}>
             {children}
         </AuthContext.Provider>
     );

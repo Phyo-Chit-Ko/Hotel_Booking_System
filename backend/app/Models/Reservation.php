@@ -127,20 +127,25 @@ class Reservation extends Model
      * - anything else (Reserved/Confirmed in the future, Checked-Out) -> unchanged
      */
     public function computeDisplayStatus(): string
-    {
-        $status = $this->reservation_status;
-        $today  = \Carbon\Carbon::today();
+{
+    $status = $this->reservation_status;
+    $today  = \Carbon\Carbon::today();
 
-        if (in_array($status, ['Reserved', 'Confirmed']) && $this->check_in_date->isSameDay($today)) {
+    if (in_array($status, ['Reserved', 'Confirmed'])) {
+        if ($this->check_in_date->isSameDay($today)) {
             return 'Check-In';
         }
-
-        return match ($status) {
-            'No-Show'    => 'No-Show',
-            'Checked-In' => 'Occupied',
-            default      => $status,
-        };
+        if ($this->check_in_date->lt($today)) {
+            return 'No-Show'; // computed live, doesn't depend on the cron having run
+        }
     }
+
+    return match ($status) {
+        'No-Show'    => 'No-Show',
+        'Checked-In' => 'Occupied',
+        default      => $status,
+    };
+}
 
     // ── Presentation helpers for ReservationManagement.jsx ──────────────
 
@@ -195,4 +200,9 @@ class Reservation extends Model
 
         return $rows;
     }
+
+    public function transfers()
+{
+    return $this->hasMany(RoomTransfer::class, 'reservation_id', 'reservation_id');
+}
 }

@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from "react";
-
 import AdminLayout from "../layouts/AdminLayout";
-import { 
-  FaUtensils, FaCoins, FaClipboardList, FaPlus, 
+import {
+  FaUtensils, FaCoins, FaClipboardList, FaPlus,
   FaEdit, FaTimes, FaSearch, FaCircle, FaTrash
 } from "react-icons/fa";
-
+ 
 export default function RestaurantManagement() {
   // Default static dataset fallback records
   const [menuItems, setMenuItems] = useState([
@@ -16,57 +15,66 @@ export default function RestaurantManagement() {
     { item_id: 5, item_name: "Fresh Mint Mojito", category: "Drink", price: 8.00, status: "Out of Stock" },
     { item_id: 6, item_name: "Matcha Cheesecake Slice", category: "Dessert", price: 10.50, status: "Available" }
   ]);
-  
+ 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
-  
+ 
+  // Added live food revenue state tracker
+  const [foodRevenue, setFoodRevenue] = useState(0.0);
+ 
   // Modal State Controllers
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [formItem, setFormItem] = useState({ item_id: null, item_name: "", category: "Food", price: "", status: "Available" });
-
+ 
+  // Fixed Base API uniformly to match your running Artisan Instance port
+  const API = "http://127.0.0.1:8000/api";
+ 
+  // ✅ DYNAMIC METRIC: Calculates available items on every render automatically
+  const activeMenuItemsCount = menuItems.filter(item => item.status === "Available").length;
+ 
   useEffect(() => {
     fetchItemsFromDB();
   }, [searchQuery, selectedCategory]);
-
-  const API = "http://localhost/Hotel-Booking-System/backend/public/api";
-
-const fetchItemsFromDB = async () => {
-  try {
-    const response = await fetch(
-      `${API}/restaurant-items?search=${encodeURIComponent(
-        searchQuery
-      )}&category=${encodeURIComponent(selectedCategory)}`
-    );
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+ 
+  const fetchItemsFromDB = async () => {
+    try {
+      const response = await fetch(`${API}/restaurant-items?search=${encodeURIComponent(searchQuery)}&category=${encodeURIComponent(selectedCategory)}`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+ 
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+ 
+      const data = await response.json();
+      setMenuItems(data);
+ 
+      // Added background async loop to load live extra charges revenue summary statistics data
+      const chargesResponse = await fetch(`${API}/services`, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      });
+      if (chargesResponse.ok) {
+        const chargesData = await chargesResponse.json();
+        if (chargesData.metrics && chargesData.metrics.food_revenue_total !== undefined) {
+          setFoodRevenue(Number(chargesData.metrics.food_revenue_total));
+        }
+      }
+    } catch (error) {
+      console.error("Backend Fetch Failed! Staying on fallback state data:", error.message);
     }
-
-    const data = await response.json();
-
-    if (Array.isArray(data)) {
-  setMenuItems(
-    data.map(item => ({
-      ...item,
-      price: Number(item.price)
-    }))
-  );
-} else {
-  setMenuItems([]);
-}
-  } catch (error) {
-    console.error("Backend Error:", error);
-    alert("Failed to connect to the backend server.");
-  }
-};
-
+  };
+ 
   const handleOpenAddModal = () => {
     setIsEditMode(false);
     setFormItem({ item_id: null, item_name: "", category: "Food", price: "", status: "Available" });
     setIsFormOpen(true);
   };
-
+ 
   const handleOpenEditModal = (item) => {
     setIsEditMode(true);
     setFormItem({
@@ -78,125 +86,97 @@ const fetchItemsFromDB = async () => {
     });
     setIsFormOpen(true);
   };
-
+ 
   const handleFormSubmit = async (e) => {
-  e.preventDefault();
-
-  const url = isEditMode
-    ? `${API}/restaurant-items/${formItem.item_id}`
-    : `${API}/restaurant-items`;
-
-  const method = isEditMode ? "PUT" : "POST";
-
-  try {
-    const response = await fetch(url, {
-      method,
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        item_name: formItem.item_name,
-        category: formItem.category,
-        price: parseFloat(formItem.price),
-        status: formItem.status,
-      }),
-    });
-
-    const result = await response.json();
-
-    if (!response.ok) {
-      throw new Error(result.message || "Operation failed.");
+    e.preventDefault();
+ 
+    const url = isEditMode
+      ? `${API}/restaurant-items/${formItem.item_id}`
+      : `${API}/restaurant-items`;
+ 
+    const method = isEditMode ? "PUT" : "POST";
+ 
+    try {
+      const response = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify({
+          item_name: formItem.item_name,
+          category: formItem.category,
+          price: parseFloat(formItem.price),
+          status: formItem.status,
+        }),
+      });
+ 
+      const result = await response.json().catch(() => ({}));
+ 
+      if (!response.ok) {
+        throw new Error(result.message || "Operation failed.");
+      }
+ 
+      alert(isEditMode ? "Item updated successfully!" : "Item added successfully!");
+      setIsFormOpen(false);
+      setFormItem({ item_id: null, item_name: "", category: "Food", price: "", status: "Available" });
+      fetchItemsFromDB();
+    } catch (error) {
+      console.error(error);
+      alert(error.message);
     }
-
-    alert(
-      isEditMode
-        ? "Item updated successfully!"
-        : "Item added successfully!"
-    );
-
-    setIsFormOpen(false);
-
-    setFormItem({
-      item_id: null,
-      item_name: "",
-      category: "Food",
-      price: "",
-      status: "Available",
-    });
-
-    fetchItemsFromDB();
-  } catch (error) {
-    console.error(error);
-    alert(error.message);
-  }
-};
-
-const handleDelete = async (id) => {
-  if (!window.confirm("Delete this menu item?")) return;
-
-  try {
-    const response = await fetch(
-      `${API}/restaurant-items/${id}`,
-      {
+  };
+ 
+  const handleDelete = async (id) => {
+    if (!window.confirm("Delete this menu item?")) return;
+ 
+    try {
+      const response = await fetch(`${API}/restaurant-items/${id}`, {
         method: "DELETE",
         headers: {
           "Accept": "application/json",
         },
+      });
+ 
+      const result = await response.json().catch(() => ({}));
+ 
+      if (!response.ok) {
+        throw new Error(result.message || result.error || "Delete failed");
       }
-    );
-
-    const result = await response.json();
-
-    console.log("Delete response:", result);
-
-    if (!response.ok) {
-      throw new Error(result.message || result.error || "Delete failed");
+ 
+      alert("Item deleted successfully!");
+      fetchItemsFromDB();
+    } catch (error) {
+      console.error("Delete error:", error);
+      alert(error.message);
     }
-
-    alert("Item deleted successfully!");
-
-    fetchItemsFromDB();
-
-  } catch (error) {
-    console.error("Delete error:", error);
-    alert(error.message);
-  }
-};
-
-const handleToggleStatus = async (id) => {
-  try {
-    const response = await fetch(
-      `${API}/restaurant-items/${id}/toggle-status`,
-      {
+  };
+ 
+  const handleToggleStatus = async (id) => {
+    try {
+      const response = await fetch(`${API}/restaurant-items/${id}/toggle-status`, {
         method: "PATCH",
+        headers: {
+          "Accept": "application/json"
+        }
+      });
+ 
+      if (!response.ok) {
+        throw new Error("Unable to update status.");
       }
-    );
-
-    if (!response.ok) {
-      throw new Error("Unable to update status.");
+ 
+      fetchItemsFromDB();
+    } catch (error) {
+      alert(error.message);
     }
-
-    fetchItemsFromDB();
-  } catch (error) {
-    alert(error.message);
-  }
-};
-
-  const filteredItems = menuItems.filter(item => {
-    const matchesSearch = item.item_name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === "All" || item.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
-
+  };
+ 
   return (
     <AdminLayout>
-      {/* Container wrapper set up to structure viewport content rows seamlessly */}
       <div className="w-full h-[calc(100vh-110px)] flex flex-col gap-5 overflow-hidden p-1">
-        
-        {/* Top spacer separator border lines */}
         <div className="border-b border-slate-200 shrink-0"></div>
-
-        {/* Analytics Metadata Metrics Cards */}
+ 
+        {/* Analytics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 shrink-0">
           <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-xs flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -207,64 +187,62 @@ const handleToggleStatus = async (id) => {
               </div>
             </div>
           </div>
-
+ 
           <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-xs flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="p-3.5 bg-amber-50 rounded-xl border border-amber-100 text-md text-amber-600"><FaClipboardList /></div>
               <div>
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Active Restaurant Orders</p>
-                <h3 className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">2</h3>
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Active Restaurant Menu</p>
+                {/* ✅ Changed from activeOrders to activeMenuItemsCount */}
+                <h3 className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">{activeMenuItemsCount}</h3>
               </div>
             </div>
           </div>
-
+ 
           <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-xs flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="p-3.5 bg-amber-50 rounded-xl border border-amber-100 text-md text-amber-600"><FaCoins /></div>
               <div>
                 <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">F&B Room Charge Total</p>
-                <h3 className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">$1,424.50</h3>
+                {/* ✅ Updated to dynamically render the live tracked food revenue state */}
+                <h3 className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">
+                  ${foodRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </h3>
               </div>
             </div>
           </div>
         </div>
-
-        {/* Main Interface Layout Area */}
+ 
+        {/* Main Interface */}
         <div className="w-full flex-1 min-h-0 bg-white rounded-2xl border border-slate-100 p-5 shadow-xs flex flex-col">
-          
-          {/* Controls Bar: Sequential execution flow across inline elements */}
           <div className="flex flex-col sm:flex-row gap-3 items-center pb-4 shrink-0 w-full">
-            
-            {/* Search Input field with internal text alignment and right bounds icon placement */}
             <div className="relative w-full sm:w-64 flex items-center">
-              <input 
-                type="text" 
-                placeholder="Search item or recipe..." 
+              <input
+                type="text"
+                placeholder="Search item or recipe..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200/80 rounded-xl pl-4 pr-9 py-1.5 text-xs font-semibold text-slate-600 outline-none focus:border-slate-300 transition"
               />
               <FaSearch className="absolute right-3.5 text-slate-400 text-xs pointer-events-none" />
             </div>
-
-            {/* Filter Category Tabs and Actions button mapped sequentially straight next to filters */}
+ 
             <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto sm:ml-auto">
               {["All", "Food", "Snack", "Drink", "Dessert"].map((cat) => (
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
                   className={`px-3.5 py-1.5 text-xs font-bold rounded-lg border whitespace-nowrap transition ${
-                    selectedCategory === cat 
-                      ? "bg-[#1E293B] border-slate-900 text-white" 
+                    selectedCategory === cat
+                      ? "bg-[#1E293B] border-slate-900 text-white"
                       : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50"
                   }`}
                 >
                   {cat}
                 </button>
               ))}
-
-              {/* + Add New Item Button strictly appended after Dessert filter option element */}
-              <button 
+ 
+              <button
                 onClick={handleOpenAddModal}
                 className="bg-[#1E293B] hover:bg-slate-800 text-white text-xs font-bold px-4 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm transition active:scale-95 ml-1.5 h-[30px]"
               >
@@ -272,10 +250,9 @@ const handleToggleStatus = async (id) => {
                 <span className="whitespace-nowrap">Add New Item</span>
               </button>
             </div>
-
           </div>
-
-          {/* Catalog Data Grid Table Layout render matrix container */}
+ 
+          {/* Catalog Data Table */}
           <div className="flex-1 overflow-y-auto border border-slate-100 rounded-xl min-h-0">
             <table className="w-full text-left border-collapse">
               <thead className="bg-slate-50/50 sticky top-0 border-b border-slate-200/60 z-10">
@@ -288,49 +265,48 @@ const handleToggleStatus = async (id) => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
-                {filteredItems.map((item) => (
+                {menuItems.map((item) => (
                   <tr key={item.item_id} className="hover:bg-slate-50/40 transition-colors">
                     <td className="p-3.5 text-xs font-bold text-slate-700">{item.item_name}</td>
                     <td className="p-3.5 text-xs font-semibold text-slate-400">{item.category}</td>
                     <td className="p-3.5 text-xs font-mono font-bold text-slate-700">
-  ${Number(item.price).toFixed(2)}
-</td>
+                      ${Number(item.price).toFixed(2)}
+                    </td>
                     <td className="p-3.5 text-xs">
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                        item.status === "Available" 
-                          ? "bg-emerald-50 border-emerald-100 text-emerald-600" 
-                          : "bg-rose-50 border-rose-100 text-rose-500"
-                      }`}>
+                      <button
+                        onClick={() => handleToggleStatus(item.item_id)}
+                        title="Click to toggle status"
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border transition transform active:scale-95 ${
+                          item.status === "Available"
+                            ? "bg-emerald-50 border-emerald-100 text-emerald-600 hover:bg-emerald-100"
+                            : "bg-rose-50 border-rose-100 text-rose-500 hover:bg-rose-100"
+                        }`}
+                      >
                         <FaCircle className="text-[4px]" />
                         {item.status}
-                      </span>
+                      </button>
                     </td>
                     <td className="p-3.5 text-xs text-right">
-  <div className="flex justify-end items-center gap-2">
-
-    {/* Edit Button */}
-    <button 
-      onClick={() => handleOpenEditModal(item)}
-      className="text-slate-400 hover:text-blue-600 p-1.5 rounded-lg hover:bg-blue-50 transition"
-      title="Edit Item"
-    >
-      <FaEdit className="text-xs" />
-    </button>
-
-    {/* Delete Button */}
-    <button 
-      onClick={() => handleDelete(item.item_id)}
-      className="text-slate-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition"
-      title="Delete Item"
-    >
-      <FaTrash className="text-xs" />
-    </button>
-
-  </div>
-</td>
+                      <div className="flex justify-end items-center gap-2">
+                        <button
+                          onClick={() => handleOpenEditModal(item)}
+                          className="text-slate-400 hover:text-blue-600 p-1.5 rounded-lg hover:bg-blue-50 transition"
+                          title="Edit Item"
+                        >
+                          <FaEdit className="text-xs" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(item.item_id)}
+                          className="text-slate-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition"
+                          title="Delete Item"
+                        >
+                          <FaTrash className="text-xs" />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
-                {filteredItems.length === 0 && (
+                {menuItems.length === 0 && (
                   <tr>
                     <td colSpan="5" className="text-center py-10 text-xs font-semibold text-slate-400">No menu items match the criteria.</td>
                   </tr>
@@ -340,14 +316,13 @@ const handleToggleStatus = async (id) => {
           </div>
         </div>
       </div>
-
-      {/* Pop-up Form Modal View Layer Context wrapper */}
+ 
+      {/* Form Modal View Layer */}
       {isFormOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-slate-950/20 backdrop-blur-xs" onClick={() => setIsFormOpen(false)} />
-          
+         
           <form onSubmit={handleFormSubmit} className="bg-[#FAF9F6] w-full max-w-md rounded-2xl border border-slate-200/60 shadow-xl relative z-10 overflow-hidden flex flex-col">
-            
             <div className="flex items-center justify-between p-5 border-b border-slate-200/50 bg-white">
               <div>
                 <h3 className="text-sm font-black text-slate-800 tracking-tight">
@@ -357,32 +332,32 @@ const handleToggleStatus = async (id) => {
                   {isEditMode ? "Update details inside the core master catalog" : "Append new items into the kitchen management records"}
                 </p>
               </div>
-              <button 
-                type="button" 
-                onClick={() => setIsFormOpen(false)} 
+              <button
+                type="button"
+                onClick={() => setIsFormOpen(false)}
                 className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-50 transition"
               >
                 <FaTimes className="text-xs" />
               </button>
             </div>
-
+ 
             <div className="p-5 flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
                 <label className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Item Name</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   required
-                  placeholder="e.g. Buffalo Chicken Wings" 
+                  placeholder="e.g. Buffalo Chicken Wings"
                   value={formItem.item_name}
                   onChange={(e) => setFormItem({ ...formItem, item_name: e.target.value })}
                   className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-slate-400 shadow-2xs transition"
                 />
               </div>
-
+ 
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Category</label>
-                  <select 
+                  <select
                     value={formItem.category}
                     onChange={(e) => setFormItem({ ...formItem, category: e.target.value })}
                     className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-800 outline-none focus:border-slate-400 shadow-2xs transition cursor-pointer"
@@ -392,24 +367,24 @@ const handleToggleStatus = async (id) => {
                     ))}
                   </select>
                 </div>
-
+ 
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Price ($)</label>
-                  <input 
-                    type="number" 
-                    step="0.01" 
+                  <input
+                    type="number"
+                    step="0.01"
                     required
-                    placeholder="12.50" 
+                    placeholder="12.50"
                     value={formItem.price}
                     onChange={(e) => setFormItem({ ...formItem, price: e.target.value })}
                     className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-sm font-mono font-bold text-slate-800 outline-none focus:border-slate-400 shadow-2xs transition"
                   />
                 </div>
               </div>
-
+ 
               <div className="flex flex-col gap-1.5">
                 <label className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Status</label>
-                <select 
+                <select
                   value={formItem.status}
                   onChange={(e) => setFormItem({ ...formItem, status: e.target.value })}
                   className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-800 outline-none focus:border-slate-400 shadow-2xs transition cursor-pointer"
@@ -419,26 +394,26 @@ const handleToggleStatus = async (id) => {
                 </select>
               </div>
             </div>
-
+ 
             <div className="bg-slate-50 px-5 py-3.5 flex items-center justify-end gap-2 border-t border-slate-200/40">
-              <button 
-                type="button" 
-                onClick={() => setIsFormOpen(false)} 
+              <button
+                type="button"
+                onClick={() => setIsFormOpen(false)}
                 className="text-xs font-bold text-slate-500 hover:text-slate-700 px-4 py-2 hover:bg-slate-100 rounded-xl transition"
               >
                 Cancel
               </button>
-              <button 
-                type="submit" 
-                className="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-xs hover:shadow-md transition active:scale-95"
+              <button
+                type="submit"
+                className="h-11 px-5 bg-slate-900 hover:bg-slate-800  text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-xs hover:shadow-md transition active:scale-95"
               >
                 {isEditMode ? "Save Changes" : "Log Menu Item"}
               </button>
             </div>
-
           </form>
         </div>
       )}
     </AdminLayout>
   );
 }
+ 
