@@ -1,17 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { FaTimes } from "react-icons/fa";
-
+ 
 export default function AddUser({ isOpen, onClose, onSave, editingUser = null }) {
   const initialFormState = {
     name: "",
     email: "",
     phone: "",
     role: "Receptionist",
-    status: "Active"
+    status: "Active",
+    password: ""
   };
   
   const [formData, setFormData] = useState(initialFormState);
-
+ 
   // Sync state with editingUser prop whenever it changes or modal toggles
   useEffect(() => {
     if (editingUser) {
@@ -19,36 +20,39 @@ export default function AddUser({ isOpen, onClose, onSave, editingUser = null })
         name: editingUser.name || "",
         email: editingUser.email || "",
         phone: editingUser.phone || "",
-        // Ensure values match options case sensitivity precisely
         role: editingUser.role ? editingUser.role.charAt(0).toUpperCase() + editingUser.role.slice(1).toLowerCase() : "Receptionist",
-        status: editingUser.status ? editingUser.status.charAt(0).toUpperCase() + editingUser.status.slice(1).toLowerCase() : "Active"
+        status: editingUser.status ? editingUser.status.charAt(0).toUpperCase() + editingUser.status.slice(1).toLowerCase() : "Active",
+        password: ""
       });
     } else {
       setFormData(initialFormState);
     }
   }, [editingUser, isOpen]);
-
+ 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
-
+ 
   const handleSubmit = (e) => {
     e.preventDefault();
     
     if (editingUser) {
-      // Pass back updated values along with the original user_id
-      onSave({ ...formData, user_id: editingUser.user_id });
+      const updatedData = { ...formData, user_id: editingUser.user_id };
+      if (!updatedData.password) {
+        delete updatedData.password;
+      }
+      onSave(updatedData);
     } else {
       onSave(formData);
     }
     
-    setFormData(initialFormState); 
+    setFormData(initialFormState);
     onClose();
   };
-
+ 
   if (!isOpen) return null;
-
+ 
   return (
     <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex justify-center items-center z-50 p-4">
       <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl border border-slate-100 overflow-hidden">
@@ -67,7 +71,7 @@ export default function AddUser({ isOpen, onClose, onSave, editingUser = null })
             <FaTimes size={16} />
           </button>
         </div>
-
+ 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-8 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -76,7 +80,6 @@ export default function AddUser({ isOpen, onClose, onSave, editingUser = null })
             <div className="flex flex-col">
               <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Full Name *</label>
               <div className="relative flex items-center bg-slate-50 rounded-xl border border-slate-200/80 focus-within:ring-2 focus-within:ring-slate-500/20 focus-within:border-slate-500">
-                
                 <input
                   type="text"
                   required
@@ -88,12 +91,11 @@ export default function AddUser({ isOpen, onClose, onSave, editingUser = null })
                 />
               </div>
             </div>
-
+ 
             {/* Email Address */}
             <div className="flex flex-col">
               <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Email Address *</label>
               <div className="relative flex items-center bg-slate-50 rounded-xl border border-slate-200/80 focus-within:ring-2 focus-within:ring-slate-500/20 focus-within:border-slate-500">
-                
                 <input
                   type="email"
                   required
@@ -105,12 +107,11 @@ export default function AddUser({ isOpen, onClose, onSave, editingUser = null })
                 />
               </div>
             </div>
-
+ 
             {/* Phone Number */}
             <div className="flex flex-col">
               <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Phone Number</label>
               <div className="relative flex items-center bg-slate-50 rounded-xl border border-slate-200/80 focus-within:ring-2 focus-within:ring-slate-500/20 focus-within:border-slate-500">
-                
                 <input
                   type="text"
                   name="phone"
@@ -121,44 +122,61 @@ export default function AddUser({ isOpen, onClose, onSave, editingUser = null })
                 />
               </div>
             </div>
-
+ 
             {/* System Role Selection */}
             <div className="flex flex-col">
               <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">System Role</label>
               <div className="relative flex items-center bg-slate-50 rounded-xl border border-slate-200/80 focus-within:ring-2 focus-within:ring-slate-500/20 focus-within:border-slate-500">
-                
                 <select
                   name="role"
                   value={formData.role}
                   onChange={handleInputChange}
                   className="w-full bg-transparent px-4 py-3 text-sm text-slate-700 outline-none font-medium cursor-pointer"
                 >
-                  <option value="Admin">Admin</option>
-                  <option value="Manager">Manager</option>
-                  <option value="Receptionist">Receptionist</option>
+                  <option value="Admin">admin</option>
+                  <option value="Manager">manager</option>
+                  <option value="Receptionist">receptionist</option>
                   <option value="Housekeeping">Housekeeping</option>
                 </select>
               </div>
             </div>
-          </div>
-
-          {/* Account Status Configuration */}
-          <div className="flex flex-col">
-            <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Account Status</label>
-            <div className="relative flex items-center bg-slate-50 rounded-xl border border-slate-200/80 focus-within:ring-2 focus-within:ring-slate-500/20 focus-within:border-slate-500">
-             
-              <select
-                name="status"
-                value={formData.status}
-                onChange={handleInputChange}
-                className="w-full bg-transparent px-4 py-3 text-sm text-slate-700 outline-none font-medium cursor-pointer"
-              >
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-              </select>
+ 
+            {/* Password Field */}
+            <div className="flex flex-col">
+              <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
+                {editingUser ? "New Password (Optional)" : "Password *"}
+              </label>
+              <div className="relative flex items-center bg-slate-50 rounded-xl border border-slate-200/80 focus-within:ring-2 focus-within:ring-slate-500/20 focus-within:border-slate-500">
+                <input
+                  type="password"
+                  required={!editingUser}
+                  name="password"
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  placeholder={editingUser ? "Leave blank to keep current" : "Enter secure password"}
+                  className="w-full bg-transparent px-4 py-3 text-sm text-slate-800 outline-none"
+                />
+              </div>
             </div>
+ 
+            {/* Account Status Configuration */}
+            <div className="flex flex-col">
+              <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Account Status</label>
+              <div className="relative flex items-center bg-slate-50 rounded-xl border border-slate-200/80 focus-within:ring-2 focus-within:ring-slate-500/20 focus-within:border-slate-500">
+                <select
+                  name="status"
+                  value={formData.status}
+                  onChange={handleInputChange}
+                  className="w-full bg-transparent px-4 py-3 text-sm text-slate-700 outline-none font-medium cursor-pointer"
+                >
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                </select>
+              </div>
+            </div>
+ 
           </div>
-
+ 
           {/* Actions Footer */}
           <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
             <button
@@ -176,8 +194,9 @@ export default function AddUser({ isOpen, onClose, onSave, editingUser = null })
             </button>
           </div>
         </form>
-
+ 
       </div>
     </div>
   );
 }
+ 

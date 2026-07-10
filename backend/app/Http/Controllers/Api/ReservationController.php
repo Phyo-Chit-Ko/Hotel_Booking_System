@@ -22,7 +22,10 @@ class ReservationController extends Controller
 
         $rows = $reservations->flatMap(fn ($r) => $r->toTableRows())->values();
 
-        return response()->json(['bookings' => $rows]);
+        return response()->json([
+    'bookings' => $rows,
+    'data'     => $rows
+        ]);
     }
 
     /**
