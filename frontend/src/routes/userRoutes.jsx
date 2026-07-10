@@ -18,10 +18,14 @@ import AvailableRooms from "../admin/pages/Available_rooms";
 import ReservationManagement from "../admin/pages/ReservationManagement";
 
 function UserRoutes() {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  // Desktop: sidebar starts visible. Mobile: starts collapsed (off-canvas),
+  // so it doesn't flash open over the page on first load.
+  const [sidebarOpen, setSidebarOpen] = useState(
+    () => typeof window !== "undefined" && window.innerWidth > 992
+  );
 
   return (
-    <div className="layout">
+    <div className={`layout ${sidebarOpen ? "" : "sidebar-collapsed"}`}>
       <Navbar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
       <main className="page-container">
         <Routes>

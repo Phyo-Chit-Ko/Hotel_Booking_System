@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Storage;
 use App\Models\Room;
 use App\Models\RoomType;
 use App\Models\Reservation;
+use App\Models\ReservationCharge;
 use App\Models\Payment;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -191,7 +192,7 @@ class BookingController extends Controller
             $totalGuests = $adults + $children;
 
             $roomCharge        = $nights * $rateNight;
-            $extraPersonCharge = max(0, $totalGuests - 2) * (float) $room->extra_person_rate * $nights;
+            $extraPersonCharge = max(0, $totalGuests - 2) * (float) ($room->roomType->extra_person_rate ?? 0) * $nights;
             $taxAmount         = ($roomCharge + $extraPersonCharge) * 0.1;
             $totalAmount       = $roomCharge + $extraPersonCharge + $taxAmount;
             $deposit           = (float) $booking->deposit;
@@ -218,6 +219,31 @@ class BookingController extends Controller
                 'reservation_status'  => 'Confirmed',
                 'created_by'          => Auth::id(),
             ]);
+
+            ReservationCharge::create([
+                'reservation_id' => $reservation->reservation_id,
+                'charge_type'    => 'room',
+                'description'    => "Room charge — {$nights} night(s)",
+                'amount'         => $roomCharge,
+            ]);
+
+            if ($extraPersonCharge > 0) {
+                ReservationCharge::create([
+                    'reservation_id' => $reservation->reservation_id,
+                    'charge_type'    => 'extra_person',
+                    'description'    => "Extra person charge — {$nights} night(s)",
+                    'amount'         => $extraPersonCharge,
+                ]);
+            }
+
+            if ($taxAmount > 0) {
+                ReservationCharge::create([
+                    'reservation_id' => $reservation->reservation_id,
+                    'charge_type'    => 'tax',
+                    'description'    => 'Tax',
+                    'amount'         => $taxAmount,
+                ]);
+            }
 
             if ($deposit > 0) {
                 Payment::create([

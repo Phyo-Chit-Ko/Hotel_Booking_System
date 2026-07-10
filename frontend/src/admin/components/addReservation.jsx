@@ -37,7 +37,7 @@ const EMPTY = {
   // step 1 -> guests table
   guestSearch: "", guestId: null,
   firstName: "", lastName: "", phone: "", email: "",
-  nationality: "", idType: "Passport", idNumber: "",
+  nationality: "", gender: "", idType: "Passport", idNumber: "",
   idFront: null, idBack: null, isVip: false,
 
   // step 2 -> reservations table
@@ -71,6 +71,11 @@ export default function AddReservation({
   const [guestCreatedThisSession, setGuestCreatedThisSession] = useState(false);
   const [reservationCreatedThisSession, setReservationCreatedThisSession] = useState(false);
 
+  // CHECK-IN MODE step 3: read-only ledger summary (no payment step here —
+  // payment is handled exclusively through the Check Balance modal).
+  const [ledgerSummary, setLedgerSummary] = useState(null);
+  const [ledgerLoading, setLedgerLoading] = useState(false);
+
   // CHECK-IN MODE: load the existing reservation + guests and prefill the form.
   useEffect(() => {
     if (mode !== "checkin" || !reservationId || !isOpen) return;
@@ -90,7 +95,7 @@ export default function AddReservation({
   ...p,
   guestId: r.guestId, guestSearch: `${r.firstName} ${r.lastName}`,
   firstName: r.firstName, lastName: r.lastName, phone: r.phone,
-  email: r.email, nationality: r.nationality, idType: r.idType,
+  email: r.email, nationality: r.nationality, gender: r.gender, idType: r.idType,
   idNumber: r.idNumber, isVip: r.isVip,
   reservationId: r.reservationId,
   roomNumber: r.roomNumber, roomType: r.roomType,
@@ -106,7 +111,7 @@ export default function AddReservation({
           localId: `existing_${g.guestId}`,
           guestId: g.guestId, guestSearch: `${g.firstName} ${g.lastName}`,
           firstName: g.firstName, lastName: g.lastName, phone: g.phone,
-          email: g.email, nationality: g.nationality, idNumber: g.idNumber,
+          email: g.email, nationality: g.nationality, gender: g.gender || "", idNumber: g.idNumber,
           idType: "Passport", guestType: g.guestType,
           idFront: null, idBack: null,
           saved: true, savedGuestId: g.guestId, createdThisSession: false, error: "",
@@ -139,6 +144,24 @@ export default function AddReservation({
 
   const remainingAmount = Math.max(0, form.totalAmount - (parseFloat(form.depositAmount) || 0));
 
+  // Fetch the live ledger when the check-in flow reaches its final step,
+  // instead of computing the summary from manually entered numbers.
+  useEffect(() => {
+    if (!isOpen || mode !== "checkin" || currentStep !== 3 || !form.reservationId) return;
+    let active = true;
+    setLedgerLoading(true);
+    fetch(`/api/reservations/${form.reservationId}/ledger`, { headers: { Accept: "application/json" } })
+      .then((r) => r.json())
+      .then((d) => { if (active) setLedgerSummary(d); })
+      .catch(() => { if (active) setLedgerSummary(null); })
+      .finally(() => { if (active) setLedgerLoading(false); });
+    return () => { active = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, mode, currentStep, form.reservationId]);
+
+  const sumChargesByType = (charges, types) =>
+    (charges || []).filter((c) => types.includes(c.chargeType)).reduce((s, c) => s + c.amount, 0);
+
   const set   = (key, val) => setForm((p) => ({ ...p, [key]: val }));
   const field = (key) => (e) => set(key, e.target.value);
 
@@ -161,6 +184,7 @@ export default function AddReservation({
       guestId: guest.guest_id, firstName: guest.first_name,
       lastName: guest.last_name, phone: guest.phone,
       email: guest.email, nationality: guest.nationality,
+      gender: guest.gender || "",
       idNumber: guest.id_number, isVip: guest.is_vip || false,
     }));
     setGuestResults([]);
@@ -181,7 +205,7 @@ export default function AddReservation({
           floor:           data.room.floor,
           bedType:         data.room.bed_type,
           ratePerNight:    parseFloat(data.room.room_type?.base_price) || 0,
-          extraPersonRate: parseFloat(data.room.extra_person_rate) || 0,
+          extraPersonRate: parseFloat(data.room.room_type?.extra_person_rate) || 0,
         }));
       }
     } catch {}
@@ -208,6 +232,7 @@ export default function AddReservation({
       payload.append("phone", form.phone);
       if (form.email) payload.append("email", form.email);
       if (form.nationality) payload.append("nationality", form.nationality);
+      if (form.gender) payload.append("gender", form.gender);
       payload.append("idType", form.idType);
       payload.append("idNumber", form.idNumber);
       payload.append("isVip", form.isVip ? "1" : "0");
@@ -231,6 +256,17 @@ export default function AddReservation({
   // STEP 2 -> POST /api/reservations (skipped in checkin mode, reservation already exists)
   const submitStep2 = async () => {
     setStepError("");
+
+    if (mode === "checkin") {
+      const requiredAdults = Math.max(0, (parseInt(form.adults) || 0) - 1);
+      const isRowComplete = (g) => g.guestId || (g.firstName && g.lastName && g.phone && g.idNumber);
+      const providedAdults = additionalGuests.filter((g) => g.guestType === "Adult" && isRowComplete(g)).length;
+      if (providedAdults < requiredAdults) {
+        setStepError(`Add a guest profile for each additional adult before checking in (${providedAdults}/${requiredAdults} completed).`);
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       let reservationIdLocal = form.reservationId;
@@ -283,6 +319,7 @@ export default function AddReservation({
           gPayload.append("phone", g.phone);
           if (g.email) gPayload.append("email", g.email);
           if (g.nationality) gPayload.append("nationality", g.nationality);
+          if (g.gender) gPayload.append("gender", g.gender);
           gPayload.append("idType", g.idType);
           gPayload.append("idNumber", g.idNumber);
           if (g.idFront) gPayload.append("idFront", g.idFront);
@@ -309,33 +346,44 @@ export default function AddReservation({
     }
   };
 
-  // STEP 3 -> POST /api/payments (new mode) OR POST /api/reservations/{id}/check-in (checkin mode)
+  // STEP 3 -> POST /api/payments (new mode) OR POST /api/reservations/{id}/check-in (checkin mode).
+  // Check-in never takes a payment — that's handled exclusively through the
+  // Check Balance modal after the guest is checked in.
   const handleSubmit = async (e) => {
     e.preventDefault();
     setStepError("");
     setSaving(true);
     try {
-      const endpoint = mode === "checkin"
-        ? `/api/reservations/${form.reservationId}/check-in`
-        : "/api/payments";
+      let data;
 
-      const payload = new FormData();
-      if (mode !== "checkin") payload.append("reservationId", form.reservationId);
-      if (mode === "checkin" && form.guestId) payload.append("guestId", form.guestId);
-      payload.append("depositAmount", form.depositAmount || 0);
-      payload.append("paymentMethod", form.paymentMethod);
-      if (form.transactionNo) payload.append("transactionNo", form.transactionNo);
-      if (form.paymentProof) payload.append("paymentProof", form.paymentProof);
+      if (mode === "checkin") {
+        const res = await fetch(`/api/reservations/${form.reservationId}/check-in`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify(form.guestId ? { guestId: form.guestId } : {}),
+        });
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || "Failed to check in");
+        data = await res.json();
+      } else {
+        const payload = new FormData();
+        payload.append("reservationId", form.reservationId);
+        payload.append("depositAmount", form.depositAmount || 0);
+        payload.append("paymentMethod", form.paymentMethod);
+        if (form.transactionNo) payload.append("transactionNo", form.transactionNo);
+        if (form.paymentProof) payload.append("paymentProof", form.paymentProof);
 
-      const res = await fetch(endpoint, { method: "POST", headers: { Accept: "application/json" }, body: payload });
-      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || "Failed to save");
-      const data = await res.json();
+        const res = await fetch("/api/payments", { method: "POST", headers: { Accept: "application/json" }, body: payload });
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || "Failed to save");
+        data = await res.json();
+      }
+
       onSave(data.booking);
       setForm(EMPTY);
       setAdditionalGuests([]);
       setCurrentStep(1);
       setGuestCreatedThisSession(false);
       setReservationCreatedThisSession(false);
+      setLedgerSummary(null);
     } catch (err) {
       setStepError(err.message);
     } finally {
@@ -390,7 +438,7 @@ export default function AddReservation({
   const makeGuestRow = () => ({
     localId: `g_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     guestId: null, guestSearch: "", guestResults: [],
-    firstName: "", lastName: "", phone: "", email: "", nationality: "",
+    firstName: "", lastName: "", phone: "", email: "", nationality: "", gender: "",
     idType: "Passport", idNumber: "", guestType: "Adult",
     idFront: null, idBack: null,
     saved: false, savedGuestId: null, createdThisSession: false, error: "",
@@ -418,7 +466,8 @@ export default function AddReservation({
       ...g,
       guestId: guest.guest_id, guestSearch: `${guest.first_name} ${guest.last_name}`,
       firstName: guest.first_name, lastName: guest.last_name, phone: guest.phone,
-      email: guest.email, nationality: guest.nationality, idNumber: guest.id_number,
+      email: guest.email, nationality: guest.nationality, gender: guest.gender || "",
+      idNumber: guest.id_number,
       guestResults: [],
     } : g)));
   };
@@ -426,8 +475,9 @@ export default function AddReservation({
   if (!isOpen) return null;
 
   const fmt = (n) => `$${(parseFloat(n) || 0).toFixed(2)}`;
-  const steps = ["Guest Info", "Room & Stay", "Payment"];
   const isCheckin = mode === "checkin";
+  const steps = isCheckin ? ["Guest Info", "Room & Stay", "Summary"] : ["Guest Info", "Room & Stay", "Payment"];
+  const totalGuestsCount = (parseInt(form.adults) || 0) + (parseInt(form.children) || 0);
 
   return (
     <div className={`fixed inset-0 z-50 ${isMinimized ? "hidden" : "flex"} items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-sm transition-opacity`}>
@@ -538,8 +588,17 @@ export default function AddReservation({
                     <input className={inp} type="email" placeholder="john.smith@example.com" value={form.email} onChange={field("email")} disabled={!!form.guestId} /></div>
                 </div>
 
-                <div><label className={lbl}>Nationality</label>
-                  <input className={inp} placeholder="e.g. Canadian, Japanese" value={form.nationality} onChange={field("nationality")} disabled={!!form.guestId} /></div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div><label className={lbl}>Nationality</label>
+                    <input className={inp} placeholder="e.g. Canadian, Japanese" value={form.nationality} onChange={field("nationality")} disabled={!!form.guestId} /></div>
+                  <div><label className={lbl}>Gender</label>
+                    <select className={sel} value={form.gender} onChange={field("gender")} disabled={!!form.guestId}>
+                      <option value="">— Select —</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Other">Other</option>
+                    </select></div>
+                </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="md:col-span-1"><label className={lbl}>ID Type *</label>
@@ -723,6 +782,13 @@ export default function AddReservation({
                                   <option value="Driver's License">Driver's License</option>
                                   <option value="National ID">National ID</option>
                                 </select>
+                                <select className={sel + " py-2.5"} value={g.gender} disabled={g.saved}
+                                  onChange={(e) => updateGuestRow(g.localId, "gender", e.target.value)}>
+                                  <option value="">Gender — Select</option>
+                                  <option value="Male">Male</option>
+                                  <option value="Female">Female</option>
+                                  <option value="Other">Other</option>
+                                </select>
                               </div>
 
                               {!g.saved && (
@@ -763,7 +829,44 @@ export default function AddReservation({
               </div>
             )}
 
-            {currentStep === 3 && (
+            {currentStep === 3 && isCheckin && (
+              <div className={sec}>
+                {ledgerLoading && <p className="text-sm text-slate-400 text-center py-6">Loading room summary…</p>}
+                {!ledgerLoading && ledgerSummary && (
+                  <div className="bg-slate-900 text-white rounded-2xl p-5 space-y-3 shadow-inner">
+                    <div className="flex items-center gap-2 pb-2 border-b border-slate-800">
+                      <FaCalculator size={12} className="text-yellow-400" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Room Summary</span>
+                    </div>
+                    <div className="space-y-1.5 text-sm">
+                      <div className="flex justify-between text-slate-300">
+                        <span>Room charges ({form.nights}n)</span>
+                        <span>{fmt(sumChargesByType(ledgerSummary.charges, ["room", "tax"]))}</span>
+                      </div>
+                      {totalGuestsCount > 2 && (
+                        <div className="flex justify-between text-slate-300">
+                          <span>Extra person charges</span>
+                          <span>{fmt(sumChargesByType(ledgerSummary.charges, ["extra_person"]))}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-emerald-400">
+                        <span>Deposit Already Paid</span>
+                        <span>− {fmt((ledgerSummary.payments || []).reduce((s, p) => s + p.amount, 0))}</span>
+                      </div>
+                      <div className="flex justify-between font-bold text-white pt-2 border-t border-slate-800">
+                        <span>Remaining Amount Due</span>
+                        <span className="text-lg text-amber-400">{fmt(ledgerSummary.balance)}</span>
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-slate-400 pt-1">
+                      Payment isn't collected here — use Check Balance after check-in to record one.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {currentStep === 3 && !isCheckin && (
               <div className={sec}>
                 <div><label className={lbl}>Settlement Method *</label>
                   <select className={sel} value={form.paymentMethod} onChange={field("paymentMethod")}>
@@ -773,7 +876,7 @@ export default function AddReservation({
                     <option value="online">Mobile Bank Transfer</option>
                   </select></div>
 
-                <div><label className={lbl}>{isCheckin ? "Additional Payment" : "Deposit Amount"}</label>
+                <div><label className={lbl}>Deposit Amount</label>
                   <input className={inp} type="number" min="0" step="0.01" placeholder="0.00"
                     value={form.depositAmount} onChange={field("depositAmount")} /></div>
 
