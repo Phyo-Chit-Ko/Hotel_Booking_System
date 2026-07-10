@@ -42,7 +42,7 @@ class PaymentController extends Controller
             }
 
             $reservation->update(['deposit_amount' => $deposit]);
-            $reservation->load(['guest', 'roomType', 'payments']);
+            $reservation->load(['guest', 'roomType', 'payments', 'charges']);
 
             return $reservation;
         });

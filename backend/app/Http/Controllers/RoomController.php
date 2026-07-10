@@ -66,7 +66,6 @@ class RoomController extends Controller
             'floor'             => 'required|string',
             'capacity'          => 'required|integer|min:1',
             'bed_type'          => 'required|string',
-            'extra_person_rate' => 'required|numeric|min:0',
             'status'            => 'required|string',
         ]);
 
@@ -89,7 +88,6 @@ class RoomController extends Controller
             'floor'             => 'required|string',
             'capacity'          => 'required|integer|min:1',
             'bed_type'          => 'required|string',
-            'extra_person_rate' => 'required|numeric|min:0',
             'status'            => 'required|string',
         ]);
 

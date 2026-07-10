@@ -23,16 +23,15 @@ class RoomLayoutController extends Controller
             ->where('floor', $floor)
             ->get()
             ->map(fn($room) => [
-                'id'              => 'r-' . $room->room_number,
-                'roomNumber'      => $room->room_number,
-                'type'            => $room->roomType->code ?? 'SUP',
-                'status'          => $room->status,
-                'bedType'         => $room->bed_type,
-                'extraPersonRate' => $room->extra_person_rate,
-                'col'             => (int) $room->grid_col,
-                'row'             => (int) $room->grid_row,
-                'w'               => (int) $room->grid_w,
-                'h'               => (int) $room->grid_h,
+                'id'         => 'r-' . $room->room_number,
+                'roomNumber' => $room->room_number,
+                'type'       => $room->roomType->code ?? 'SUP',
+                'status'     => $room->status,
+                'bedType'    => $room->bed_type,
+                'col'        => (int) $room->grid_col,
+                'row'        => (int) $room->grid_row,
+                'w'          => (int) $room->grid_w,
+                'h'          => (int) $room->grid_h,
             ]);
 
         return response()->json([
@@ -61,7 +60,6 @@ class RoomLayoutController extends Controller
             'rooms.*.w'               => 'required|integer|min:1|max:6',
             'rooms.*.h'               => 'required|integer|min:1|max:6',
             'rooms.*.bedType'         => 'nullable|string|max:50',
-            'rooms.*.extraPersonRate' => 'nullable|numeric|min:0',
         ]);
 
         if ($validator->fails()) {
@@ -99,8 +97,7 @@ class RoomLayoutController extends Controller
                         'room_type_id'      => $roomType->room_type_id,
                         'floor'             => $floor,
                         'status'            => $data['status'],
-                        'bed_type'          => $data['bedType']         ?? 'Single',
-                        'extra_person_rate' => $data['extraPersonRate'] ?? 0,
+                        'bed_type'          => $data['bedType'] ?? 'Single',
                         'grid_col'          => $data['col'],
                         'grid_row'          => $data['row'],
                         'grid_w'            => $data['w'],

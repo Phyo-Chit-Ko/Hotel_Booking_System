@@ -3,6 +3,9 @@ import AdminLayout from "../layouts/AdminLayout";
 import AddReservation from "../components/AddReservation";
 import RecordPayment from "../components/RecordPayment";
 import MoveRoomModal from "../components/MoveRoomModal";
+import ChargesLedgerModal from "../components/ChargesLedgerModal";
+import EditReservationModal from "../components/EditReservationModal";
+import ExtendStayModal from "../components/ExtendStayModal";
 import {
   FaPlus,
   FaSearch,
@@ -13,6 +16,8 @@ import {
   FaExclamationTriangle,
   FaCalendarPlus,
   FaExchangeAlt,
+  FaWallet,
+  FaEdit,
 } from "react-icons/fa";
 
 export default function ReservationManagement() {
@@ -53,14 +58,27 @@ export default function ReservationManagement() {
   const [checkoutSaving, setCheckoutSaving] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
 
-  // Booking row currently open in the Move Room modal.
+  // Booking row currently open in the Move Room modal, plus an optional
+  // prefill ({ reason, targetCheckOut }) when it was opened as a fallback
+  // from an Extend Stay that found the current room unavailable.
   const [moveRoomBooking, setMoveRoomBooking] = useState(null);
+  const [moveRoomPrefill, setMoveRoomPrefill] = useState(null);
 
   // Booking row currently open in the Extend Stay modal.
-  // NOTE: ExtendStayModal isn't built yet — this state exists so the
-  // "Extend Stay" button doesn't throw, but clicking it won't open
-  // anything until that modal is added.
   const [extendBooking, setExtendBooking] = useState(null);
+
+  // Booking row currently open in the Check Balance (charges ledger) modal.
+  // ledgerMode "checkout" additionally shows the "Check Out Anyway" control
+  // — used when Check-Out is clicked with an outstanding balance instead of
+  // the plain confirm dialog below. ledgerRefreshKey is bumped to force a
+  // refetch after a payment is recorded from inside the modal.
+  const [ledgerBooking, setLedgerBooking] = useState(null);
+  const [ledgerMode, setLedgerMode] = useState("view");
+  const [ledgerRefreshKey, setLedgerRefreshKey] = useState(0);
+
+  // Booking row currently open in the Edit modal (name/phone/special
+  // requests only — deliberately separate from Extend Stay / Move Room).
+  const [editBooking, setEditBooking] = useState(null);
 
   const loadBookings = async () => {
     setLoading(true);
@@ -114,9 +132,15 @@ export default function ReservationManagement() {
   const isInHouseOn = (b, date) =>
     b.rawStatus === "Checked-In" && b.checkIn <= date && date <= b.checkOut;
 
+  // A reservation that got moved to a different room shows check_out_date
+  // shortened to the move date, but the guest didn't actually leave — it
+  // just continues under the new reservation. Exclude "Moved" here so it
+  // doesn't inflate Daily Check-Outs.
+  const isRealCheckOut = (b, date) => b.checkOut === date && b.rawStatus !== "Moved";
+
   const stats = useMemo(() => {
     const checkIns = primaryBookings.filter((b) => b.checkIn === selectedDate).length;
-    const checkOuts = primaryBookings.filter((b) => b.checkOut === selectedDate).length;
+    const checkOuts = primaryBookings.filter((b) => isRealCheckOut(b, selectedDate)).length;
     const inHouse = primaryBookings.filter((b) => isInHouseOn(b, selectedDate)).length;
     return { checkIns, checkOuts, inHouse };
   }, [primaryBookings, selectedDate]);
@@ -127,7 +151,7 @@ export default function ReservationManagement() {
     if (activeFilter === "checkin") {
       rows = rows.filter((b) => b.checkIn === selectedDate);
     } else if (activeFilter === "checkout") {
-      rows = rows.filter((b) => b.checkOut === selectedDate);
+      rows = rows.filter((b) => isRealCheckOut(b, selectedDate));
     } else if (activeFilter === "inhouse") {
       rows = rows.filter((b) => isInHouseOn(b, selectedDate));
     }
@@ -174,10 +198,54 @@ export default function ReservationManagement() {
   };
 
   // Opens the checkout confirm modal instead of checking out immediately,
-  // so we get a chance to show the outstanding balance first.
+  // so we get a chance to show the outstanding balance first. If there IS
+  // a balance, route through the Check Balance modal instead (so staff can
+  // pay it down or explicitly override with a reason) rather than the
+  // plain confirm dialog, which stays for the already-settled case.
   const handleCheckOutClick = (booking) => {
     setCheckoutError("");
-    setCheckoutBooking(booking);
+    if (booking.remainingAmount > 0) {
+      setLedgerMode("checkout");
+      setLedgerBooking(booking);
+    } else {
+      setCheckoutBooking(booking);
+    }
+  };
+
+  const handleOpenLedger = (booking) => {
+    setLedgerMode("view");
+    setLedgerBooking(booking);
+  };
+
+  const handleCloseLedger = () => {
+    setLedgerBooking(null);
+    setLedgerMode("view");
+  };
+
+  const handleLedgerCheckedOut = async () => {
+    setLedgerBooking(null);
+    setLedgerMode("view");
+    await loadBookings();
+  };
+
+  const handleEditSaved = async () => {
+    setEditBooking(null);
+    await loadBookings();
+  };
+
+  const handleExtended = async () => {
+    setExtendBooking(null);
+    await loadBookings();
+  };
+
+  // Extend Stay found the current room unavailable for the extra nights —
+  // hand off to Move Room, prefilled so completing it delivers the
+  // extension in the new room instead of dead-ending on an error.
+  const handleExtendRequiresMove = ({ reason, targetCheckOut }) => {
+    const booking = extendBooking;
+    setExtendBooking(null);
+    setMoveRoomPrefill({ reason, targetCheckOut });
+    setMoveRoomBooking(booking);
   };
 
   const performCheckOut = async () => {
@@ -199,14 +267,17 @@ export default function ReservationManagement() {
     }
   };
 
-  // After a payment is recorded from the checkout confirm modal, refresh
-  // the balance shown there instead of closing it, so staff can see it
-  // hit $0 and then check out in the same flow.
+  // After a payment is recorded from the checkout confirm modal or the
+  // Check Balance modal, refresh the balance shown there instead of closing
+  // it, so staff can see it hit $0 and then check out in the same flow.
   const handlePaymentSaved = async (updatedBooking) => {
     setPaymentBooking(null);
     await loadBookings();
     if (checkoutBooking && updatedBooking && updatedBooking.id === checkoutBooking.id) {
       setCheckoutBooking(updatedBooking);
+    }
+    if (ledgerBooking && updatedBooking && updatedBooking.id === ledgerBooking.id) {
+      setLedgerRefreshKey((k) => k + 1);
     }
   };
 
@@ -242,6 +313,7 @@ export default function ReservationManagement() {
   // so room/roomType/charges reflect the new assignment everywhere.
   const handleRoomMoved = async () => {
     setMoveRoomBooking(null);
+    setMoveRoomPrefill(null);
     await loadBookings();
   };
 
@@ -431,15 +503,25 @@ export default function ReservationManagement() {
                     <td className="px-5 py-4 text-right font-mono font-semibold text-slate-900">{booking.totalAmount}</td>
                     <td className="px-5 py-4 text-right font-mono">
                       {booking.guestType === "Primary" ? (
-                        booking.remainingAmount > 0 ? (
-                          <span className="font-semibold text-amber-600">
-                            ${booking.remainingAmount.toFixed(2)}
-                          </span>
-                        ) : (
-                          <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-md">
-                            Paid
-                          </span>
-                        )
+                        <div className="flex items-center justify-end gap-2">
+                          {booking.remainingAmount > 0 ? (
+                            <span className="font-semibold text-amber-600">
+                              ${booking.remainingAmount.toFixed(2)}
+                            </span>
+                          ) : (
+                            <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-md">
+                              Paid
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            title="Check Balance"
+                            onClick={() => handleOpenLedger(booking)}
+                            className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-100 transition"
+                          >
+                            <FaWallet size={12} />
+                          </button>
+                        </div>
                       ) : (
                         <span className="text-slate-300">—</span>
                       )}
@@ -460,7 +542,9 @@ export default function ReservationManagement() {
                           </button>
                         )}
 
-                        {booking.guestType === "Primary" && booking.rawStatus !== "Checked-Out" && (
+                        {booking.guestType === "Primary" &&
+                          booking.rawStatus !== "Checked-Out" &&
+                          booking.rawStatus !== "Moved" && (
                           <div className="flex gap-1 w-full">
                             {booking.remainingAmount > 0 && (
                               <button title="Record Payment" onClick={() => setPaymentBooking(booking)}
@@ -468,11 +552,15 @@ export default function ReservationManagement() {
                                 <FaMoneyBillWave className="mx-auto" />
                               </button>
                             )}
+                            <button title="Edit" onClick={() => setEditBooking(booking)}
+                              className="flex-1 px-2 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 text-[11px] font-semibold rounded-lg transition">
+                              <FaEdit className="mx-auto" />
+                            </button>
                             <button title="Extend Stay" onClick={() => setExtendBooking(booking)}
                               className="flex-1 px-2 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 text-[11px] font-semibold rounded-lg transition">
                               <FaCalendarPlus className="mx-auto" />
                             </button>
-                            <button title="Move Room" onClick={() => setMoveRoomBooking(booking)}
+                            <button title="Move Room" onClick={() => { setMoveRoomPrefill(null); setMoveRoomBooking(booking); }}
                               className="flex-1 px-2 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 text-[11px] font-semibold rounded-lg transition">
                               <FaExchangeAlt className="mx-auto" />
                             </button>
@@ -510,8 +598,38 @@ export default function ReservationManagement() {
       {moveRoomBooking && (
         <MoveRoomModal
           booking={moveRoomBooking}
-          onClose={() => setMoveRoomBooking(null)}
+          onClose={() => { setMoveRoomBooking(null); setMoveRoomPrefill(null); }}
           onMoved={handleRoomMoved}
+          prefilledReason={moveRoomPrefill?.reason || ""}
+          targetCheckOut={moveRoomPrefill?.targetCheckOut || null}
+        />
+      )}
+
+      {ledgerBooking && (
+        <ChargesLedgerModal
+          booking={ledgerBooking}
+          onClose={handleCloseLedger}
+          onMakePayment={(b) => setPaymentBooking(b)}
+          refreshKey={ledgerRefreshKey}
+          mode={ledgerMode}
+          onCheckedOut={handleLedgerCheckedOut}
+        />
+      )}
+
+      {editBooking && (
+        <EditReservationModal
+          booking={editBooking}
+          onClose={() => setEditBooking(null)}
+          onSaved={handleEditSaved}
+        />
+      )}
+
+      {extendBooking && (
+        <ExtendStayModal
+          booking={extendBooking}
+          onClose={() => setExtendBooking(null)}
+          onExtended={handleExtended}
+          onRequiresMove={handleExtendRequiresMove}
         />
       )}
 

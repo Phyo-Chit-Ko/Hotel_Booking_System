@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
 use App\Models\Reservation;
+use App\Models\ReservationCharge;
 use App\Models\ReservationGuest;
+use App\Models\RoomMove;
 use App\Models\RoomTransfer;
 use App\Models\Room;
 use Illuminate\Http\Request;
@@ -16,7 +18,7 @@ class ReservationController extends Controller
 {
     public function index(Request $request)
     {
-        $reservations = Reservation::with(['guest', 'roomType', 'payments', 'additionalGuests.guest'])
+        $reservations = Reservation::with(['guest', 'roomType', 'payments', 'charges', 'additionalGuests.guest'])
             ->orderByDesc('reservation_id')
             ->get();
 
@@ -30,7 +32,7 @@ class ReservationController extends Controller
      */
     public function detail($id)
 {
-    $reservation = Reservation::with(['guest', 'roomType','room', 'additionalGuests.guest'])->findOrFail($id);
+    $reservation = Reservation::with(['guest', 'roomType', 'additionalGuests.guest'])->findOrFail($id);
 
     $ratePerNight = $reservation->nights > 0
         ? (float) $reservation->room_charge / $reservation->nights
@@ -50,12 +52,13 @@ class ReservationController extends Controller
             'phone'             => $guest->phone ?? $reservation->guest_phone,
             'email'             => $guest->email ?? $reservation->guest_email,
             'nationality'       => $guest->nationality ?? '',
+            'gender'            => $guest->gender ?? '',
             'idType'            => $guest->id_type ?? 'Passport',
             'idNumber'          => $guest->id_number ?? '',
             'isVip'             => $guest->is_vip ?? false,
             'roomNumber'        => $reservation->room_number,
             'roomType'          => $reservation->roomType->name ?? '',
-            'extraPersonRate'   => (float) ($reservation->room->extra_person_rate ?? 0), 
+            'extraPersonRate'   => (float) ($reservation->roomType->extra_person_rate ?? 0),
             'checkIn'           => $reservation->check_in_date->format('Y-m-d'),
             'checkOut'          => $reservation->check_out_date->format('Y-m-d'),
             'adults'            => $reservation->adults,
@@ -78,6 +81,7 @@ class ReservationController extends Controller
             'phone'       => $ag->guest->phone,
             'email'       => $ag->guest->email,
             'nationality' => $ag->guest->nationality,
+            'gender'      => $ag->guest->gender,
             'idNumber'    => $ag->guest->id_number,
         ]),
     ]);
@@ -110,11 +114,11 @@ class ReservationController extends Controller
             $totalGuests = $adults + $children;
 
             $roomCharge        = $nights * $ratePerNight;
-            $extraPersonCharge = max(0, $totalGuests - 2) * (float) $room->extra_person_rate * $nights;
+            $extraPersonCharge = max(0, $totalGuests - 2) * (float) ($room->roomType->extra_person_rate ?? 0) * $nights;
             $taxAmount         = ($roomCharge + $extraPersonCharge) * 0.1;
             $totalAmount       = $roomCharge + $extraPersonCharge + $taxAmount;
 
-            return Reservation::create([
+            $reservation = Reservation::create([
                 'guest_id'            => $validated['guestId'],
                 'room_type_id'        => $room->room_type_id,
                 'room_number'         => $room->room_number,
@@ -133,6 +137,10 @@ class ReservationController extends Controller
                 'reservation_status'  => $validated['reservationStatus'],
                 'created_by'          => $request->user()?->user_id ?? 1, // swap for auth()->id()
             ]);
+
+            $this->seedInitialCharges($reservation, $nights, $roomCharge, $extraPersonCharge, $taxAmount);
+
+            return $reservation;
         });
 
         return response()->json([
@@ -148,20 +156,18 @@ class ReservationController extends Controller
     }
 
     /**
-     * Confirm check-in for an existing reservation. Optionally records a
-     * deposit/payment at the same time. Flips reservation_status -> Checked-In.
+     * Confirm check-in for an existing reservation. No payment step here —
+     * payment is handled exclusively through the Check Balance modal.
+     * Blocks if adults > 1 and not enough additional guest profiles have
+     * been recorded yet (via ReservationGuestController).
      */
     public function checkIn(Request $request, $id)
 {
     $validated = $request->validate([
-        'guestId'       => 'nullable|integer|exists:guests,guest_id',
-        'depositAmount' => 'nullable|numeric|min:0',
-        'paymentMethod' => 'nullable|string|in:cash,credit_card,bank_transfer,online',
-        'transactionNo' => 'nullable|string|max:100',
-        'paymentProof'  => 'nullable|file|max:5120',
+        'guestId' => 'nullable|integer|exists:guests,guest_id',
     ]);
 
-    $reservation = Reservation::findOrFail($id);
+    $reservation = Reservation::with('additionalGuests')->findOrFail($id);
 
     if (!$reservation->guest_id && empty($validated['guestId'])) {
         return response()->json([
@@ -169,34 +175,23 @@ class ReservationController extends Controller
         ], 422);
     }
 
-    $booking = DB::transaction(function () use ($validated, $request, $reservation) {
+    $requiredAdultProfiles = max(0, $reservation->adults - 1);
+    $providedAdultProfiles = $reservation->additionalGuests->where('guest_type', 'Adult')->count();
+
+    if ($providedAdultProfiles < $requiredAdultProfiles) {
+        return response()->json([
+            'message' => "Add a guest profile for each additional adult before checking in ({$providedAdultProfiles}/{$requiredAdultProfiles} completed).",
+        ], 422);
+    }
+
+    $booking = DB::transaction(function () use ($validated, $reservation) {
         if (!empty($validated['guestId'])) {
             $reservation->guest_id = $validated['guestId'];
         }
 
-        $deposit = (float) ($validated['depositAmount'] ?? 0);
-
-        if ($deposit > 0) {
-            $paymentData = [
-                'reservation_id' => $reservation->reservation_id,
-                'amount'         => $deposit,
-                'payment_method' => $validated['paymentMethod'] ?? 'cash',
-                'date'           => now()->toDateString(),
-                'transaction_no' => $validated['transactionNo'] ?? null,
-                'description'    => 'Payment recorded at check-in',
-            ];
-
-            if ($request->hasFile('paymentProof')) {
-                $paymentData['payment_proof_path'] = $request->file('paymentProof')->store('payment-proofs', 'public');
-            }
-
-            Payment::create($paymentData);
-            $reservation->deposit_amount = (float) $reservation->deposit_amount + $deposit;
-        }
-
         $reservation->reservation_status = 'Checked-In';
         $reservation->save();
-        $reservation->load(['guest', 'roomType', 'payments', 'additionalGuests.guest']);
+        $reservation->load(['guest', 'roomType', 'payments', 'charges', 'additionalGuests.guest']);
 
         return $reservation;
     });
@@ -205,11 +200,13 @@ class ReservationController extends Controller
 }
 
     /**
-     * Confirm check-out for an existing (currently occupied) reservation.
+     * Confirm check-out for a checked-in reservation. Gated on the live
+     * ledger balance: if there's a remaining balance, a non-empty `reason`
+     * must be supplied to override, and it's persisted for audit.
      */
-    public function checkOut($id)
+    public function checkOut(Request $request, $id)
     {
-        $reservation = Reservation::findOrFail($id);
+        $reservation = Reservation::with(['charges', 'payments'])->findOrFail($id);
 
         if ($reservation->reservation_status !== 'Checked-In') {
             return response()->json([
@@ -217,10 +214,106 @@ class ReservationController extends Controller
             ], 422);
         }
 
-        $reservation->reservation_status = 'Checked-Out';
-        $reservation->save();
-        $reservation->load(['guest', 'roomType', 'payments', 'additionalGuests.guest']);
+        $balance = $reservation->remaining_amount;
+        $reason  = trim((string) $request->input('reason', ''));
 
+        if ($balance > 0 && $reason === '') {
+            return response()->json([
+                'message' => 'There is an outstanding balance. Enter a reason to check out anyway.',
+                'balance' => $balance,
+            ], 422);
+        }
+
+        $reservation->reservation_status = 'Checked-Out';
+
+        if ($balance > 0) {
+            $reservation->checkout_override_reason = $reason;
+            $reservation->checkout_override_by = $request->user()?->user_id;
+        }
+
+        $reservation->save();
+        $reservation->load(['guest', 'roomType', 'payments', 'charges', 'additionalGuests.guest']);
+
+        return response()->json(['booking' => $reservation->toTableRow()]);
+    }
+
+    /**
+     * Itemized charges + payments + live balance for the Check Balance modal.
+     */
+    public function ledger($id)
+    {
+        $reservation = Reservation::with([
+            'charges' => fn ($q) => $q->orderBy('created_at'),
+            'payments' => fn ($q) => $q->orderBy('date'),
+            'roomMoveFrom.oldReservation',
+        ])->findOrFail($id);
+
+        $movedFrom = $reservation->roomMoveFrom
+            ? [
+                'reservationId' => $reservation->roomMoveFrom->old_reservation_id,
+                'roomNumber'    => $reservation->roomMoveFrom->oldReservation->room_number ?? null,
+                'reason'        => $reservation->roomMoveFrom->reason,
+            ]
+            : null;
+
+        return response()->json([
+            'charges' => $reservation->charges->map(fn ($c) => [
+                'id'          => $c->id,
+                'chargeType'  => $c->charge_type,
+                'description' => $c->description,
+                'amount'      => (float) $c->amount,
+                'createdAt'   => optional($c->created_at)->toDateTimeString(),
+            ])->values(),
+            'payments' => $reservation->payments->map(fn ($p) => [
+                'id'            => $p->payment_id,
+                'amount'        => (float) $p->amount,
+                'method'        => $p->payment_method,
+                'date'          => optional($p->date)->toDateString(),
+                'transactionNo' => $p->transaction_no,
+                'description'   => $p->description,
+            ])->values(),
+            'balance'   => $reservation->remaining_amount,
+            'movedFrom' => $movedFrom,
+        ]);
+    }
+
+    /**
+     * Lightweight edit: guest name/phone/special requests only. No
+     * availability check, no charge changes — kept separate from Extend
+     * Stay / Move Room on purpose.
+     */
+    public function edit(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'guestName'       => 'nullable|string|max:255',
+            'guestPhone'      => 'nullable|string|max:50',
+            'specialRequests' => 'nullable|string',
+        ]);
+
+        $reservation = Reservation::with('guest')->findOrFail($id);
+
+        DB::transaction(function () use ($reservation, $validated) {
+            if (!empty($validated['guestName'])) {
+                $reservation->guest_name = $validated['guestName'];
+                if ($reservation->guest) {
+                    [$first, $last] = array_pad(explode(' ', $validated['guestName'], 2), 2, '');
+                    $reservation->guest->update(['first_name' => $first, 'last_name' => $last]);
+                }
+            }
+
+            if (!empty($validated['guestPhone'])) {
+                $reservation->guest_phone = $validated['guestPhone'];
+                $reservation->guest?->update(['phone' => $validated['guestPhone']]);
+            }
+
+            if (array_key_exists('specialRequests', $validated)) {
+                $reservation->special_requests = $validated['specialRequests'];
+            }
+
+            $reservation->save();
+        });
+
+        $reservation->load(['guest', 'roomType', 'payments', 'charges', 'additionalGuests.guest']);
         return response()->json(['booking' => $reservation->toTableRow()]);
     }
 
@@ -241,8 +334,10 @@ class ReservationController extends Controller
 
 
     /**
- * Push back check-out date on an active reservation. Recalculates
- * nights/charges the same way store() does; existing payments are untouched.
+ * Push back check-out date on an active reservation. Appends NEW charge
+ * rows scoped to just the added nights instead of recalculating the whole
+ * stay — existing charge rows and payments are untouched. If the room isn't
+ * free for the extra nights, hands off to Move Room instead of failing.
  */
 public function extend(Request $request, $id)
 {
@@ -250,7 +345,7 @@ public function extend(Request $request, $id)
         'checkOut' => 'required|date',
     ]);
 
-   $reservation = Reservation::with(['roomType', 'room'])->findOrFail($id);
+   $reservation = Reservation::with(['roomType'])->findOrFail($id);
 
     if (!in_array($reservation->reservation_status, ['Reserved', 'Confirmed', 'No-Show', 'Checked-In'])) {
         return response()->json(['message' => 'This reservation can no longer be extended.'], 422);
@@ -264,35 +359,63 @@ public function extend(Request $request, $id)
 
     $conflict = Reservation::where('room_number', $reservation->room_number)
         ->where('reservation_id', '!=', $reservation->reservation_id)
-        ->whereNotIn('reservation_status', ['Checked-Out', 'No-Show'])
+        ->whereNotIn('reservation_status', ['Checked-Out', 'No-Show', 'Moved'])
         ->where('check_in_date', '<', $newCheckOut)
         ->where('check_out_date', '>', $reservation->check_out_date)
         ->exists();
 
     if ($conflict) {
-        return response()->json(['message' => "Room {$reservation->room_number} is booked by someone else during the extended dates."], 422);
+        return response()->json([
+            'requiresMove' => true,
+            'message'      => "Room {$reservation->room_number} is booked by someone else during the extended dates — move to a different room to add these nights.",
+            'checkOut'     => $newCheckOut->toDateString(),
+        ]);
     }
 
      DB::transaction(function () use ($reservation, $newCheckOut) {
-        $nights            = max(1, $reservation->check_in_date->diffInDays($newCheckOut));
-        $rateNight         = (float) ($reservation->roomType->base_price ?? 0);
-        $extraRate         = (float) ($reservation->room->extra_person_rate ?? 0);
-        $totalGuests       = $reservation->adults + $reservation->children;
-        $roomCharge        = $nights * $rateNight;
-        $extraPersonCharge = max(0, $totalGuests - 2) * $extraRate * $nights;
-        $taxAmount         = ($roomCharge + $extraPersonCharge) * 0.1;
+        $addedNights = max(1, $reservation->check_out_date->diffInDays($newCheckOut));
+        $rateNight   = (float) ($reservation->roomType->base_price ?? 0);
+        $extraRate   = (float) ($reservation->roomType->extra_person_rate ?? 0);
+        $totalGuests = $reservation->adults + $reservation->children;
+
+        $addedRoomCharge  = $addedNights * $rateNight;
+        $addedExtraCharge = max(0, $totalGuests - 2) * $extraRate * $addedNights;
+        $addedTax         = ($addedRoomCharge + $addedExtraCharge) * 0.1;
+
+        ReservationCharge::create([
+            'reservation_id' => $reservation->reservation_id,
+            'charge_type'    => 'room',
+            'description'    => "Room charge — {$addedNights} extra night(s) (extended stay)",
+            'amount'         => $addedRoomCharge,
+        ]);
+
+        if ($addedExtraCharge > 0) {
+            ReservationCharge::create([
+                'reservation_id' => $reservation->reservation_id,
+                'charge_type'    => 'extra_person',
+                'description'    => "Extra person charge — {$addedNights} extra night(s) (extended stay)",
+                'amount'         => $addedExtraCharge,
+            ]);
+        }
+
+        ReservationCharge::create([
+            'reservation_id' => $reservation->reservation_id,
+            'charge_type'    => 'tax',
+            'description'    => 'Tax — extended stay',
+            'amount'         => $addedTax,
+        ]);
 
         $reservation->update([
             'check_out_date'      => $newCheckOut,
-            'nights'              => $nights,
-            'room_charge'         => $roomCharge,
-            'extra_person_charge' => $extraPersonCharge,
-            'tax_amount'          => $taxAmount,
-            'total_amount'        => $roomCharge + $extraPersonCharge + $taxAmount,
+            'nights'              => $reservation->nights + $addedNights,
+            'room_charge'         => (float) $reservation->room_charge + $addedRoomCharge,
+            'extra_person_charge' => (float) $reservation->extra_person_charge + $addedExtraCharge,
+            'tax_amount'          => (float) $reservation->tax_amount + $addedTax,
+            'total_amount'        => (float) $reservation->total_amount + $addedRoomCharge + $addedExtraCharge + $addedTax,
         ]);
     });
 
-    $reservation->load(['guest', 'roomType', 'payments', 'additionalGuests.guest']);
+    $reservation->load(['guest', 'roomType', 'payments', 'charges', 'additionalGuests.guest']);
     return response()->json(['booking' => $reservation->toTableRow()]);
 }
 
@@ -309,10 +432,11 @@ public function moveRoom(Request $request, $id)
 {
     $validated = $request->validate([
         'roomNumber' => 'required|string|exists:rooms,room_number',
-        'reason'     => 'nullable|string|max:255',
+        'reason'     => 'required|string|max:255',
+        'checkOut'   => 'nullable|date',
     ]);
 
-    $reservation = Reservation::with(['roomType', 'additionalGuests'])->findOrFail($id);
+    $reservation = Reservation::with(['roomType', 'additionalGuests', 'charges', 'payments'])->findOrFail($id);
 
     if (!in_array($reservation->reservation_status, ['Reserved', 'Confirmed', 'No-Show', 'Checked-In'])) {
         return response()->json(['message' => 'This reservation can no longer be moved.'], 422);
@@ -324,13 +448,24 @@ public function moveRoom(Request $request, $id)
 
     $newRoom = Room::with('roomType')->where('room_number', $validated['roomNumber'])->firstOrFail();
 
+    // Optional target checkout — used by the Extend Stay handoff, so the new
+    // room covers the extended stay in one motion instead of just relocating
+    // the original date range.
+    $targetCheckOut = !empty($validated['checkOut'])
+        ? Carbon::parse($validated['checkOut'])
+        : $reservation->check_out_date->copy();
+
+    if ($targetCheckOut->lt($reservation->check_out_date)) {
+        return response()->json(['message' => 'New check-out date cannot be before the current one.'], 422);
+    }
+
     $isOccupied     = $reservation->reservation_status === 'Checked-In';
     $conflictStart  = $isOccupied ? Carbon::today() : $reservation->check_in_date;
 
     $conflict = Reservation::where('room_number', $newRoom->room_number)
         ->where('reservation_id', '!=', $reservation->reservation_id)
-        ->whereNotIn('reservation_status', ['Checked-Out', 'No-Show'])
-        ->where('check_in_date', '<', $reservation->check_out_date)
+        ->whereNotIn('reservation_status', ['Checked-Out', 'No-Show', 'Moved'])
+        ->where('check_in_date', '<', $targetCheckOut)
         ->where('check_out_date', '>', $conflictStart)
         ->exists();
 
@@ -342,43 +477,68 @@ public function moveRoom(Request $request, $id)
 
     $oldRoomNum = $reservation->room_number;
 
-    $result = DB::transaction(function () use ($reservation, $newRoom, $oldRoomNum, $validated, $request, $isOccupied) {
+    $result = DB::transaction(function () use ($reservation, $newRoom, $oldRoomNum, $validated, $request, $isOccupied, $targetCheckOut) {
 
         if ($isOccupied) {
-            // Guest is mid-stay: close the old room's record as history and
-            // open a fresh record for the new room, instead of overwriting
-            // the room_number in place and losing the first leg of the stay.
-            $today            = Carbon::today();
-            $originalCheckOut = $reservation->check_out_date->copy();
+            // Guest is mid-stay: close the old reservation out (status
+            // 'Moved', NOT 'Checked-Out' — the guest hasn't left the hotel)
+            // and open a fresh reservation for the new room, instead of
+            // overwriting room_number in place and losing the first leg.
+            $today          = Carbon::today();
+            // The stay actually booked in the OLD room ends here — used to
+            // size the refund/adjustment on the old reservation. The NEW
+            // reservation's range uses $targetCheckOut instead, which may
+            // be further out when this move is an Extend Stay handoff.
+            $oldStayCheckOut  = $reservation->check_out_date->copy();
+            $newStayCheckOut  = $targetCheckOut->copy();
             $totalGuests      = $reservation->adults + $reservation->children;
+            $unusedNights     = max(0, $today->diffInDays($oldStayCheckOut));
 
-            // Recalculate the OLD reservation for the shortened stay actually spent there.
-            $oldNights    = max(1, $reservation->check_in_date->diffInDays($today));
-            $oldRate      = (float) ($reservation->roomType->base_price ?? 0);
-            $oldExtraRate = (float) (Room::where('room_number', $oldRoomNum)->value('extra_person_rate') ?? 0);
+            $shortenFields = ['reservation_status' => 'Moved'];
 
-            $oldRoomCharge  = $oldNights * $oldRate;
-            $oldExtraCharge = max(0, $totalGuests - 2) * $oldExtraRate * $oldNights;
-            $oldTax         = ($oldRoomCharge + $oldExtraCharge) * 0.1;
+            // Charge rows already written for the full original stay are
+            // left as history; add a negative adjustment for the nights
+            // not actually spent there instead of mutating them, so the
+            // ledger stays append-only.
+            if ($unusedNights > 0) {
+                $oldRate      = (float) ($reservation->roomType->base_price ?? 0);
+                $oldExtraRate = (float) ($reservation->roomType->extra_person_rate ?? 0);
+                $unusedRoomCharge  = $unusedNights * $oldRate;
+                $unusedExtraCharge = max(0, $totalGuests - 2) * $oldExtraRate * $unusedNights;
+                $unusedTax         = ($unusedRoomCharge + $unusedExtraCharge) * 0.1;
+                $unusedTotal       = $unusedRoomCharge + $unusedExtraCharge + $unusedTax;
 
-            $reservation->update([
-                'check_out_date'      => $today,
-                'nights'              => $oldNights,
-                'room_charge'         => $oldRoomCharge,
-                'extra_person_charge' => $oldExtraCharge,
-                'tax_amount'          => $oldTax,
-                'total_amount'        => $oldRoomCharge + $oldExtraCharge + $oldTax,
-                'reservation_status'  => 'Checked-Out',
-            ]);
+                if ($unusedTotal > 0) {
+                    ReservationCharge::create([
+                        'reservation_id' => $reservation->reservation_id,
+                        'charge_type'    => 'adjustment',
+                        'description'    => "Unused nights removed — moved to Room {$newRoom->room_number}",
+                        'amount'         => -$unusedTotal,
+                    ]);
+                }
+
+                $shortenFields += [
+                    'check_out_date'      => $today,
+                    'nights'              => max(1, $reservation->nights - $unusedNights),
+                    'room_charge'         => max(0, (float) $reservation->room_charge - $unusedRoomCharge),
+                    'extra_person_charge' => max(0, (float) $reservation->extra_person_charge - $unusedExtraCharge),
+                    'tax_amount'          => max(0, (float) $reservation->tax_amount - $unusedTax),
+                    'total_amount'        => max(0, (float) $reservation->total_amount - $unusedTotal),
+                ];
+            }
+
+            $reservation->update($shortenFields);
+            $oldBalance = $reservation->fresh(['charges', 'payments'])->remaining_amount;
 
             // Create the NEW reservation covering the rest of the stay in the new room.
-            $newNights    = max(1, $today->diffInDays($originalCheckOut));
+            $newNights    = max(1, $today->diffInDays($newStayCheckOut));
             $newRate      = (float) ($newRoom->roomType->base_price ?? 0);
-            $newExtraRate = (float) ($newRoom->extra_person_rate ?? 0);
+            $newExtraRate = (float) ($newRoom->roomType->extra_person_rate ?? 0);
 
             $newRoomCharge  = $newNights * $newRate;
             $newExtraCharge = max(0, $totalGuests - 2) * $newExtraRate * $newNights;
             $newTax         = ($newRoomCharge + $newExtraCharge) * 0.1;
+            $carriedOver    = max(0, $oldBalance);
 
             $newReservation = Reservation::create([
                 'guest_id'            => $reservation->guest_id,
@@ -388,7 +548,7 @@ public function moveRoom(Request $request, $id)
                 'room_type_id'        => $newRoom->room_type_id,
                 'room_number'         => $newRoom->room_number,
                 'check_in_date'       => $today,
-                'check_out_date'      => $originalCheckOut,
+                'check_out_date'      => $newStayCheckOut,
                 'adults'              => $reservation->adults,
                 'children'            => $reservation->children,
                 'booking_source'      => $reservation->booking_source,
@@ -397,11 +557,22 @@ public function moveRoom(Request $request, $id)
                 'room_charge'         => $newRoomCharge,
                 'extra_person_charge' => $newExtraCharge,
                 'tax_amount'          => $newTax,
-                'total_amount'        => $newRoomCharge + $newExtraCharge + $newTax,
+                'total_amount'        => $newRoomCharge + $newExtraCharge + $newTax + $carriedOver,
                 'deposit_amount'      => 0,
                 'reservation_status'  => 'Checked-In',
                 'created_by'          => $request->user()?->user_id ?? 1,
             ]);
+
+            $this->seedInitialCharges($newReservation, $newNights, $newRoomCharge, $newExtraCharge, $newTax);
+
+            if ($carriedOver > 0) {
+                ReservationCharge::create([
+                    'reservation_id' => $newReservation->reservation_id,
+                    'charge_type'    => 'carried_over',
+                    'description'    => "Balance carried from Reservation #{$reservation->reservation_id}",
+                    'amount'         => $carriedOver,
+                ]);
+            }
 
             // Carry over any additional guests sharing the room to the new record.
             foreach ($reservation->additionalGuests as $ag) {
@@ -412,34 +583,43 @@ public function moveRoom(Request $request, $id)
                 ]);
             }
 
-            RoomTransfer::create([
-                'reservation_id' => $newReservation->reservation_id,
-                'old_room_num'   => $oldRoomNum,
-                'new_room_num'   => $newRoom->room_number,
-                'transferred_by' => $request->user()?->user_id,
-                'transfer_date'  => $today->toDateString(),
-                'reason'         => $validated['reason'] ?? null,
+            RoomMove::create([
+                'old_reservation_id' => $reservation->reservation_id,
+                'new_reservation_id' => $newReservation->reservation_id,
+                'moved_by'           => $request->user()?->user_id,
+                'moved_at'           => $today->toDateTimeString(),
+                'reason'             => $validated['reason'],
             ]);
 
             return ['oldReservationId' => $reservation->reservation_id, 'newReservationId' => $newReservation->reservation_id];
         }
 
-        // Not yet checked in — nothing to split yet, just reassign the room.
+        // Not yet checked in — nothing to split yet, just reassign the room
+        // (and stretch to $targetCheckOut if this is an Extend Stay handoff).
+        // No stay has started, so it's safe to fully reseed this
+        // reservation's charge rows against the new room's rate rather than
+        // layering an adjustment on top.
+        $nights      = max(1, $reservation->check_in_date->diffInDays($targetCheckOut));
         $rateNight   = (float) ($newRoom->roomType->base_price ?? 0);
-        $extraRate   = (float) ($newRoom->extra_person_rate ?? 0);
+        $extraRate   = (float) ($newRoom->roomType->extra_person_rate ?? 0);
         $totalGuests = $reservation->adults + $reservation->children;
-        $roomCharge  = $reservation->nights * $rateNight;
-        $extraCharge = max(0, $totalGuests - 2) * $extraRate * $reservation->nights;
+        $roomCharge  = $nights * $rateNight;
+        $extraCharge = max(0, $totalGuests - 2) * $extraRate * $nights;
         $taxAmount   = ($roomCharge + $extraCharge) * 0.1;
 
         $reservation->update([
             'room_number'         => $newRoom->room_number,
             'room_type_id'        => $newRoom->room_type_id,
+            'check_out_date'      => $targetCheckOut,
+            'nights'              => $nights,
             'room_charge'         => $roomCharge,
             'extra_person_charge' => $extraCharge,
             'tax_amount'          => $taxAmount,
             'total_amount'        => $roomCharge + $extraCharge + $taxAmount,
         ]);
+
+        $reservation->charges()->delete();
+        $this->seedInitialCharges($reservation, $reservation->nights, $roomCharge, $extraCharge, $taxAmount);
 
         RoomTransfer::create([
             'reservation_id' => $reservation->reservation_id,
@@ -447,7 +627,7 @@ public function moveRoom(Request $request, $id)
             'new_room_num'   => $newRoom->room_number,
             'transferred_by' => $request->user()?->user_id,
             'transfer_date'  => now()->toDateString(),
-            'reason'         => $validated['reason'] ?? null,
+            'reason'         => $validated['reason'],
         ]);
 
         return ['oldReservationId' => null, 'newReservationId' => $reservation->reservation_id];
@@ -455,4 +635,36 @@ public function moveRoom(Request $request, $id)
 
     return response()->json(['message' => 'Room moved successfully.', 'result' => $result]);
 }
+
+    /**
+     * Insert the initial room / extra_person / tax charge rows for a
+     * newly-created reservation, mirroring its snapshot columns.
+     */
+    private function seedInitialCharges(Reservation $reservation, int $nights, float $roomCharge, float $extraPersonCharge, float $taxAmount): void
+    {
+        ReservationCharge::create([
+            'reservation_id' => $reservation->reservation_id,
+            'charge_type'    => 'room',
+            'description'    => "Room charge — {$nights} night(s)",
+            'amount'         => $roomCharge,
+        ]);
+
+        if ($extraPersonCharge > 0) {
+            ReservationCharge::create([
+                'reservation_id' => $reservation->reservation_id,
+                'charge_type'    => 'extra_person',
+                'description'    => "Extra person charge — {$nights} night(s)",
+                'amount'         => $extraPersonCharge,
+            ]);
+        }
+
+        if ($taxAmount > 0) {
+            ReservationCharge::create([
+                'reservation_id' => $reservation->reservation_id,
+                'charge_type'    => 'tax',
+                'description'    => 'Tax',
+                'amount'         => $taxAmount,
+            ]);
+        }
+    }
 }

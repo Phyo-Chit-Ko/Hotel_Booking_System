@@ -19,7 +19,6 @@ class Room extends Model
         'floor',
         'status',
         'bed_type',
-        'extra_person_rate',
         'grid_col',
         'grid_row',
         'grid_w',
@@ -27,7 +26,6 @@ class Room extends Model
     ];
 
     protected $casts = [
-        'extra_person_rate' => 'decimal:2',
         'grid_col'          => 'integer',
         'grid_row'          => 'integer',
         'grid_w'            => 'integer',

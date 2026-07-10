@@ -1,5 +1,24 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import axios from "axios";
 import "./Rooms.css";
+
+const BACKEND_URL = "http://localhost:8000";
+
+// Used only when a room type has no uploaded image yet, so the grid still looks presentable.
+const FALLBACK_IMAGES = [
+  "https://images.unsplash.com/photo-1618773928121-c32242e63f39?q=80&w=600&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1566665797739-1674de7a421a?q=80&w=600&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1590490360182-c33d57733427?q=80&w=600&auto=format&fit=crop",
+];
+
+function describeRoom(room) {
+  const perks = [];
+  if (room.breakfast) perks.push("complimentary breakfast");
+  if (room.bathtub) perks.push("a private bathtub");
+  const perkText = perks.length ? ` with ${perks.join(" and ")}` : "";
+  const guests = room.capacity === 1 ? "1 guest" : `${room.capacity} guests`;
+  return `Comfortable accommodation for up to ${guests}${perkText}.`;
+}
 
 export default function Rooms() {
   const [showForm, setShowForm] = useState(false);
@@ -7,41 +26,51 @@ export default function Rooms() {
   const [filePreview, setFilePreview] = useState(null);
   const [paymentFile, setPaymentFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [roomData, setRoomData] = useState([]);
+  const [isLoadingRooms, setIsLoadingRooms] = useState(true);
+  const [roomsError, setRoomsError] = useState(false);
 
   const QR_CODES = {
     "K-Pay": "/images/176.jpg",
     Bank: "/images/178.jpg",
   };
 
-  const roomData = [
-    {
-      id: 1,
-      title: "Superior Room",
-      image:
-        "https://images.unsplash.com/photo-1618773928121-c32242e63f39?q=80&w=600&auto=format&fit=crop",
-      description: "Elegant blend of comfort and boutique style.",
-      capacity: "1-2 Persons",
-      amenities: ["Free Wifi", "Queen Bed", "City View"],
-    },
-    {
-      id: 2,
-      title: "Deluxe Suite",
-      image:
-        "https://images.unsplash.com/photo-1566665797739-1674de7a421a?q=80&w=600&auto=format&fit=crop",
-      description: "Spacious and luxurious with premium finishes.",
-      capacity: "1-3 Persons",
-      amenities: ["Free Wifi", "King Size Bed", "Breakfast Included"],
-    },
-    {
-      id: 3,
-      title: "Superior Executive",
-      image:
-        "https://images.unsplash.com/photo-1590490360182-c33d57733427?q=80&w=600&auto=format&fit=crop",
-      description: "Designed for corporate luxury with panoramic views.",
-      capacity: "1-3 Persons",
-      amenities: ["High-speed Wifi", "King Bed", "Lounge Access"],
-    },
-  ];
+  useEffect(() => {
+    let cancelled = false;
+    axios.get("/api/room-types")
+      .then((res) => {
+        if (cancelled) return;
+        const mapped = res.data
+          .filter((r) => r.status === "Active")
+          .map((r, idx) => {
+            const features = [
+              { icon: "👥", label: r.capacity === 1 ? "1 Guest" : `${r.capacity} Guests` },
+              { icon: "💵", label: `$${Number(r.base_price).toFixed(0)} / night` },
+            ];
+            if (r.breakfast) features.push({ icon: "🍳", label: "Free Breakfast" });
+            if (r.bathtub) features.push({ icon: "🛁", label: "Luxury Bathtub" });
+
+            return {
+              id: r.room_type_id,
+              title: r.name,
+              image: r.image
+                ? `${BACKEND_URL}/storage/${r.image}`
+                : FALLBACK_IMAGES[idx % FALLBACK_IMAGES.length],
+              description: describeRoom(r),
+              features,
+            };
+          });
+        setRoomData(mapped);
+      })
+      .catch((error) => {
+        console.error("Error fetching room types:", error);
+        if (!cancelled) setRoomsError(true);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingRooms(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   const [formData, setFormData] = useState({
     first_name: "",
@@ -113,12 +142,7 @@ export default function Rooms() {
 
     // Loop and append every form state property securely
     Object.entries(formData).forEach(([key, value]) => {
-      // Fallback: If room_type_id is missing, make sure it evaluates using the selectedRoom state item context
-      if (key === "room_type_id" && !value) {
-        data.append(key, selectedRoom?.id || 1);
-      } else {
-        data.append(key, value);
-      }
+      data.append(key, value);
     });
 
     // File payload mapped to match what Laravel's input validator expects ('payment_screenshot')
@@ -170,62 +194,59 @@ export default function Rooms() {
       </header>
 
       <section className="rooms-grid-container">
-        <div className="rooms-grid">
-          {roomData.map((room) => (
-            <div key={room.id} className="flip-card">
-              <div className="flip-card-inner">
-                <div className="flip-card-front">
-                  <div className="book-ribbon">BOOK</div>
-                  <img src={room.image} alt={room.title} className="room-img" />
-                  <div className="room-image-title">
-                    <h3>{room.title}</h3>
-                  </div>
-                </div>
-                <div className="flip-card-back">
-                  <h3 className="info-card-title">{room.title}</h3>
-
-                  <p className="info-card-desc">{room.description}</p>
-
-                  <div className="room-features">
-                    <div className="feature">
-                      <span>👥</span>
-                      <span>{room.capacity}</span>
-                    </div>
-
-                    <div className="feature">
-                      <span>📶</span>
-                      <span>{room.amenities[0]}</span>
-                    </div>
-
-                    <div className="feature">
-                      <span>🛏</span>
-                      <span>{room.amenities[1]}</span>
-                    </div>
-
-                    <div className="feature">
-                      <span>🍳</span>
-                      <span>{room.amenities[2]}</span>
+        {isLoadingRooms ? (
+          <p className="rooms-status-text">Loading rooms...</p>
+        ) : roomsError ? (
+          <p className="rooms-status-text">
+            Couldn't load rooms right now. Please try again shortly.
+          </p>
+        ) : roomData.length === 0 ? (
+          <p className="rooms-status-text">No rooms are available at the moment.</p>
+        ) : (
+          <div className="rooms-grid">
+            {roomData.map((room) => (
+              <div key={room.id} className="flip-card">
+                <div className="flip-card-inner">
+                  <div className="flip-card-front">
+                    <div className="book-ribbon">BOOK</div>
+                    <img src={room.image} alt={room.title} className="room-img" />
+                    <div className="room-image-title">
+                      <h3>{room.title}</h3>
                     </div>
                   </div>
+                  <div className="flip-card-back">
+                    <h3 className="info-card-title">{room.title}</h3>
 
-                  <button
-                    className="book-now-btn"
-                    onClick={() => {
-                      setSelectedRoom(room);
-                      setFormData((prev) => ({
-                        ...prev,
-                        room_type_id: room.id, // Sets it directly to the button component state tracker
-                      }));
-                      setShowForm(true);
-                    }}
-                  >
-                    BOOK NOW
-                  </button>
+                    <p className="info-card-desc">{room.description}</p>
+
+                    <div className="room-features">
+                      {room.features.map((feature) => (
+                        <div className="feature" key={feature.label}>
+                          <span>{feature.icon}</span>
+                          <span>{feature.label}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <button
+                      className="book-now-btn"
+                      onClick={() => {
+                        setSelectedRoom(room);
+                        setFormData((prev) => ({
+                          ...prev,
+                          room_type_id: room.id, // Sets it directly to the button component state tracker
+                        }));
+                        setShowForm(true);
+                      }}
+                    >
+                      BOOK NOW
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {showForm && (

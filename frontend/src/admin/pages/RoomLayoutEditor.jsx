@@ -200,7 +200,7 @@ function AddRoomModal({ targetCell, roomTypes, onAdd, onClose }) {
   const typeCodes = Object.keys(roomTypes);
   const [form, setForm] = useState({
     roomNumber: "", type: typeCodes[0] || "", status: "Available",
-    bedType: "Single", extraPersonRate: 0, w: 1, h: 1,
+    bedType: "Single", w: 1, h: 1,
   });
   const [error, setError] = useState("");
   const f   = (key) => (e) => setForm((p) => ({ ...p, [key]: e.target.value }));
@@ -213,7 +213,6 @@ function AddRoomModal({ targetCell, roomTypes, onAdd, onClose }) {
     setError("");
     onAdd({ id: `r-${Date.now()}`, roomNumber: form.roomNumber.trim(), type: form.type,
       status: form.status, bedType: form.bedType,
-      extraPersonRate: parseFloat(form.extraPersonRate) || 0,
       col: targetCell.col, row: targetCell.row, w: parseInt(form.w), h: parseInt(form.h) });
   };
 
@@ -250,12 +249,9 @@ function AddRoomModal({ targetCell, roomTypes, onAdd, onClose }) {
                 {["Single","Double","Queen","King","Twin"].map((b) => <option key={b}>{b}</option>)}
               </select>
             </div>
-            <div><label className={lCls}>Extra/Person ($)</label>
-              <input className={iCls} type="number" min="0" step="0.01" value={form.extraPersonRate} onChange={f("extraPersonRate")} />
-            </div>
+            <div><label className={lCls}>Width</label><input className={iCls} type="number" min={1} max={4} value={form.w} onChange={f("w")} /></div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div><label className={lCls}>Width</label><input className={iCls} type="number" min={1} max={4} value={form.w} onChange={f("w")} /></div>
             <div><label className={lCls}>Height</label><input className={iCls} type="number" min={1} max={4} value={form.h} onChange={f("h")} /></div>
           </div>
           {form.type && roomTypes[form.type] && (
@@ -310,18 +306,15 @@ function EditRoomModal({ room, roomTypes, onSave, onClose }) {
                 {["Single","Double","Queen","King","Twin"].map((b) => <option key={b}>{b}</option>)}
               </select>
             </div>
-            <div><label className={lCls}>Extra/Person ($)</label>
-              <input className={iCls} type="number" min="0" step="0.01" value={form.extraPersonRate || 0} onChange={f("extraPersonRate")} />
-            </div>
+            <div><label className={lCls}>Width</label><input className={iCls} type="number" min={1} max={4} value={form.w} onChange={f("w")} /></div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div><label className={lCls}>Width</label><input className={iCls} type="number" min={1} max={4} value={form.w} onChange={f("w")} /></div>
             <div><label className={lCls}>Height</label><input className={iCls} type="number" min={1} max={4} value={form.h} onChange={f("h")} /></div>
           </div>
         </div>
         <div className="p-4 border-t border-slate-800 flex gap-2">
           <button onClick={onClose} className="flex-1 py-2 text-xs font-bold text-slate-400 border border-slate-700 rounded-lg hover:bg-slate-800">Cancel</button>
-          <button onClick={() => onSave({ ...form, w: parseInt(form.w), h: parseInt(form.h), extraPersonRate: parseFloat(form.extraPersonRate) || 0 })}
+          <button onClick={() => onSave({ ...form, w: parseInt(form.w), h: parseInt(form.h) })}
             className="flex-1 py-2 text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-lg flex items-center justify-center gap-1.5">
             <FaCheck size={10} /> Save
           </button>

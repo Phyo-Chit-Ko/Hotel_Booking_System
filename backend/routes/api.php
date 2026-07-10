@@ -46,7 +46,7 @@ Route::get('/room-types', [RoomTypeController::class, 'index']);
 Route::patch('/room-types/{id}/toggle-status', [RoomTypeController::class, 'toggleStatus']);
 Route::put('/room-types/{id}', [RoomTypeController::class, 'update']);
 Route::delete('/room-types/{id}', [RoomTypeController::class, 'destroy']);
-Route::apiResource('room-types', RoomTypeController::class);
+Route::get('/room-types/{id}', [RoomTypeController::class, 'show']);
 
 Route::get('/rooms/layout',  [RoomLayoutController::class, 'getLayout']);
 Route::post('/rooms/layout', [RoomLayoutController::class, 'saveLayout']);
@@ -97,6 +97,8 @@ Route::delete('/services/{id}', [ExtraServiceController::class, 'destroy']);
 // <<<<<<< HEAD
 
 Route::get('/reservations/{id}/detail', [ReservationController::class, 'detail']);
+Route::get('/reservations/{id}/ledger', [ReservationController::class, 'ledger']);
+Route::patch('/reservations/{id}', [ReservationController::class, 'edit']);
 Route::post('/reservations/{id}/check-in', [ReservationController::class, 'checkIn']);
 Route::patch('/reservations/{id}/check-out', [ReservationController::class, 'checkOut']);
 Route::patch('/reservations/{id}/extend', [ReservationController::class, 'extend']);

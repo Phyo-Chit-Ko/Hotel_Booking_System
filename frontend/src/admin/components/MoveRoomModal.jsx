@@ -1,32 +1,45 @@
 import { useState, useEffect } from "react";
 
-export default function MoveRoomModal({ booking, onClose, onMoved }) {
+/**
+ * Move Room. Accepts optional prefilledReason/targetCheckOut props for the
+ * Extend Stay handoff (when the current room isn't free for the extra
+ * nights) — in that case the new room search covers the extended range and
+ * the move request carries the extended checkOut so the new reservation
+ * picks up the extra nights in one motion.
+ */
+export default function MoveRoomModal({ booking, onClose, onMoved, prefilledReason = "", targetCheckOut = null }) {
   const [rooms, setRooms] = useState([]);
   const [roomNumber, setRoomNumber] = useState("");
-  const [reason, setReason] = useState("");
+  const [reason, setReason] = useState(prefilledReason);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  const effectiveCheckOut = targetCheckOut || booking.checkOut;
+
   useEffect(() => {
-    fetch(`/api/rooms/available?check_in=${booking.checkIn}&check_out=${booking.checkOut}`)
+    fetch(`/api/rooms/available?check_in=${booking.checkIn}&check_out=${effectiveCheckOut}`)
       .then((r) => r.json())
       .then((d) => setRooms((d.rooms || []).filter((r) => r.room_number !== booking.roomNumber)))
       .catch(() => setRooms([]));
-  }, [booking]);
+  }, [booking, effectiveCheckOut]);
 
   const submit = async () => {
     if (!roomNumber) { setError("Please select a new room."); return; }
+    if (!reason.trim()) { setError("Please enter a reason for the move."); return; }
     setSaving(true);
     setError("");
     try {
+      const payload = { roomNumber, reason: reason.trim() };
+      if (targetCheckOut) payload.checkOut = targetCheckOut;
+
       const res = await fetch(`/api/reservations/${booking.id}/move-room`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ roomNumber, reason }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to move room");
-      onMoved(data.booking);
+      onMoved(data);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -42,6 +55,11 @@ export default function MoveRoomModal({ booking, onClose, onMoved }) {
           <p className="text-xs text-slate-500 mt-0.5">
             {booking.bookingNumber} · {booking.guestName} · Currently Room {booking.roomNumber}
           </p>
+          {targetCheckOut && (
+            <p className="text-xs text-amber-600 mt-1">
+              Extending stay to {targetCheckOut} in the new room.
+            </p>
+          )}
         </div>
 
         {error && (
@@ -67,7 +85,7 @@ export default function MoveRoomModal({ booking, onClose, onMoved }) {
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Reason (optional)</label>
+          <label className="block text-xs font-semibold text-slate-500 mb-1">Reason *</label>
           <input
             className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-700"
             placeholder="e.g. AC issue, guest request"

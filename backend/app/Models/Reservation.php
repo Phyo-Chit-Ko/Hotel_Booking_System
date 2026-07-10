@@ -75,6 +75,20 @@ class Reservation extends Model
         return $this->hasMany(Payment::class, 'reservation_id', 'reservation_id');
     }
 
+    public function charges()
+    {
+        return $this->hasMany(ReservationCharge::class, 'reservation_id', 'reservation_id');
+    }
+
+    /**
+     * The room_moves row that created THIS reservation (i.e. this
+     * reservation is the "new" side of a move), if any.
+     */
+    public function roomMoveFrom()
+    {
+        return $this->hasOne(RoomMove::class, 'new_reservation_id', 'reservation_id');
+    }
+
     /**
      * Pivot rows linking additional guests (beyond the primary guest_id)
      * to this reservation, via the reservation_guests table.
@@ -106,16 +120,21 @@ class Reservation extends Model
     }
 
     /**
-     * total_amount minus whatever's actually been paid so far.
-     * Always derived — never trust a stored snapshot for this.
+     * SUM(charges.amount) - SUM(payments.amount), always derived live.
+     * Never trust total_amount/deposit_amount for this — those are
+     * display-only snapshots.
      */
     public function getRemainingAmountAttribute(): float
     {
+        $charged = $this->relationLoaded('charges')
+            ? $this->charges->sum('amount')
+            : $this->charges()->sum('amount');
+
         $paid = $this->relationLoaded('payments')
             ? $this->payments->sum('amount')
             : $this->payments()->sum('amount');
 
-        return max(0, (float) $this->total_amount - (float) $paid);
+        return max(0, (float) $charged - (float) $paid);
     }
 
     /**
