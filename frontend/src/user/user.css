@@ -1,0 +1,52 @@
+body {
+  background-color: #121212;
+  color: white;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.page-container {
+  margin-left: 260px !important;
+  width: 100% !important;
+  min-height: 100vh;
+  padding: 0 !important;
+  transition: margin-left 0.35s ease;
+}
+
+/* Desktop sidebar hidden via the edge toggle — reclaim the width. */
+.layout.sidebar-collapsed .page-container {
+  margin-left: 0 !important;
+}
+
+@media (max-width: 992px) {
+  .page-container {
+    margin-left: 0 !important;
+    width: 100% !important;
+  }
+}
+
+/* ---- paste the rest of App.css below ---- */
+.custom-navbar { background: rgba(0, 0, 0, 0.7); }
+.hero-section {
+  height: 100vh;
+  background: url("https://images.unsplash.com/photo-1564501049412-61c2a3083791") center center/cover;
+}
+.hero-overlay {
+  height: 100%;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+.room-card { transition: 0.3s; }
+.room-card:hover { transform: translateY(-8px); }
+.room-card img { height: 250px; object-fit: cover; }
+.facility-icon { font-size: 3rem; margin-bottom: 15px; }
+.review-card { background: #f8f9fa; padding: 20px; border-radius: 15px; }
+.footer { background: #222; color: white; padding: 30px; }

@@ -1,0 +1,216 @@
+.profile-wrapper {
+  display: flex;
+  height: 100vh;
+  background: linear-gradient(135deg, #0f172a, #1e293b);
+  font-family: "Segoe UI", sans-serif;
+}
+
+/* LEFT PANEL */
+.profile-left {
+  width: 35%;
+  padding: 60px;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.brand-box h1 {
+  font-size: 42px;
+  color: #d4af37;
+  margin-bottom: 10px;
+}
+
+.brand-box p {
+  color: #cbd5e1;
+  font-size: 16px;
+}
+
+.side-info {
+  margin-top: 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  color: #94a3b8;
+}
+
+/* RIGHT PANEL */
+.profile-right {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* MAIN CARD (GLASS EFFECT) */
+.profile-card {
+  width: 420px;
+  padding: 30px;
+  border-radius: 18px;
+
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(15px);
+
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+}
+
+/* HEADER */
+.top-bar {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+.avatar {
+  font-size: 34px;
+  background: #d4af37;
+  padding: 10px;
+  border-radius: 50%;
+  color: black;
+}
+
+.top-bar h2 {
+  margin: 0;
+}
+
+.top-bar span {
+  font-size: 13px;
+  color: #cbd5e1;
+}
+
+/* GOLD LINE */
+.gold-line {
+  height: 2px;
+  background: linear-gradient(to right, #d4af37, transparent);
+  margin: 20px 0;
+}
+
+/* FORM */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+label {
+  font-size: 12px;
+  color: #cbd5e1;
+  letter-spacing: 1px;
+}
+
+.input-box input {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+
+  outline: none;
+}
+
+.input-box input:disabled {
+  opacity: 0.6;
+}
+
+/* BUTTONS */
+.actions {
+  margin-top: 20px;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.btn {
+  flex: 1;
+  padding: 10px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.edit {
+  background: #6bf86e;
+  color: black;
+}
+
+.save {
+  background: #22c55e;
+  color: white;
+}
+
+.logout {
+  background: #ef4444;
+  color: white;
+}
+
+/* SECURITY NOTE */
+.security-note {
+  margin-top: 20px;
+  font-size: 12px;
+  color: #cbd5e1;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+/* BACK BUTTON */
+.header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.back-btn {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.3);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.back-btn:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+/* PASSWORD TOGGLE */
+.password-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.eye-icon {
+  position: absolute;
+  right: 12px;
+  cursor: pointer;
+  font-size: 18px;
+  opacity: 0.8;
+  user-select: none;
+}
+
+.eye-icon:hover {
+  opacity: 1;
+}
+.btn.bookings {
+  background-color: #f39c12; /* Or your preferred gold/accent color */
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  cursor: pointer;
+  border-radius: 5px;
+  margin: 5px;
+  transition: background 0.3s;
+}
+
+.btn.bookings:hover {
+  background-color: #d68910;
+}
