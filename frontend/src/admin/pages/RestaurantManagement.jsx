@@ -160,7 +160,7 @@ export default function RestaurantManagement() {
             <div className="flex items-center gap-4">
               <div className="p-3.5 bg-amber-50 rounded-xl border border-amber-100 text-md text-amber-600"><FaClipboardList /></div>
               <div>
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Active Restaurant Orders</p>
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Active Restaurant Menus</p>
                 <h3 className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">2</h3>
               </div>
             </div>
