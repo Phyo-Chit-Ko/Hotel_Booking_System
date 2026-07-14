@@ -5,8 +5,12 @@ const inp = "w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-sl
 const lbl = "block text-xs font-semibold text-slate-600 mb-1.5 ml-0.5";
 
 /**
- * "Edit" — guest name, phone, and special requests only. Deliberately kept
- * separate from Extend Stay / Move Room: no availability check, no charges.
+ * "Edit" — guest name, phone, special requests, and now guest counts
+ * (adults/children — e.g. more people joining an existing stay). Still
+ * deliberately kept separate from Extend Stay / Move Room: no availability
+ * check, no date changes. Raising the guest count may add a new
+ * extra-person charge for the remaining nights — the backend handles that
+ * and we just surface a note if it happened.
  */
 export default function EditReservationModal({ booking, onClose, onSaved }) {
   const [loading, setLoading] = useState(true);
@@ -16,6 +20,9 @@ export default function EditReservationModal({ booking, onClose, onSaved }) {
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
   const [specialRequests, setSpecialRequests] = useState("");
+  const [adults, setAdults] = useState(1);
+  const [children, setChildren] = useState(0);
+  const [note, setNote] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -27,6 +34,8 @@ export default function EditReservationModal({ booking, onClose, onSaved }) {
         setLastName(d.reservation?.lastName || "");
         setPhone(d.reservation?.phone || "");
         setSpecialRequests(d.reservation?.specialRequests || "");
+        setAdults(d.reservation?.adults || 1);
+        setChildren(d.reservation?.children || 0);
       })
       .catch(() => setError("Failed to load reservation details."))
       .finally(() => active && setLoading(false));
@@ -39,6 +48,7 @@ export default function EditReservationModal({ booking, onClose, onSaved }) {
     e.preventDefault();
     setSaving(true);
     setError("");
+    setNote("");
     try {
       const res = await fetch(`/api/reservations/${booking.id}`, {
         method: "PATCH",
@@ -47,10 +57,17 @@ export default function EditReservationModal({ booking, onClose, onSaved }) {
           guestName: `${firstName} ${lastName}`.trim(),
           guestPhone: phone,
           specialRequests,
+          adults: Number(adults),
+          children: Number(children),
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to update reservation.");
+      if (data.chargeAdded?.amount > 0) {
+        setNote(
+          `Added a $${data.chargeAdded.amount.toFixed(2)} extra-person charge for ${data.chargeAdded.nights} remaining night(s).`
+        );
+      }
       onSaved(data.booking);
     } catch (err) {
       setError(err.message);
@@ -85,6 +102,9 @@ export default function EditReservationModal({ booking, onClose, onSaved }) {
             {error && (
               <div className="bg-red-50 border border-red-100 text-red-700 text-sm px-4 py-3 rounded-xl">{error}</div>
             )}
+            {note && (
+              <div className="bg-amber-50 border border-amber-100 text-amber-700 text-sm px-4 py-3 rounded-xl">{note}</div>
+            )}
 
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -101,6 +121,32 @@ export default function EditReservationModal({ booking, onClose, onSaved }) {
               <label className={lbl}>Phone</label>
               <input className={inp} value={phone} onChange={(e) => setPhone(e.target.value)} />
             </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={lbl}>Adults</label>
+                <input
+                  type="number"
+                  min={1}
+                  className={inp}
+                  value={adults}
+                  onChange={(e) => setAdults(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className={lbl}>Children</label>
+                <input
+                  type="number"
+                  min={0}
+                  className={inp}
+                  value={children}
+                  onChange={(e) => setChildren(e.target.value)}
+                />
+              </div>
+            </div>
+            <p className="text-[11px] text-slate-400 -mt-2 ml-0.5">
+              Increasing guest count adds an extra-person charge for the remaining nights only.
+            </p>
 
             <div>
               <label className={lbl}>Special Requests</label>

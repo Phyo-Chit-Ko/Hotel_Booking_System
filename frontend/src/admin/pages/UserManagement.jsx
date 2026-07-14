@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import AdminLayout from "../layouts/AdminLayout";
 import AddUser from "../components/AddUser";
 import axios from "axios";
+import { toast } from "react-hot-toast";
 import {
   FaPlus,
   FaSearch,
@@ -30,7 +31,7 @@ export default function UserManagement() {
       setUsers(response.data);
     } catch (error) {
       console.error("Error retrieving users:", error);
-      alert("Could not load users from the server.");
+      toast.error("Could not load users from the server.");
     } finally {
       setLoading(false);
     }
@@ -56,10 +57,10 @@ export default function UserManagement() {
     } catch (error) {
       console.error("API Error:", error);
       const serverMessage = error.response?.data?.message || error.message;
-      const errorsDetail = error.response?.data?.errors 
-        ? "\n" + JSON.stringify(error.response.data.errors) 
+      const errorsDetail = error.response?.data?.errors
+        ? " " + JSON.stringify(error.response.data.errors)
         : "";
-      alert(`error\n  ${serverMessage}${errorsDetail}`);
+      toast.error(`${serverMessage}${errorsDetail}`);
     }
   };
 
@@ -70,7 +71,7 @@ export default function UserManagement() {
         setUsers(users.filter((user) => user.user_id !== userId && user.id !== userId));
       } catch (error) {
         console.error("Error deleting database record:", error);
-        alert("Could not remove user from the database.");
+        toast.error(error.response?.data?.message || "Could not remove user from the database.");
       }
     }
   };
@@ -123,8 +124,6 @@ export default function UserManagement() {
                 <option value="Admin">Admin</option>
                 <option value="Manager">Manager</option>
                 <option value="Receptionist">Receptionist</option>
-                <option value="Housekeeping">Housekeeping</option>
-                <option value="User">User</option>
               </select>
               <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center text-slate-400">
                 <svg className="fill-current h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
@@ -200,13 +199,22 @@ export default function UserManagement() {
                           >
                             <FaEdit className="w-3.5 h-3.5" />
                           </button>
-                          <button 
-                            type="button" 
-                            onClick={() => handleDeleteUser(idToShow)}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition"
-                          >
-                            <FaTrash className="w-3.5 h-3.5" />
-                          </button>
+                          {user.role?.toLowerCase() !== "admin" ? (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteUser(idToShow)}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition"
+                            >
+                              <FaTrash className="w-3.5 h-3.5" />
+                            </button>
+                          ) : (
+                            <span
+                              title="Admin accounts cannot be deleted."
+                              className="p-1.5 text-slate-200 cursor-not-allowed"
+                            >
+                              <FaTrash className="w-3.5 h-3.5" />
+                            </span>
+                          )}
                         </div>
                       </td>
                     </tr>

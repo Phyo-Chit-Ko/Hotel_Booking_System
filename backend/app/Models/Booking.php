@@ -10,10 +10,10 @@ class Booking extends Model
     protected $primaryKey = 'booking_id';
 
     // Disabling default timestamps since your table only tracks created_at
-    public $timestamps = false; 
+    public $timestamps = false;
 
     protected $fillable = [
-        'guest_id',
+        'user_id',
         'room_type_id',
         'first_name',
         'last_name',
@@ -29,9 +29,10 @@ class Booking extends Model
         'deposit',
         'deposit_screenshot',
         'special_requests',
-        'payment_method', // Safely mass-assignable now!
+        'payment_method',
         'status',
         'reservation_id',
+        'handled_by',
     ];
 
     protected $casts = [
@@ -44,9 +45,9 @@ class Booking extends Model
     /**
      * Get the guest associated with the booking.
      */
-    public function guest(): BelongsTo
+    public function user(): BelongsTo
     {
-        return $this->belongsTo(Guest::class, 'guest_id', 'guest_id');
+        return $this->belongsTo(User::class, 'user_id', 'user_id');
     }
 
     /**
@@ -55,5 +56,10 @@ class Booking extends Model
     public function roomType(): BelongsTo
     {
         return $this->belongsTo(RoomType::class, 'room_type_id', 'room_type_id');
+    }
+
+    public function handledBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'handled_by', 'user_id');
     }
 }

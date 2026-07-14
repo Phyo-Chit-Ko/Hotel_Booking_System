@@ -1,11 +1,12 @@
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
-import { FaChevronDown, FaCog, FaSignOutAlt, FaUserCircle, FaBars } from "react-icons/fa";
+import axios from "axios";
+import { FaChevronDown, FaCog, FaSignOutAlt, FaBars } from "react-icons/fa";
+import { useAuth } from "../../context/AuthContext";
 
 // Must match sidebar paths exactly
 const PAGE_TITLES = {
   "/admin/dashboard":       { name: "Dashboard",              sub: "Hotel Overview" },
-  "/admin/available_rooms": { name: "Available Search",       sub: "Browse & filter available rooms" },
   "/admin/bookings":        { name: "Bookings",               sub: "Manage all bookings" },
   "/admin/reservations":    { name: "Reservations",           sub: "Guest reservation records" },
   "/admin/guests":          { name: "Guests",                 sub: "Guest profiles & history" },
@@ -16,11 +17,12 @@ const PAGE_TITLES = {
   "/admin/user_management": { name: "User Management",        sub: "Staff accounts & permissions" },
   "/admin/restaurant":      { name: "Restaurant",             sub: "Restaurant orders & menu" },
   "/admin/settings":        { name: "Settings",               sub: "System configuration" },
-  "/admin/roomLayoutEditor":{ name: "Room Layout Editor",     sub: "Visual floor plan editor" },
 };
 
 export default function Navbar({ onMenuClick }) {
   const location                    = useLocation();
+  const navigate                    = useNavigate();
+  const { user, logout }            = useAuth();
   const [dropdownOpen, setDropdown] = useState(false);
   const dropdownRef                 = useRef(null);
 
@@ -37,9 +39,20 @@ export default function Navbar({ onMenuClick }) {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const handleLogout = () => {
-    // Add your logout logic here — e.g. clear token, redirect to login
-    console.log("Logging out…");
+  const handleLogout = async () => {
+    setDropdown(false);
+    try {
+      const token = sessionStorage.getItem("auth_token");
+      await axios.post("/api/logout", {}, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+    } catch {
+      // Token may already be invalid/expired server-side — fine to proceed
+      // with local cleanup regardless.
+    } finally {
+      logout();
+      navigate("/account");
+    }
   };
 
   return (
@@ -65,10 +78,11 @@ export default function Navbar({ onMenuClick }) {
 
       {/* User Menu */}
       <div className="relative flex-shrink-0" ref={dropdownRef}>
-        <button
-          onClick={() => setDropdown((o) => !o)}
-          className="flex items-center gap-2 sm:gap-3 hover:bg-slate-50 rounded-xl px-2 sm:px-3 py-2 transition-all group"
-        >
+       <button
+  type="button"
+  onClick={() => setDropdown((o) => !o)}
+  className="flex items-center gap-2 sm:gap-3 hover:bg-slate-50 rounded-xl px-2 sm:px-3 py-2 transition-all group"
+>
           {/* Avatar */}
           <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">
             A
@@ -76,8 +90,8 @@ export default function Navbar({ onMenuClick }) {
 
           {/* Name & role */}
           <div className="text-left hidden sm:block">
-            <p className="font-semibold text-slate-800 text-sm leading-tight">System Admin</p>
-            <p className="text-xs text-gray-500">Administrator</p>
+            <p className="font-semibold text-slate-800 text-sm leading-tight">{user?.name || "System Admin"}</p>
+            <p className="text-xs text-gray-500 capitalize">{user?.role || "Administrator"}</p>
           </div>
 
           {/* Chevron */}
@@ -87,40 +101,57 @@ export default function Navbar({ onMenuClick }) {
           />
         </button>
 
-        {/* Dropdown */}
-        {dropdownOpen && (
-          <div className="absolute right-0 top-full mt-2 w-52 bg-white border border-slate-100 rounded-2xl shadow-xl z-50 overflow-hidden">
+        
+      {/* Dropdown */}
+{dropdownOpen && (
+  <div className="absolute right-0 top-full mt-2 w-52 bg-white border border-slate-100 rounded-2xl shadow-xl z-50 overflow-hidden">
 
-            {/* User info header */}
-            <div className="px-4 py-3 border-b border-slate-100 bg-slate-50">
-              <p className="text-xs font-bold text-slate-700">System Admin</p>
-              <p className="text-[11px] text-slate-400 mt-0.5">admin@harbergrand.com</p>
-            </div>
+    {/* User info header */}
+    <div className="px-4 py-3 border-b border-slate-100 bg-slate-50">
+      <p className="text-xs font-bold text-slate-700">
+        {user?.name || "System Admin"}
+      </p>
 
-            {/* Menu items */}
-            <div className="p-1.5 space-y-0.5">
-              <button
-                onClick={() => { setDropdown(false); window.location.href = "/admin/settings"; }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-700 hover:bg-slate-50 transition-colors font-medium"
-              >
-                <FaCog size={13} className="text-slate-400" />
-                Settings
-              </button>
+      <p className="text-[11px] text-slate-400 mt-0.5">
+        {user?.email || ""}
+      </p>
+    </div>
 
-            </div>
 
-            <div className="p-1.5 border-t border-slate-100">
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-rose-600 hover:bg-rose-50 transition-colors font-medium"
-              >
-                <FaSignOutAlt size={13} />
-                Log Out
-              </button>
-            </div>
+    {/* Menu items */}
+    <div className="p-1.5 space-y-0.5">
 
-          </div>
-        )}
+      <button
+        type="button"
+        onClick={() => {
+          setDropdown(false);
+          navigate("/admin/settings");
+        }}
+        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-700 hover:bg-slate-50 transition-colors font-medium"
+      >
+        <FaCog size={13} className="text-slate-400" />
+        Settings
+      </button>
+
+    </div>
+
+
+    {/* Logout */}
+    <div className="p-1.5 border-t border-slate-100">
+
+      <button
+        type="button"
+        onClick={handleLogout}
+        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-rose-600 hover:bg-rose-50 transition-colors font-medium"
+      >
+        <FaSignOutAlt size={13} />
+        Log Out
+      </button>
+
+    </div>
+
+  </div>
+)}
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import axios from "axios";
 import {
   FaTimes,
   FaCheckCircle,
@@ -8,19 +9,8 @@ import {
   FaUser,
 } from "react-icons/fa";
 
-const FOOD_MENU = [
-  { id: "f1", name: "Noodles", price: 8.50 },
-  { id: "f2", name: "Fried Rice", price: 9.00 },
-  { id: "f3", name: "Club Sandwich", price: 12.00 },
-  { id: "f4", name: "Coffee", price: 4.00 },
-  { id: "f5", name: "Fresh Juice", price: 5.00 },
-  { id: "f6", name: "Beef Burger", price: 14.50 },
-  { id: "f7", name: "Margherita Pizza", price: 16.00 },
-  { id: "f8", name: "Spring Rolls", price: 6.50 },
-];
-
 const initialFormState = {
-  reservation_id: "",
+  room_number: "",
   guest_name: "",
   service_type: "Laundry",
   charge_date: new Date().toISOString().split("T")[0],
@@ -36,13 +26,33 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
   const [selectedFoodItems, setSelectedFoodItems] = useState({});
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const [foodMenu, setFoodMenu] = useState([]);
+
+  // Real menu items (name + price) from the restaurant catalog, replacing
+  // the old hardcoded list — same call RestaurantManagement.jsx already makes.
+  useEffect(() => {
+    if (!isOpen) return;
+    axios.get("/api/restaurant-items", { params: { category: "Food" } })
+      .then((res) => {
+        const items = (res.data || [])
+          .filter((item) => item.status !== "Out of Stock")
+          .map((item) => ({ id: item.item_id, name: item.item_name, price: Number(item.price) }));
+        setFoodMenu(items);
+      })
+      .catch(() => setFoodMenu([]));
+  }, [isOpen]);
+
+  // Room -> in-house-guest lookup state. "found"/"not-found" drives whether
+  // guest_name is considered resolved (and thus whether the form can submit).
+  const [roomLookupStatus, setRoomLookupStatus] = useState("idle"); // idle | loading | found | not-found
+  const lookupTimer = useRef(null);
 
   useEffect(() => {
     setErrors({});
     setIsDropdownOpen(false);
     if (chargeToEdit) {
       setFormData({
-        reservation_id: chargeToEdit.reservation_id || "",
+        room_number: chargeToEdit.room_number || "",
         guest_name: chargeToEdit.guest_name || "",
         service_type: chargeToEdit.service_type || "Laundry",
         charge_date: chargeToEdit.charge_date || new Date().toISOString().split("T")[0],
@@ -52,11 +62,42 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
         food_items: chargeToEdit.food_items || "",
       });
       setSelectedFoodItems({});
+      setRoomLookupStatus(chargeToEdit.guest_name ? "found" : "idle");
     } else {
       setFormData(initialFormState);
       setSelectedFoodItems({});
+      setRoomLookupStatus("idle");
     }
   }, [chargeToEdit, isOpen]);
+
+  // Debounced lookup: resolve the room number to its current in-house guest
+  // and auto-fill (read-only) guest_name, instead of staff typing a raw
+  // reservation ID and guest name by hand.
+  useEffect(() => {
+    const roomNumber = formData.room_number?.trim();
+    if (lookupTimer.current) clearTimeout(lookupTimer.current);
+
+    if (!roomNumber) {
+      setRoomLookupStatus("idle");
+      setFormData((p) => ({ ...p, guest_name: "" }));
+      return;
+    }
+
+    lookupTimer.current = setTimeout(async () => {
+      setRoomLookupStatus("loading");
+      try {
+        const res = await axios.get(`/api/rooms/${encodeURIComponent(roomNumber)}/active-reservation`);
+        setFormData((p) => ({ ...p, guest_name: res.data.guest_name || "" }));
+        setRoomLookupStatus("found");
+      } catch {
+        setFormData((p) => ({ ...p, guest_name: "" }));
+        setRoomLookupStatus("not-found");
+      }
+    }, 400);
+
+    return () => { if (lookupTimer.current) clearTimeout(lookupTimer.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.room_number]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -123,9 +164,13 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
 
   const validateForm = () => {
     const tempErrors = {};
-    if (!String(formData.reservation_id).trim()) tempErrors.reservation_id = "Reservation ID is required.";
-    if (!formData.guest_name.trim()) tempErrors.guest_name = "Guest name is required.";
-    else if (formData.guest_name.trim().length < 2) tempErrors.guest_name = "Name looks too short.";
+    if (!String(formData.room_number).trim()) {
+      tempErrors.room_number = "Room number is required.";
+    } else if (roomLookupStatus === "not-found") {
+      tempErrors.room_number = "No in-house guest found for this room.";
+    } else if (roomLookupStatus !== "found") {
+      tempErrors.room_number = "Still looking up this room — wait a moment and try again.";
+    }
 
     if (!formData.quantity || Number(formData.quantity) <= 0) tempErrors.quantity = "Must be at least 1.";
     if (formData.rate === "" || Number(formData.rate) < 0) tempErrors.rate = "Rate cannot be negative.";
@@ -176,38 +221,40 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
 
         <form onSubmit={handleSubmit} noValidate className="p-6 space-y-5 overflow-y-auto">
 
-          {/* Reservation ID */}
+          {/* Room Number — resolves the in-house guest server-side */}
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Reservation ID</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">Room Number</label>
             <div className="relative">
-              {/*<FaHashtag className={`absolute left-4 top-3.5 text-xs ${errors.reservation_id ? "text-rose-400" : "text-slate-400"}`} />*/}
               <input
                 type="text"
-                name="reservation_id"
-                value={formData.reservation_id}
+                name="room_number"
+                value={formData.room_number}
                 onChange={handleChange}
-                placeholder="e.g., 12"
-                className={`pl-4 ${inp("reservation_id")}`}
+                placeholder="e.g., 204"
+                className={`pl-4 ${inp("room_number")}`}
               />
+              {roomLookupStatus === "loading" && (
+                <span className="absolute right-4 top-3.5 w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+              )}
             </div>
-            {errors.reservation_id && <p className="text-xs text-rose-500 mt-1.5 ml-1">{errors.reservation_id}</p>}
+            {errors.room_number && <p className="text-xs text-rose-500 mt-1.5 ml-1">{errors.room_number}</p>}
+            {!errors.room_number && roomLookupStatus === "not-found" && (
+              <p className="text-xs text-rose-500 mt-1.5 ml-1">No in-house guest found for this room.</p>
+            )}
           </div>
 
-          {/* Guest name */}
+          {/* Guest name — auto-filled from the room's active reservation, read-only */}
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-2">Guest Full Name</label>
             <div className="relative">
-              {/*<FaUser className={`absolute left-4 top-3.5 text-xs ${errors.guest_name ? "text-rose-400" : "text-slate-400"}`} />*/}
               <input
                 type="text"
-                name="guest_name"
+                readOnly
                 value={formData.guest_name}
-                onChange={handleChange}
-                placeholder="e.g., Sophia Bennett"
-                className={`pl-4 ${inp("guest_name")}`}
+                placeholder="Resolved automatically from room number"
+                className={`pl-4 bg-slate-100 cursor-not-allowed ${inp("guest_name")}`}
               />
             </div>
-            {errors.guest_name && <p className="text-xs text-rose-500 mt-1.5 ml-1">{errors.guest_name}</p>}
           </div>
 
           {/* Service type + Date */}
@@ -254,7 +301,10 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
 
               {isDropdownOpen && (
                 <div className="absolute left-0 right-0 mt-1 z-50 max-h-52 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl divide-y divide-slate-100">
-                  {FOOD_MENU.map((food) => (
+                  {foodMenu.length === 0 && (
+                    <p className="px-4 py-3 text-xs text-slate-400">No menu items available.</p>
+                  )}
+                  {foodMenu.map((food) => (
                     <button
                       key={food.id}
                       type="button"

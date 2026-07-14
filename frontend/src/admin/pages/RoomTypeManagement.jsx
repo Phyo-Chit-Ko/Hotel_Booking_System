@@ -6,6 +6,7 @@ import {
   FaPlus, FaSearch, FaEdit, FaTrash, FaTimes, FaImage,
   FaThLarge, FaCheckCircle, FaBan, FaBed, FaDollarSign,
 } from "react-icons/fa";
+import { useAuth } from "../../context/AuthContext";
 
 const BACKEND_URL = "http://localhost:8000";
 
@@ -18,6 +19,8 @@ const STATUS_META = {
 const STATUS_ORDER = ["Active", "Inactive"];
 
 export default function RoomTypeManagement() {
+  const { user } = useAuth();
+  const canWrite = (user?.role || "").toLowerCase() === "manager";
   const [isModalOpen, setIsModalOpen]   = useState(false);
   const [roomTypes, setRoomTypes]       = useState([]);
   const [isLoading, setIsLoading]       = useState(true);
@@ -83,7 +86,7 @@ export default function RoomTypeManagement() {
       setIsModalOpen(false);
     } catch (error) {
       console.error("Error saving room type:", error);
-      showNotification("Failed to save room type.", "error");
+      showNotification(error.response?.data?.message || "Failed to save room type.", "error");
     }
   };
 
@@ -97,7 +100,7 @@ export default function RoomTypeManagement() {
       }
     } catch (error) {
       console.error("Error deleting room type:", error);
-      showNotification("Failed to delete room type.", "error");
+      showNotification(error.response?.data?.message || "Failed to delete room type.", "error");
     }
   };
 
@@ -109,7 +112,7 @@ export default function RoomTypeManagement() {
       showNotification(`Status changed to ${nextStatus}.`, "success");
     } catch (error) {
       console.error("Error toggling status:", error);
-      showNotification("Failed to update status.", "error");
+      showNotification(error.response?.data?.message || "Failed to update status.", "error");
       fetchRoomTypes();
     }
   };
@@ -215,12 +218,14 @@ export default function RoomTypeManagement() {
           </div>
 
           {/* "+ Add New" Button */}
-          <button 
-            onClick={handleOpenAddModal}
-            className="flex items-center justify-center gap-1.5 h-10 px-4 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 active:scale-[0.98] transition rounded-xl shadow-sm"
-          >
-            <FaPlus className="w-2.5 h-2.5" /> Add New
-          </button>
+          {canWrite && (
+            <button
+              onClick={handleOpenAddModal}
+              className="flex items-center justify-center gap-1.5 h-10 px-4 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 active:scale-[0.98] transition rounded-xl shadow-sm"
+            >
+              <FaPlus className="w-2.5 h-2.5" /> Add New
+            </button>
+          )}
 
         </div>
 
@@ -305,7 +310,8 @@ export default function RoomTypeManagement() {
                           type="button"
                           title="Toggle Active / Inactive"
                           onClick={() => handleToggleStatus(room.room_type_id, room.status)}
-                          className={`relative inline-flex h-4.5 w-8 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${room.status === "Active" ? "bg-green-500" : "bg-slate-300"}`}
+                          disabled={!canWrite}
+                          className={`relative inline-flex h-4.5 w-8 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${room.status === "Active" ? "bg-green-500" : "bg-slate-300"} ${canWrite ? "cursor-pointer" : "cursor-not-allowed opacity-50"}`}
                         >
                           <span className={`pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${room.status === "Active" ? "translate-x-3.5" : "translate-x-0"}`} />
                         </button>
@@ -317,18 +323,24 @@ export default function RoomTypeManagement() {
                     </td>
                     <td className="px-5 py-2 text-sm">
                       <div className="flex items-center justify-center gap-1">
-                        <button
-                          onClick={() => handleOpenEditModal(room)}
-                          className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md transition"
-                        >
-                          <FaEdit className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteRoomType(room.room_type_id, room.name)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition"
-                        >
-                          <FaTrash className="w-3.5 h-3.5" />
-                        </button>
+                        {canWrite ? (
+                          <>
+                            <button
+                              onClick={() => handleOpenEditModal(room)}
+                              className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md transition"
+                            >
+                              <FaEdit className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteRoomType(room.room_type_id, room.name)}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition"
+                            >
+                              <FaTrash className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-slate-300 text-xs italic">—</span>
+                        )}
                       </div>
                     </td>
                   </tr>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import AdminLayout from "../layouts/AdminLayout";
 import AddBookingModal from "../components/AddBookingModal";
+import { useAuth } from "../../context/AuthContext"; // Ensure the path is correct
 import { useNavigate } from "react-router-dom";
 import {
   FaSearch,
@@ -10,6 +11,18 @@ import {
 } from "react-icons/fa";
 
 export default function BookingManagement() {
+   const auth = useAuth();
+
+  console.log("BOOKING FULL AUTH:", auth);
+
+  const { token } = auth;
+  
+
+  console.log("BookingManagement token:", token);
+  console.log(
+    "sessionStorage token:",
+    sessionStorage.getItem("auth_token")
+  );
   const [bookings, setBookings] = useState([]);
   const [stats, setStats] = useState({ total: 0, confirmed: 0, pending: 0 });
   const [loading, setLoading] = useState(true);
@@ -24,7 +37,7 @@ export default function BookingManagement() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [bookingToEdit, setBookingToEdit] = useState(null);
 
-  const COLUMN_COUNT = 13;
+  const COLUMN_COUNT = 14;
 
   const fetchBookings = useCallback(async () => {
     setLoading(true);
@@ -35,7 +48,15 @@ export default function BookingManagement() {
       if (statusFilter !== "All Status") params.append("status", statusFilter);
       if (selectedDate) params.append("date", selectedDate);
 
-      const res = await fetch(`http://localhost:8000/api/bookings?${params.toString()}`);
+   const res = await fetch(
+ `http://localhost:8000/api/bookings?${params.toString()}`,
+ {
+   headers:{
+      Authorization: `Bearer ${sessionStorage.getItem("auth_token")}`,
+      Accept:"application/json"
+   }
+ }
+);
       if (!res.ok) throw new Error("Failed to load bookings");
       const json = await res.json();
 
@@ -46,8 +67,7 @@ export default function BookingManagement() {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, statusFilter, selectedDate]);
-
+  }, [searchTerm, statusFilter, selectedDate, token]);
   useEffect(() => {
     const timeout = setTimeout(() => {
       fetchBookings();
@@ -56,31 +76,42 @@ export default function BookingManagement() {
   }, [fetchBookings]);
 
   // HANDLE EDIT SUBMISSION TO BACKEND
-  const handleEditSubmit = async (e) => {
+ // HANDLE EDIT SUBMISSION TO BACKEND
+const handleEditSubmit = async (e) => {
   e.preventDefault();
-  setEditError("");
-  try {
-    const token = sessionStorage.getItem("auth_token");
 
-    const res = await fetch(`http://localhost:8000/api/bookings/${bookingToEdit.raw_id || bookingToEdit.id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify(bookingToEdit),
-    });
+  console.log("Using token from AuthContext:", token);
+
+  if (!token) {
+    setEditError("Authentication token missing. Please log in again.");
+    return;
+  }
+
+  try {
+
+   
+     const res = await fetch(
+ `http://localhost:8000/api/bookings/${bookingToEdit.raw_id}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify(bookingToEdit),
+      }
+    );
 
     const json = await res.json();
 
     if (!res.ok) {
       setEditError(json.message || "Failed to update booking data");
-      return; // keep modal open so they can fix the room number
+      return;
     }
 
     setIsEditModalOpen(false);
     fetchBookings();
+
   } catch (err) {
     setEditError(err.message);
   }
@@ -207,6 +238,7 @@ export default function BookingManagement() {
                   <th className="px-5 py-3.5 font-medium">Deposit</th>
                   <th className="px-5 py-3.5 font-medium">Deposit SS</th>
                   <th className="px-5 py-3.5 font-medium">Status</th>
+                  <th className="px-5 py-3.5 font-medium">Handled By</th>
                   <th className="px-5 py-3.5 font-medium text-center">Actions</th>
                 </tr>
               </thead>
@@ -237,9 +269,9 @@ export default function BookingManagement() {
                 )}
 
                 {!loading && !error && bookings.map((booking) => (
-                  <tr key={booking.raw_id || booking.id} className="hover:bg-slate-50/70 transition-colors">
+                 <tr key={booking.raw_id} className="hover:bg-slate-50/70 transition-colors">
                     <td className="px-5 py-4 font-mono font-medium text-slate-900">
-                      {booking.id}
+                     {booking.raw_id}
                     </td>
 
                     <td className="px-5 py-4 font-medium text-slate-900">
@@ -299,6 +331,10 @@ export default function BookingManagement() {
                       </span>
                     </td>
 
+                    <td className="px-5 py-4 text-slate-500">
+                      {booking.handledBy || "—"}
+                    </td>
+
                     <td className="px-5 py-4">
   <div className="flex justify-center items-center gap-1.5">
     {booking.status?.toLowerCase() === "converted" ? (
@@ -313,10 +349,11 @@ export default function BookingManagement() {
       <button
         className="px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium hover:bg-slate-100 transition active:scale-95"
         title="Edit Booking"
-        onClick={() => {
-          setBookingToEdit({ ...booking });
-          setIsEditModalOpen(true);
-        }}
+       onClick={() => {
+  console.log("EDIT BOOKING:", booking);
+  setBookingToEdit({ ...booking });
+  setIsEditModalOpen(true);
+}}
       >
         Edit
       </button>
@@ -338,11 +375,14 @@ export default function BookingManagement() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 backdrop-blur-sm">
           <div className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-xl border border-slate-100 max-h-[90vh] overflow-y-auto">
             
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-              <h3 className="text-base font-semibold text-slate-800">Edit Details — Booking #{bookingToEdit.id}</h3>
+            <div className="flex justify-center items-center border-b border-slate-100 pb-4">
+    <h3 className="text-slate-900 font-semibold text-lg text-center">
+        Edit-Booking {bookingToEdit.raw_id}
+    </h3>
+
               <button 
                 onClick={() => setIsEditModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 text-sm p-1"
+                className="text-slate-600 hover:text-slate-600 text-sm p-1"
               >
                 ✕
               </button>

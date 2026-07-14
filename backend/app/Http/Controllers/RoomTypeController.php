@@ -10,13 +10,17 @@ class RoomTypeController extends Controller
 {
     public function index()
     {
-        $roomTypes = RoomType::all();
+        // num_of_rooms is computed live from the actual `rooms` table (via
+        // withCount) rather than trusted as a stored/synced column, so it can
+        // never drift stale no matter which controller creates/edits/deletes
+        // a room.
+        $roomTypes = RoomType::withCount(['rooms as num_of_rooms'])->get();
         return response()->json($roomTypes, 200);
     }
 
     public function show(int $id)
     {
-        $roomType = RoomType::findOrFail($id);
+        $roomType = RoomType::withCount(['rooms as num_of_rooms'])->findOrFail($id);
         return response()->json($roomType, 200);
     }
 
@@ -32,8 +36,8 @@ class RoomTypeController extends Controller
             'image'             => 'nullable|file|image|max:5120',
         ]);
 
-        // num_of_rooms is not set here — it's auto-recomputed by RoomLayoutController::saveLayout
-        // whenever rooms are assigned to this type in the Floor Layout Editor.
+        // num_of_rooms is never set/synced here — RoomTypeController::index/show
+        // always compute it live via withCount(), so it can't go stale.
         $roomType = RoomType::create([
             'name'              => $request->name,
             'base_price'        => $request->base_price,
@@ -76,8 +80,8 @@ class RoomTypeController extends Controller
             $imagePath = $request->file('image')->store('room-types', 'public');
         }
 
-        // num_of_rooms is intentionally left untouched — it's auto-recomputed by
-        // RoomLayoutController::saveLayout, not editable here.
+        // num_of_rooms is intentionally left untouched — it's always computed
+        // live via withCount() in index()/show(), never stored/synced here.
         $roomType->update([
             'name'              => $request->name,
             'base_price'        => $request->base_price,

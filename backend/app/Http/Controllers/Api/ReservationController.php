@@ -10,6 +10,8 @@ use App\Models\ReservationGuest;
 use App\Models\RoomMove;
 use App\Models\RoomTransfer;
 use App\Models\Room;
+use App\Models\Guest;
+use App\Support\IdNumberOverlapChecker;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -18,7 +20,7 @@ class ReservationController extends Controller
 {
     public function index(Request $request)
     {
-        $reservations = Reservation::with(['guest', 'roomType', 'payments', 'charges', 'additionalGuests.guest'])
+        $reservations = Reservation::with(['guest', 'roomType', 'payments', 'charges', 'additionalGuests.guest', 'roomMoveTo.newReservation', 'createdBy'])
             ->orderByDesc('reservation_id')
             ->get();
 
@@ -100,6 +102,16 @@ class ReservationController extends Controller
             'specialRequests'    => 'nullable|string',
             'reservationStatus'  => 'required|in:Reserved,Confirmed,Checked-In,Checked-Out',
         ]);
+
+        $checkInDate  = \Carbon\Carbon::parse($validated['checkIn']);
+        $checkOutDate = \Carbon\Carbon::parse($validated['checkOut']);
+        $guest        = Guest::find($validated['guestId']);
+
+        if ($guest && $guest->id_number && IdNumberOverlapChecker::hasConflict($guest->id_number, $checkInDate, $checkOutDate)) {
+            return response()->json([
+                'message' => "This guest's Identification Document Number is already used on another reservation that overlaps these dates.",
+            ], 422);
+        }
 
         $reservation = DB::transaction(function () use ($validated, $request) {
             $room = Room::with('roomType')->where('room_number', $validated['roomNumber'])->firstOrFail();
@@ -278,21 +290,41 @@ class ReservationController extends Controller
     }
 
     /**
-     * Lightweight edit: guest name/phone/special requests only. No
-     * availability check, no charge changes — kept separate from Extend
-     * Stay / Move Room on purpose.
+     * Lightweight edit: guest name/phone/special requests, plus (new) the
+     * guest count (adults/children) — e.g. when more people join an existing
+     * stay. No availability/date changes here — those still go through
+     * Extend Stay / Move Room on purpose.
+     *
+     * Raising the guest count above what's already been charged for adds a
+     * NEW extra_person charge row scoped to the remaining nights only
+     * (today→check-out, or the full stay if not yet checked in) — existing
+     * charge rows are never touched, mirroring extend()/moveRoom()'s
+     * append-only ledger approach. Lowering the count does not auto-refund.
      */
     public function edit(Request $request, $id)
     {
         $validated = $request->validate([
-            'guestName'       => 'nullable|string|max:255',
-            'guestPhone'      => 'nullable|string|max:50',
+            'guestName'       => ['nullable', 'string', 'max:255', 'regex:' . \App\Support\ValidationPatterns::NAME],
+            'guestPhone'      => ['nullable', 'string', 'max:50', 'regex:' . \App\Support\ValidationPatterns::PHONE],
             'specialRequests' => 'nullable|string',
+            'adults'          => 'sometimes|integer|min:1',
+            'children'        => 'sometimes|integer|min:0',
         ]);
 
-        $reservation = Reservation::with('guest')->findOrFail($id);
+        $reservation = Reservation::with(['guest', 'roomType', 'additionalGuests'])->findOrFail($id);
 
-        DB::transaction(function () use ($reservation, $validated) {
+        if (array_key_exists('adults', $validated)) {
+            $requiredAdultProfiles = max(0, $validated['adults'] - 1);
+            $providedAdultProfiles = $reservation->additionalGuests->where('guest_type', 'Adult')->count();
+
+            if ($providedAdultProfiles > $requiredAdultProfiles) {
+                return response()->json([
+                    'message' => 'Cannot reduce adults below the number of additional guest profiles already recorded for this reservation.',
+                ], 422);
+            }
+        }
+
+        $chargeAdded = DB::transaction(function () use ($reservation, $validated) {
             if (!empty($validated['guestName'])) {
                 $reservation->guest_name = $validated['guestName'];
                 if ($reservation->guest) {
@@ -310,11 +342,95 @@ class ReservationController extends Controller
                 $reservation->special_requests = $validated['specialRequests'];
             }
 
+            $chargeAdded = null;
+            if (array_key_exists('adults', $validated) || array_key_exists('children', $validated)) {
+                $newAdults   = $validated['adults'] ?? $reservation->adults;
+                $newChildren = $validated['children'] ?? $reservation->children;
+                $chargeAdded = $this->applyGuestCountCharge($reservation, $newAdults, $newChildren);
+            }
+
             $reservation->save();
+
+            return $chargeAdded;
         });
 
         $reservation->load(['guest', 'roomType', 'payments', 'charges', 'additionalGuests.guest']);
-        return response()->json(['booking' => $reservation->toTableRow()]);
+        return response()->json([
+            'booking'     => $reservation->toTableRow(),
+            'chargeAdded' => $chargeAdded,
+        ]);
+    }
+
+    /**
+     * Nights left to charge for: from today (or check-in, if that's later)
+     * through check-out. Shared by edit()'s guest-count-increase charge so
+     * it never retroactively charges for nights already stayed.
+     */
+    private function remainingNights(Reservation $reservation): int
+    {
+        $today = Carbon::today();
+        $from  = $today->gt($reservation->check_in_date) ? $today : $reservation->check_in_date->copy();
+
+        return max(0, $from->diffInDays($reservation->check_out_date));
+    }
+
+    /**
+     * Updates adults/children on the (in-memory, not-yet-saved) reservation
+     * and, if the guest count increased, appends a new extra_person (+ tax)
+     * charge row for just the added person(s) over the remaining nights.
+     * Decreasing the count updates the stored adult/children columns but
+     * does not add a refund/adjustment row.
+     *
+     * @return array{amount: float, nights: int, addedCount: int}|null
+     */
+    private function applyGuestCountCharge(Reservation $reservation, int $newAdults, int $newChildren): ?array
+    {
+        $oldExtra = max(0, $reservation->adults + $reservation->children - 2);
+        $newExtra = max(0, $newAdults + $newChildren - 2);
+
+        $reservation->adults   = $newAdults;
+        $reservation->children = $newChildren;
+
+        if ($newExtra <= $oldExtra) {
+            return null;
+        }
+
+        $nights = $this->remainingNights($reservation);
+        if ($nights <= 0) {
+            return null;
+        }
+
+        $addedCount       = $newExtra - $oldExtra;
+        $extraRate        = (float) ($reservation->roomType->extra_person_rate ?? 0);
+        $addedExtraCharge = $addedCount * $extraRate * $nights;
+
+        if ($addedExtraCharge <= 0) {
+            return null;
+        }
+
+        $addedTax = $addedExtraCharge * 0.1;
+
+        ReservationCharge::create([
+            'reservation_id' => $reservation->reservation_id,
+            'charge_type'    => 'extra_person',
+            'description'    => "Extra person charge — {$addedCount} additional guest(s), {$nights} remaining night(s)",
+            'amount'         => $addedExtraCharge,
+        ]);
+
+        if ($addedTax > 0) {
+            ReservationCharge::create([
+                'reservation_id' => $reservation->reservation_id,
+                'charge_type'    => 'tax',
+                'description'    => 'Tax — added guest(s)',
+                'amount'         => $addedTax,
+            ]);
+        }
+
+        $reservation->extra_person_charge = (float) $reservation->extra_person_charge + $addedExtraCharge;
+        $reservation->tax_amount          = (float) $reservation->tax_amount + $addedTax;
+        $reservation->total_amount        = (float) $reservation->total_amount + $addedExtraCharge + $addedTax;
+
+        return ['amount' => $addedExtraCharge + $addedTax, 'nights' => $nights, 'addedCount' => $addedCount];
     }
 
     public function destroy($id)
@@ -528,7 +644,15 @@ public function moveRoom(Request $request, $id)
             }
 
             $reservation->update($shortenFields);
-            $oldBalance = $reservation->fresh(['charges', 'payments'])->remaining_amount;
+            // Raw, unclamped balance (charged - paid) — deliberately NOT using
+            // remaining_amount, which clamps to max(0, ...) and would hide a
+            // credit. If the guest already paid for the old room in full, the
+            // adjustment above leaves a negative balance here (a credit for
+            // the prepaid-but-unused nights), which then reduces the new
+            // reservation's charge down to just the rate difference instead
+            // of re-billing the full new-room rate on top of what was paid.
+            $reservationFresh = $reservation->fresh(['charges', 'payments']);
+            $oldBalance = $reservationFresh->charges->sum('amount') - $reservationFresh->payments->sum('amount');
 
             // Create the NEW reservation covering the rest of the stay in the new room.
             $newNights    = max(1, $today->diffInDays($newStayCheckOut));
@@ -538,7 +662,7 @@ public function moveRoom(Request $request, $id)
             $newRoomCharge  = $newNights * $newRate;
             $newExtraCharge = max(0, $totalGuests - 2) * $newExtraRate * $newNights;
             $newTax         = ($newRoomCharge + $newExtraCharge) * 0.1;
-            $carriedOver    = max(0, $oldBalance);
+            $carriedOver    = $oldBalance; // may be negative — a credit for nights already paid
 
             $newReservation = Reservation::create([
                 'guest_id'            => $reservation->guest_id,
@@ -565,11 +689,13 @@ public function moveRoom(Request $request, $id)
 
             $this->seedInitialCharges($newReservation, $newNights, $newRoomCharge, $newExtraCharge, $newTax);
 
-            if ($carriedOver > 0) {
+            if ($carriedOver != 0) {
                 ReservationCharge::create([
                     'reservation_id' => $newReservation->reservation_id,
                     'charge_type'    => 'carried_over',
-                    'description'    => "Balance carried from Reservation #{$reservation->reservation_id}",
+                    'description'    => $carriedOver > 0
+                        ? "Balance carried from Reservation #{$reservation->reservation_id}"
+                        : "Credit from Reservation #{$reservation->reservation_id} (prepaid nights)",
                     'amount'         => $carriedOver,
                 ]);
             }

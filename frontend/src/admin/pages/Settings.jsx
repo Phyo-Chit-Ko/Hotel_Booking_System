@@ -1,5 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import axios from "axios";
 import AdminLayout from "../layouts/AdminLayout";
+import { useAuth } from "../../context/AuthContext";
 import {
   FaUser,
   FaEnvelope,
@@ -11,35 +13,86 @@ import {
   FaEdit
 } from "react-icons/fa";
 
+const authHeaders = () => {
+  const token = sessionStorage.getItem("auth_token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
 export default function Settings() {
+  const { user: authUser, setUser: setAuthUser } = useAuth();
+
   const [user, setUser] = useState({
-    name: "Emily Johnson",
-    email: "reception@harborgrand.com",
-    phone: "+95 9 123 456 789",
-    role: "Receptionist",
-    status: "Active",
+    name: authUser?.name || "",
+    email: authUser?.email || "",
+    phone: authUser?.phone || "",
+    role: authUser?.role || "",
+    status: authUser?.status || "Active",
   });
 
   const [isEditing, setIsEditing] = useState(false);
   const [profileForm, setProfileForm] = useState({ ...user });
+  const [profileError, setProfileError] = useState("");
+  const [profileSaving, setProfileSaving] = useState(false);
 
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
   });
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState("");
+  const [passwordSaving, setPasswordSaving] = useState(false);
 
-  // Handle updates for Profile Edit Inputs
+  // Refresh from the server on mount so the page reflects the real,
+  // persisted account instead of only whatever was cached at login time.
+  useEffect(() => {
+    let active = true;
+    axios
+      .get("/api/user", { headers: authHeaders() })
+      .then((res) => {
+        if (!active) return;
+        const u = {
+          name: res.data.name || "",
+          email: res.data.email || "",
+          phone: res.data.phone || "",
+          role: res.data.role || "",
+          status: res.data.status || "Active",
+        };
+        setUser(u);
+        setProfileForm(u);
+      })
+      .catch(() => {
+        // stay with the AuthContext-seeded values if this fails
+      });
+    return () => { active = false; };
+  }, []);
+
   const handleProfileChange = (e) => {
     const { name, value } = e.target;
     setProfileForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Submit Profile Modifications
-  const handleSaveProfile = (e) => {
+  const handleSaveProfile = async (e) => {
     e.preventDefault();
-    setUser({ ...profileForm });
-    setIsEditing(false);
+    setProfileError("");
+    setProfileSaving(true);
+    try {
+      const res = await axios.put(
+        "/api/profile/update",
+        { name: profileForm.name, email: profileForm.email },
+        { headers: authHeaders() }
+      );
+      const updated = res.data.user;
+      const merged = { ...user, name: updated.name, email: updated.email, phone: profileForm.phone };
+      setUser(merged);
+      setIsEditing(false);
+      // Keep the shared auth context (Navbar, Sidebar, etc.) in sync.
+      setAuthUser?.((prev) => (prev ? { ...prev, name: updated.name, email: updated.email } : prev));
+    } catch (err) {
+      setProfileError(err.response?.data?.message || "Failed to update profile.");
+    } finally {
+      setProfileSaving(false);
+    }
   };
 
   const handlePasswordChange = (e) => {
@@ -47,11 +100,42 @@ export default function Settings() {
       ...passwordData,
       [e.target.name]: e.target.value,
     });
+    setPasswordError("");
+    setPasswordSuccess("");
   };
 
-  const handleUpdatePassword = () => {
-    alert("Password updated successfully!");
-    setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+  const handleUpdatePassword = async () => {
+    setPasswordError("");
+    setPasswordSuccess("");
+
+    if (!passwordData.currentPassword || !passwordData.newPassword) {
+      setPasswordError("Enter your current password and a new password.");
+      return;
+    }
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setPasswordError("New password and confirmation do not match.");
+      return;
+    }
+
+    setPasswordSaving(true);
+    try {
+      await axios.put(
+        "/api/profile/update",
+        {
+          name: user.name,
+          email: user.email,
+          old_password: passwordData.currentPassword,
+          new_password: passwordData.newPassword,
+        },
+        { headers: authHeaders() }
+      );
+      setPasswordSuccess("Password updated successfully!");
+      setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    } catch (err) {
+      setPasswordError(err.response?.data?.message || "Failed to update password.");
+    } finally {
+      setPasswordSaving(false);
+    }
   };
 
   return (
@@ -87,7 +171,7 @@ export default function Settings() {
 
           {/* Right Panel: Dynamic Informative or Editing Interactive Frame */}
           <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
-            
+
             {!isEditing ? (
               /* VIEW MODE DISPLAY SUB-PANEL */
               <div>
@@ -95,8 +179,8 @@ export default function Settings() {
                   <h3 className="text-xl font-bold text-slate-800">
                     Profile Information
                   </h3>
-                  <button 
-                    onClick={() => { setProfileForm({ ...user }); setIsEditing(true); }}
+                  <button
+                    onClick={() => { setProfileForm({ ...user }); setProfileError(""); setIsEditing(true); }}
                     className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-slate-950 hover:bg-slate-900 rounded-xl shadow-md transition"
                   >
                     <FaEdit size={14} /> Edit Profile
@@ -137,7 +221,7 @@ export default function Settings() {
                     <h3 className="text-xl font-bold text-slate-800">Update Profile</h3>
                     <p className="text-xs text-slate-400 mt-0.5">Modify account information details below.</p>
                   </div>
-                  <button 
+                  <button
                     type="button"
                     onClick={() => setIsEditing(false)}
                     className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition"
@@ -145,6 +229,10 @@ export default function Settings() {
                     <FaTimes size={16} />
                   </button>
                 </div>
+
+                {profileError && (
+                  <div className="bg-red-50 border border-red-100 text-red-700 text-sm px-4 py-3 rounded-xl">{profileError}</div>
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   {/* Full Name Input */}
@@ -203,9 +291,10 @@ export default function Settings() {
                   </button>
                   <button
                     type="submit"
-                    className="flex items-center gap-2 px-6 py-2.5 bg-slate-950 hover:bg-slate-900 text-white font-semibold text-sm rounded-xl shadow-md transition-all"
+                    disabled={profileSaving}
+                    className="flex items-center gap-2 px-6 py-2.5 bg-slate-950 hover:bg-slate-900 disabled:opacity-60 text-white font-semibold text-sm rounded-xl shadow-md transition-all"
                   >
-                    <FaSave size={14} /> Save Changes
+                    <FaSave size={14} /> {profileSaving ? "Saving…" : "Save Changes"}
                   </button>
                 </div>
               </form>
@@ -222,6 +311,13 @@ export default function Settings() {
               Change Password
             </h3>
           </div>
+
+          {passwordError && (
+            <div className="bg-red-50 border border-red-100 text-red-700 text-sm px-4 py-3 rounded-xl mb-5">{passwordError}</div>
+          )}
+          {passwordSuccess && (
+            <div className="bg-emerald-50 border border-emerald-100 text-emerald-700 text-sm px-4 py-3 rounded-xl mb-5">{passwordSuccess}</div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             <div className="flex flex-col">
@@ -270,10 +366,11 @@ export default function Settings() {
           <button
             type="button"
             onClick={handleUpdatePassword}
-            className="mt-6 bg-slate-950 hover:bg-slate-900 text-white px-6 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 shadow-md transition-all"
+            disabled={passwordSaving}
+            className="mt-6 bg-slate-950 hover:bg-slate-900 disabled:opacity-60 text-white px-6 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 shadow-md transition-all"
           >
             <FaSave />
-            Update Password
+            {passwordSaving ? "Updating…" : "Update Password"}
           </button>
         </div>
 

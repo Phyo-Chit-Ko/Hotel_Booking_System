@@ -14,8 +14,11 @@ import {
   FaEye,
 } from "react-icons/fa";
 import { STATUS_META, STATUS_ORDER, FALLBACK_STATUS_META } from "../constants/roomStatus";
+import { useAuth } from "../../context/AuthContext";
 
 export default function RoomManagement() {
+  const { user } = useAuth();
+  const canWrite = (user?.role || "").toLowerCase() === "manager";
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [rooms, setRooms] = useState([]);
   const [roomTypes, setRoomTypes] = useState([]);
@@ -271,12 +274,14 @@ export default function RoomManagement() {
           </div>
 
           {/* Add Room Black Button */}
-          <button
-            onClick={handleOpenAddModal}
-            className="flex items-center justify-center gap-1.5 h-10 px-4 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 active:scale-[0.98] transition rounded-xl shadow-sm"
-          >
-            <FaPlus className="w-2.5 h-2.5" /> Add Room
-          </button>
+          {canWrite && (
+            <button
+              onClick={handleOpenAddModal}
+              className="flex items-center justify-center gap-1.5 h-10 px-4 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 active:scale-[0.98] transition rounded-xl shadow-sm"
+            >
+              <FaPlus className="w-2.5 h-2.5" /> Add Room
+            </button>
+          )}
 
         </div>
 
@@ -348,8 +353,9 @@ export default function RoomManagement() {
                       <div className="relative w-36">
                         <select
                           value={room.status}
+                          disabled={!canWrite}
                           onChange={(e) => handleChangeStatus(room.room_number, e.target.value)}
-                          className="w-full h-8 appearance-none bg-white border border-slate-200 rounded-lg pl-2.5 pr-7 text-xs font-medium text-slate-700 outline-none focus:ring-2 focus:ring-slate-500/20 focus:border-slate-500 cursor-pointer transition-all"
+                          className="w-full h-8 appearance-none bg-white border border-slate-200 rounded-lg pl-2.5 pr-7 text-xs font-medium text-slate-700 outline-none focus:ring-2 focus:ring-slate-500/20 focus:border-slate-500 cursor-pointer transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {STATUS_ORDER.map((s) => (
                             <option key={s} value={s}>{s}</option>
@@ -370,18 +376,22 @@ export default function RoomManagement() {
                         >
                           <FaEye className="w-3.5 h-3.5" />
                         </button>
-                        <button
-                          onClick={() => handleOpenEditModal(room)}
-                          className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md transition"
-                        >
-                          <FaEdit className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteRoom(room.room_number)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition"
-                        >
-                          <FaTrash className="w-3.5 h-3.5" />
-                        </button>
+                        {canWrite && (
+                          <>
+                            <button
+                              onClick={() => handleOpenEditModal(room)}
+                              className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md transition"
+                            >
+                              <FaEdit className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteRoom(room.room_number)}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition"
+                            >
+                              <FaTrash className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
