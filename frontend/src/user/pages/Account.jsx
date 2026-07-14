@@ -4,22 +4,34 @@ import axios from "axios"; // Ensure you ran 'npm install axios'
 import "./Account.css";
 import { useAuth } from "../../context/AuthContext";
 import Swal from "sweetalert2";
- 
+import {useLocation} from "react-router-dom";
+
 export default function Account() {
-  const [isLogin, setIsLogin] = useState(true);
-  const [formData, setFormData] = useState({ name: "", email: "", password: "" });
+  const handleGoogleLogin = () => {
+    // This will redirect the browser to your Laravel backend
+    window.location.href = "http://localhost:8000/api/auth/google/redirect";
+};
+const location = useLocation();
+ 
+  const [formData, setFormData] = useState({ name: "",phone: "", email: "", password: "" });
   const [errors, setErrors] = useState({
   name: "",
+  phone: "",
   email: "",
   password: "",
 });
+const [isLogin, setIsLogin] = useState(location.state?.forceLogin || true);
+
+const [email,setEmail]=useState(
+location.state?.email || ""
+);
   const navigate = useNavigate();
-  const { setUser } = useAuth();
+  const { login, setUser } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
- 
+
   const validateRegister = () => {
   let newErrors = {};
- 
+
   // Name
   if (!formData.name.trim()) {
     newErrors.name = "Full name is required.";
@@ -28,7 +40,15 @@ export default function Account() {
   } else if (!/^[A-Za-z ]+$/.test(formData.name)) {
     newErrors.name = "Name can contain only letters and spaces.";
   }
- 
+
+
+  // Add inside validateRegister()
+if (!formData.phone.trim()) {
+  newErrors.phone = "Phone number is required.";
+} else if (!/^\+?[0-9]{7,15}$/.test(formData.phone)) {
+  newErrors.phone = "Please enter a valid phone number.";
+}
+
   // Email
   if (!formData.email.trim()) {
     newErrors.email = "Email is required.";
@@ -37,7 +57,7 @@ export default function Account() {
   ) {
     newErrors.email = "Please enter a valid email address.";
   }
- 
+
   // Password
   if (!formData.password) {
     newErrors.password = "Password is required.";
@@ -53,106 +73,85 @@ export default function Account() {
     newErrors.password =
       "Password must contain at least one special character.";
   }
- 
+
   setErrors(newErrors);
- 
+
   return Object.keys(newErrors).length === 0;
 };
- 
- const handleSubmit = async (e) => {
-    e.preventDefault();
- 
-    // Validate only when registering
-if (!isLogin) {
-  if (!validateRegister()) {
-    return;
-  }
-}
- 
-    try {
-      await axios.get("/sanctum/csrf-cookie");
- 
-      if (isLogin) {
-        const response = await axios.post("/api/login", {
-          email: formData.email,
-          password: formData.password,
+const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  if (!isLogin && !validateRegister()) return;
+
+  try {
+    // 1. Get CSRF Cookie
+    await axios.get("http://localhost:8000/sanctum/csrf-cookie");
+
+    if (isLogin) {
+      const response = await axios.post("http://localhost:8000/api/login", {
+        email: formData.email,
+        password: formData.password,
+      });
+
+      if (response.data.success) {
+        // USE THE CONTEXT LOGIN - This is the ONLY thing you need to call
+        login(response.data.user, response.data.token);
+
+        await Swal.fire({
+          icon: "success",
+          title: "Login Successful!",
+          text: `Welcome back, ${response.data.user.name}!`,
+          timer: 1800,
+          showConfirmButton: false,
         });
- 
-        // Ensure response.data.user contains { name, role, ... }
-        if (response.data.success) {
-          const userData = response.data.user;
-          console.log("Setting user state to:", userData); // DEBUG: Check console
-         
-          setUser(userData); // This triggers the Navbar update
-          sessionStorage.setItem("auth_token", response.data.token);
 
-          if (userData.must_change_password) {
-            await Swal.fire({
-              icon: "info",
-              title: "Password Change Required",
-              text: "Please change your password before continuing.",
-              width: "320px",
-              padding: "1em",
-              confirmButtonColor: "#28a745",
-              confirmButtonText: "OK",
-            });
-            navigate("/force-change-password");
-            return;
-          }
-
-          await Swal.fire({
-  icon: "success",
-  title: "Login Successful!",
-  text: `Welcome back, ${userData.name}!`,
-  width: "320px",          // Smaller popup
-  padding: "1em",
-  confirmButtonColor: "#28a745",
-  confirmButtonText: "OK",
-  timer: 1800,
-  timerProgressBar: true,
-  showConfirmButton: false,
-});
-
-          const role = (userData.role || "").toLowerCase();
-          if (["admin", "manager", "receptionist"].includes(role)) {
-            navigate("/admin/dashboard"); // no separate per-role dashboard route exists in App.jsx — sending everyone with admin-panel access to the same dashboard
-          } else {
-            navigate("/homepage");
-          }
-        }
-      } else {
-        const response = await axios.post("/api/register", {
-          name: formData.name,
-          email: formData.email,
-          password: formData.password,
-        });
- 
-        if (response.data.success) {
-         Swal.fire({
-  icon: "success",
-  title: "Registration Successful!",
-  text: "Your account has been created successfully.",
-  width: "320px",
-  padding: "1em",
-  confirmButtonColor: "#28a745",
-  confirmButtonText: "OK",
-});
-          setIsLogin(true);
-        }
+        const { role } = response.data.user;
+        console.log("LOGIN ROLE:", role);
+        if (role === 'manager' || role === 'reception') navigate("/admin/dashboard");
+        else navigate("/homepage");
       }
-    } catch (error) {
-  console.log(error);
-  console.log(error.response);
- 
-  alert(JSON.stringify(error.response?.data || error.message));
-}
-  };
- 
+    } else {
+      // Registration flow
+      const response = await axios.post("/api/auth/initiate-registration", {
+        name: formData.name,
+        phone: formData.phone,
+        email: formData.email,
+        password: formData.password,
+      });
+
+      if (response.data.success) {
+
+           login(response.data.user, response.data.token);
+
+    console.log(
+      "AFTER LOGIN TOKEN:",
+      sessionStorage.getItem("auth_token")
+    );
+
+    console.log(
+      "AFTER LOGIN USER:",
+      sessionStorage.getItem("user")
+    );
+
+        Swal.fire({ icon: "success", title: "Registration Successful!", text: "Please verify your email." });
+        navigate("/verify-email", { state: { email: formData.email } });
+      }
+    }
+  } catch (error) {
+    console.error("Login/Reg Error:", error.response?.data);
+    Swal.fire({
+      icon: "error",
+      title: "Oops...",
+      text: error.response?.data?.message || "Something went wrong.",
+    });
+  }
+};
+
   return (
     <div className="account-page">
       <div className="auth-card">
         <h2>{isLogin ? "Welcome Back" : "Create Account"}</h2>
- 
+
         <form onSubmit={handleSubmit}>
           {!isLogin && (
             <div className="form-row">
@@ -162,19 +161,36 @@ if (!isLogin) {
   value={formData.name}
   onChange={(e) => {
     setFormData({ ...formData, name: e.target.value });
- 
+
     if (errors.name) {
       setErrors({ ...errors, name: "" });
     }
   }}
 />
- 
+
 {errors.name && (
   <small className="error">{errors.name}</small>
 )}
             </div>
           )}
- 
+
+          {!isLogin && (
+  <div className="form-row">
+    <label>Phone Number</label>
+    <input
+      type="tel"
+      value={formData.phone}
+      onChange={(e) => {
+        // Only allow numbers and +
+        const val = e.target.value.replace(/[^0-9+]/g, "");
+        setFormData({ ...formData, phone: val });
+        if (errors.phone) setErrors({ ...errors, phone: "" });
+      }}
+    />
+    {errors.phone && <small className="error">{errors.phone}</small>}
+  </div>
+)}
+
           <div className="form-row">
             <label>Email</label>
             <input
@@ -182,34 +198,34 @@ if (!isLogin) {
   value={formData.email}
   onChange={(e) => {
     setFormData({ ...formData, email: e.target.value });
- 
+
     if (errors.email) {
       setErrors({ ...errors, email: "" });
     }
   }}
 />
- 
+
 {errors.email && (
   <small className="error">{errors.email}</small>
 )}
           </div>
- 
+
          <div className="form-row">
   <label>Password</label>
- 
+
   <div className="password-wrapper">
     <input
       type={showPassword ? "text" : "password"}
       value={formData.password}
       onChange={(e) => {
         setFormData({ ...formData, password: e.target.value });
- 
+
         if (errors.password) {
           setErrors({ ...errors, password: "" });
         }
       }}
     />
- 
+
     <span
       className="toggle-password"
       onClick={() => setShowPassword(!showPassword)}
@@ -217,16 +233,16 @@ if (!isLogin) {
       {showPassword ? "🙈" : "👁️"}
     </span>
   </div>
- 
+
   {errors.password && (
     <small className="error">{errors.password}</small>
   )}
 </div>
- 
+
            <button type="submit" className="submit-btn">
   {isLogin ? "Login" : "REGISTER"}
 </button>
- 
+
 {isLogin && (
   <div className="forgot-password">
     <span onClick={() => navigate("/forgot-password")}>
@@ -238,9 +254,17 @@ if (!isLogin) {
         <div className="divider">
           <span>OR</span>
         </div>
- 
+
         {/* Google Login */}
-        <button className="google-btn" type="button">
+       <button 
+  className="google-btn" 
+  type="button" 
+  onClick={() => {
+    // This forces the browser to leave your React app 
+    // and go to your Laravel backend Google route
+    window.location.href = "http://localhost:8000/api/auth/google/redirect";
+  }}
+>
           <svg
             width="20"
             height="20"
@@ -266,7 +290,7 @@ if (!isLogin) {
           </svg>
           Continue with Google
         </button>
- 
+
         <p
           className="toggle-text"
           onClick={() => setIsLogin(!isLogin)}
@@ -279,4 +303,3 @@ if (!isLogin) {
     </div>
   );
 }
- 

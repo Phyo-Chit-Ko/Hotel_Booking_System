@@ -176,7 +176,19 @@ export default function Dashboard() {
             </div>
 
             <div className="flex items-stretch gap-3">
-              
+              <div className="h-11 flex items-stretch bg-slate-100 rounded-xl border border-slate-200 p-1 gap-1">
+                {[7, 30].map((r) => (
+                  <button
+                    key={r}
+                    onClick={() => setRange(r)}
+                    className={`px-4 rounded-lg text-sm font-semibold transition ${
+                      range === r ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                    }`}
+                  >
+                    {r}d
+                  </button>
+                ))}
+              </div>
 
               <button
                 onClick={() => setIsModalOpen(true)}

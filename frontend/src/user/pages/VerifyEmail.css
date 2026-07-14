@@ -1,0 +1,92 @@
+/* --- Compact & Smart Form Styles --- */
+.verify-container {
+    width: 100%;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #222324;
+    padding: 20px;
+}
+
+.verify-card {
+    width: 100%;
+    max-width: 400px;
+    background: #2a2828;
+    padding: 40px;
+    border-radius: 20px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* This centers everything horizontally */
+   
+}
+
+.verify-icon {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 70px;
+    height: 70px;
+    font-size: 42px;
+    background: #f4f7fe; /* Optional: background for the icon circle */
+    border-radius: 50%;   /* Makes the icon background circular */
+    margin-bottom: 20px;
+    color: #c79b56;       /* Icon color */
+}
+
+.verify-input {
+    width: 100%;
+    height: 50px;
+    border: 2px solid #464343;
+    border-radius: 10px;
+    padding: 0 15px;
+    font-size: 18px;
+    margin-bottom: 20px;
+    transition: 0.3s;
+}
+
+.verify-input:focus {
+    border-color: #c79b56;
+    outline: none;
+}
+
+.otp-input {
+    letter-spacing: 10px;
+    text-align: center;
+    font-weight: 700;
+}
+
+.verify-submit-btn {
+    width: 100%;
+    height: 50px;
+    border: none;
+    border-radius: 10px;
+    background: #c79b56;
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.verify-submit-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+.verify-resend-link {
+    background: none;
+    border: none;
+    color: #ebd4af;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.verify-subtitle {
+    font-size: 17px;
+    line-height: 1.7;
+    margin-bottom: 30px; /* Updated to 30px as requested */
+    color: #e2dddd;         /* Optional: softer color for better contrast */
+}

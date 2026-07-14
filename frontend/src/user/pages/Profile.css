@@ -1,7 +1,8 @@
 .profile-wrapper {
   display: flex;
-  height: 100vh;
-  background: linear-gradient(135deg, #0f172a, #1e293b);
+  min-height: 100vh;
+  width: 100%;
+  background: linear-gradient(135deg, #0b1220, #111c33);
   font-family: "Segoe UI", sans-serif;
 }
 
@@ -16,7 +17,8 @@
 }
 
 .brand-box h1 {
-  font-size: 42px;
+  font-size: 44px;
+  font-weight: 700;
   color: #d4af37;
   margin-bottom: 10px;
 }
@@ -24,56 +26,111 @@
 .brand-box p {
   color: #cbd5e1;
   font-size: 16px;
+  opacity: 0.9;
 }
 
 .side-info {
   margin-top: 40px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
   color: #94a3b8;
+  font-size: 14px;
 }
 
-/* RIGHT PANEL */
+/* RIGHT SIDE */
 .profile-right {
   flex: 1;
   display: flex;
   justify-content: center;
   align-items: center;
+  padding: 20px;
 }
 
-/* MAIN CARD (GLASS EFFECT) */
+/* MAIN CARD */
 .profile-card {
-  width: 420px;
-  padding: 30px;
-  border-radius: 18px;
+  width: 440px;
+  padding: 28px;
 
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(15px);
+  border-radius: 22px;
 
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(18px);
+
+  border: 1px solid rgba(255, 255, 255, 0.12);
+
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
+
   color: white;
-
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
 }
 
-/* HEADER */
+/* HEADER ROW */
+.header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+/* BACK BUTTON (SMART DESIGN) */
+.back-btn {
+  width: 100px;
+  height: 34px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 8px;
+
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+
+  color: white;
+  font-size: 14px;
+
+  cursor: pointer;
+}
+
+.back-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  transform: translateX(-2px);
+}
+
+.back-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateX(-3px);
+}
+
+/* TOP BAR (AVATAR + TEXT CENTER FIX) */
 .top-bar {
   display: flex;
-  gap: 15px;
   align-items: center;
+  gap: 14px;
 }
 
+/* AVATAR (FIXED PERFECT CENTER) */
 .avatar {
-  font-size: 34px;
-  background: #d4af37;
-  padding: 10px;
+  width: 58px;
+  height: 58px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 26px;
+
+  background: linear-gradient(135deg, #d4af37, #f5d76e);
   border-radius: 50%;
-  color: black;
+  color: #111;
+
+  box-shadow: 0 10px 25px rgba(212, 175, 55, 0.4);
 }
 
+/* TEXT */
 .top-bar h2 {
   margin: 0;
+  font-size: 20px;
 }
 
 .top-bar span {
@@ -84,133 +141,133 @@
 /* GOLD LINE */
 .gold-line {
   height: 2px;
+  margin: 18px 0;
+
   background: linear-gradient(to right, #d4af37, transparent);
-  margin: 20px 0;
+  border-radius: 10px;
 }
 
 /* FORM */
 .form {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
-label {
+/* LABEL (ONLY INSIDE CARD = NO ADMIN CONFLICT) */
+.profile-card label {
   font-size: 12px;
   color: #cbd5e1;
   letter-spacing: 1px;
 }
 
+/* INPUT */
 .input-box input {
   width: 100%;
-  padding: 12px;
-  border-radius: 10px;
-  border: none;
+  padding: 12px 14px;
 
-  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.15);
+
+  background: rgba(0,0,0,0.25);
   color: white;
 
   outline: none;
+  transition: 0.3s;
 }
 
-.input-box input:disabled {
-  opacity: 0.6;
+.input-box input:focus {
+  border-color: #d4af37;
+  box-shadow: 0 0 10px rgba(212,175,55,0.2);
 }
 
-/* BUTTONS */
-.actions {
-  margin-top: 20px;
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.btn {
-  flex: 1;
-  padding: 10px;
-  border-radius: 10px;
-  border: none;
-  cursor: pointer;
-  font-weight: bold;
-}
-
-.edit {
-  background: #6bf86e;
-  color: black;
-}
-
-.save {
-  background: #22c55e;
-  color: white;
-}
-
-.logout {
-  background: #ef4444;
-  color: white;
-}
-
-/* SECURITY NOTE */
-.security-note {
-  margin-top: 20px;
-  font-size: 12px;
-  color: #cbd5e1;
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
-
-/* BACK BUTTON */
-.header-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 10px;
-}
-
-.back-btn {
-  background: transparent;
-  border: 1px solid rgba(255,255,255,0.3);
-  color: white;
-  padding: 6px 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: 0.2s;
-}
-
-.back-btn:hover {
-  background: rgba(255,255,255,0.1);
-}
-
-/* PASSWORD TOGGLE */
+/* PASSWORD BOX */
 .password-box {
   position: relative;
-  display: flex;
-  align-items: center;
 }
 
 .eye-icon {
   position: absolute;
   right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+
   cursor: pointer;
   font-size: 18px;
   opacity: 0.8;
-  user-select: none;
 }
 
 .eye-icon:hover {
   opacity: 1;
 }
-.btn.bookings {
-  background-color: #f39c12; /* Or your preferred gold/accent color */
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  cursor: pointer;
-  border-radius: 5px;
-  margin: 5px;
-  transition: background 0.3s;
+
+/* BUTTON AREA */
+.actions {
+  margin-top: 18px;
+  display: flex;
+  gap: 10px;
 }
 
-.btn.bookings:hover {
-  background-color: #d68910;
+/* BUTTON BASE */
+.btn {
+  flex: 1;
+  padding: 11px;
+
+  border-radius: 12px;
+  border: none;
+
+  font-weight: 600;
+  cursor: pointer;
+
+  transition: 0.3s;
+}
+
+/* EDIT */
+.edit {
+  background: linear-gradient(135deg, #d4af37, #f5d76e);
+  color: #111;
+}
+
+.edit:hover {
+  transform: translateY(-2px);
+}
+
+/* SAVE */
+.save {
+  background: #22c55e;
+  color: white;
+}
+
+.save:hover {
+  transform: translateY(-2px);
+}
+.btn.booking {
+    background: #c79b56;
+    color: white;
+}
+
+.btn.booking:hover {
+    background: #a97d3c;
+    transform: translateY(-2px);
+}
+
+/* LOGOUT */
+.logout {
+  background: #ef4444;
+  color: white;
+}
+
+.logout:hover {
+  transform: translateY(-2px);
+}
+
+/* FOOTER */
+.security-note {
+  margin-top: 18px;
+  font-size: 12px;
+  color: #cbd5e1;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  opacity: 0.9;
 }

@@ -21,6 +21,8 @@ class User extends Authenticatable
         'status',
         'role',
         'must_change_password',
+        'google_id',           // Add this
+        'email_verified_at',   // Add this
     ];
 
     protected $hidden = [

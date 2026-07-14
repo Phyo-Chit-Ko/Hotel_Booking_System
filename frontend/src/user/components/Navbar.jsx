@@ -136,7 +136,7 @@ export default function Navbar({ sidebarOpen, setSidebarOpen }) {
           ) : (
             <NavLink to="/account" className="account-link" onClick={closeMenu}>
               <FaSignInAlt className="nav-icon" />
-              <span>Login / Register</span>
+              <span>Account</span>
             </NavLink>
           )}
         </div>

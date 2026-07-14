@@ -2,6 +2,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
 import axios from "axios";
 import { FaChevronDown, FaCog, FaSignOutAlt, FaUserCircle, FaBars } from "react-icons/fa";
+import { FaChevronDown, FaCog, FaSignOutAlt, FaBars } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
 
 // Must match sidebar paths exactly
@@ -78,10 +79,11 @@ export default function Navbar({ onMenuClick }) {
 
       {/* User Menu */}
       <div className="relative flex-shrink-0" ref={dropdownRef}>
-        <button
-          onClick={() => setDropdown((o) => !o)}
-          className="flex items-center gap-2 sm:gap-3 hover:bg-slate-50 rounded-xl px-2 sm:px-3 py-2 transition-all group"
-        >
+       <button
+  type="button"
+  onClick={() => setDropdown((o) => !o)}
+  className="flex items-center gap-2 sm:gap-3 hover:bg-slate-50 rounded-xl px-2 sm:px-3 py-2 transition-all group"
+>
           {/* Avatar */}
           <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">
             A
@@ -100,9 +102,10 @@ export default function Navbar({ onMenuClick }) {
           />
         </button>
 
-        {/* Dropdown */}
-        {dropdownOpen && (
-          <div className="absolute right-0 top-full mt-2 w-52 bg-white border border-slate-100 rounded-2xl shadow-xl z-50 overflow-hidden">
+        
+      {/* Dropdown */}
+{dropdownOpen && (
+  <div className="absolute right-0 top-full mt-2 w-52 bg-white border border-slate-100 rounded-2xl shadow-xl z-50 overflow-hidden">
 
             {/* User info header */}
             <div className="px-4 py-3 border-b border-slate-100 bg-slate-50">
@@ -110,30 +113,46 @@ export default function Navbar({ onMenuClick }) {
               <p className="text-[11px] text-slate-400 mt-0.5">{user?.email || ""}</p>
             </div>
 
-            {/* Menu items */}
-            <div className="p-1.5 space-y-0.5">
-              <button
-                onClick={() => { setDropdown(false); window.location.href = "/admin/settings"; }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-700 hover:bg-slate-50 transition-colors font-medium"
-              >
-                <FaCog size={13} className="text-slate-400" />
-                Settings
-              </button>
+      <p className="text-[11px] text-slate-400 mt-0.5">
+        {user?.email || ""}
+      </p>
+    </div>
 
-            </div>
 
-            <div className="p-1.5 border-t border-slate-100">
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-rose-600 hover:bg-rose-50 transition-colors font-medium"
-              >
-                <FaSignOutAlt size={13} />
-                Log Out
-              </button>
-            </div>
+    {/* Menu items */}
+    <div className="p-1.5 space-y-0.5">
 
-          </div>
-        )}
+      <button
+        type="button"
+        onClick={() => {
+          setDropdown(false);
+          navigate("/admin/settings");
+        }}
+        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-700 hover:bg-slate-50 transition-colors font-medium"
+      >
+        <FaCog size={13} className="text-slate-400" />
+        Settings
+      </button>
+
+    </div>
+
+
+    {/* Logout */}
+    <div className="p-1.5 border-t border-slate-100">
+
+      <button
+        type="button"
+        onClick={handleLogout}
+        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-rose-600 hover:bg-rose-50 transition-colors font-medium"
+      >
+        <FaSignOutAlt size={13} />
+        Log Out
+      </button>
+
+    </div>
+
+  </div>
+)}
       </div>
     </div>
   );

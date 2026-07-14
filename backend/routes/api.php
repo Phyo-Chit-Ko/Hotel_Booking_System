@@ -15,6 +15,7 @@ use App\Http\Controllers\BookingController;
 use App\Http\Controllers\Api\ReservationGuestController;
 use App\Http\Controllers\Api\RestaurantItemController;
 use App\Http\Controllers\Api\NightAuditReportController;
+use App\Http\Controllers\Api\GoogleController;
 
 Route::middleware('api')->post('/login', [AuthController::class, 'login']);
 Route::middleware('auth:sanctum')->post('/logout', [AuthController::class, 'logout']);
@@ -70,7 +71,13 @@ Route::prefix('reservations')->group(function () {
 });
 Route::get('/bookings', [BookingController::class, 'index']);
 Route::post('/bookings', [BookingController::class, 'store']);
-Route::middleware('auth:sanctum')->put('/bookings/{id}', [BookingController::class, 'update']);
+Route::middleware('auth:sanctum')->group(function () {
+
+    Route::get('/bookings/{id}', [BookingController::class, 'show']);
+
+    Route::put('/bookings/{id}', [BookingController::class, 'update']);
+});
+Route::get('/my-bookings/{user_id}', [BookingController::class, 'myBookings']);
 
 // Secured — was previously unprotected, now requires an authenticated user
 Route::middleware('auth:sanctum')->put('/profile/update', [ProfileController::class, 'update']);
@@ -110,3 +117,21 @@ Route::get('/restaurant-items', [RestaurantItemController::class, 'index']);
 
 
 Route::get('/night-audit-reports', [NightAuditReportController::class, 'index']);
+// Add these to your routes/api.php
+Route::prefix('auth')->group(function () {
+    Route::post('/initiate-registration', [AuthController::class, 'register']);
+    Route::post('/verify-email', [AuthController::class, 'verifyEmail']);
+    Route::post('/resend-code', [AuthController::class, 'resendCode']);
+});
+
+// Publicly accessible redirects/callbacks
+Route::get('/auth/google/redirect', [GoogleController::class, 'redirect']);
+Route::get('/auth/google/callback', [GoogleController::class, 'callback']);
+
+// Protected user route
+Route::middleware('auth:sanctum')->get('/google/user', function (Request $request) {
+    return response()->json([
+        'success' => true,
+        'user' => $request->user()
+    ]);
+});

@@ -9,12 +9,19 @@ import {
 // 🟢 Set this to your Laravel backend URL
 const BACKEND_URL = "http://localhost:8000";
 
+  FaTrash,
+  FaCreditCard,
+  FaMoneyBillWave,
+  FaWallet,
+} from "react-icons/fa";
+
 const METHOD_LABELS = {
   cash: "Cash",
   credit_card: "Credit Card",
   bank_transfer: "Bank Transfer",
   online: "Online",
 };
+
 
 const getCurrentMonth = () => new Date().toISOString().slice(0, 7);
 
@@ -24,6 +31,8 @@ const PaymentManagement = () => {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [showAddModal, setShowAddModal] = useState(false);
+
   // States for search and active multi-filters
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedMethod, setSelectedMethod] = useState("All");
@@ -40,11 +49,14 @@ const PaymentManagement = () => {
       const res = await fetch("/api/payments", { headers: { Accept: "application/json" } });
       if (!res.ok) throw new Error("Failed to load payments");
       const data = await res.json();
+
       const mapped = (data.payments || []).map((p) => ({
         ...p,
         proofUrl: p.proofPath ? `${BACKEND_URL}/storage/${p.proofPath}` : null,
       }));
       setPayments(mapped);
+      setPayments(data.payments || []);
+
     } catch (err) {
       setLoadError(err.message);
     } finally {
@@ -68,6 +80,13 @@ const PaymentManagement = () => {
   const grossCollections = payments
     .filter((p) => !selectedMonth || (p.date || "").slice(0, 7) === selectedMonth)
     .filter((p) => selectedMethod === "All" || p.paymentMethod === selectedMethod)
+  // Dynamic calculations for KPI summary section
+  const totalRevenue = payments.reduce((sum, item) => sum + item.amount, 0);
+  const cardTotal = payments
+    .filter((p) => p.paymentMethod === "credit_card")
+    .reduce((sum, p) => sum + p.amount, 0);
+  const onlineTotal = payments
+    .filter((p) => ["online", "bank_transfer"].includes(p.paymentMethod))
     .reduce((sum, p) => sum + p.amount, 0);
 
   // Advanced compound filtering logic
@@ -163,6 +182,15 @@ const PaymentManagement = () => {
                 <option value="bank_transfer">Bank Transfer</option>
               </select>
             </div>
+
+
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="h-11 px-5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-xl flex items-center justify-center gap-2 shadow-sm transition active:scale-95 ml-auto"
+            >
+              <FaPlus className="text-sm" />
+              <span>Add New</span>
+            </button>
           </div>
 
           {/* Nested Data Table Box */}
@@ -176,7 +204,7 @@ const PaymentManagement = () => {
                   <th className="px-5 py-3.5 font-medium">Payment Date</th>
                   <th className="px-5 py-3.5 font-medium">Amount</th>
                   <th className="px-5 py-3.5 font-medium">Payment Method</th>
-                  <th className="px-5 py-3.5 font-medium text-center">Proof</th>
+                  <th className="px-5 py-3.5 font-medium text-center">Comment</th>
                   <th className="px-5 py-3.5 font-medium">Handled By</th>
                 </tr>
               </thead>
@@ -296,7 +324,15 @@ const PaymentManagement = () => {
             </div>
           )}
 
+<<<<<<< HEAD
         </div>
+=======
+        <AddPaymentModal
+          isOpen={showAddModal}
+          onClose={() => setShowAddModal(false)}
+          onSave={() => loadPayments()}
+        />
+>>>>>>> origin/frontend_sht
       </div>
     </AdminLayout>
   );
