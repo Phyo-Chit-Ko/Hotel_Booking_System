@@ -4,16 +4,13 @@ import { useAuth } from "../../context/AuthContext";
 import {
   FaSearch,
   FaMoneyBillWave,
-} from "react-icons/fa";
-
-// 🟢 Set this to your Laravel backend URL
-const BACKEND_URL = "http://localhost:8000";
-
   FaTrash,
   FaCreditCard,
-  FaMoneyBillWave,
   FaWallet,
+  FaPlus,
 } from "react-icons/fa";
+
+const BACKEND_URL = "http://localhost:8000";
 
 const METHOD_LABELS = {
   cash: "Cash",
@@ -21,7 +18,6 @@ const METHOD_LABELS = {
   bank_transfer: "Bank Transfer",
   online: "Online",
 };
-
 
 const getCurrentMonth = () => new Date().toISOString().slice(0, 7);
 
@@ -33,14 +29,12 @@ const PaymentManagement = () => {
   const [loadError, setLoadError] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
 
-  // States for search and active multi-filters
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedMethod, setSelectedMethod] = useState("All");
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
 
-  // States for Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10; // adjust as needed
+  const itemsPerPage = 10;
 
   const loadPayments = useCallback(async () => {
     setLoading(true);
@@ -55,8 +49,6 @@ const PaymentManagement = () => {
         proofUrl: p.proofPath ? `${BACKEND_URL}/storage/${p.proofPath}` : null,
       }));
       setPayments(mapped);
-      setPayments(data.payments || []);
-
     } catch (err) {
       setLoadError(err.message);
     } finally {
@@ -68,19 +60,15 @@ const PaymentManagement = () => {
     loadPayments();
   }, [loadPayments]);
 
-  // Reset to page 1 whenever the search/filter criteria change,
-  // so we never get stuck on a page that no longer has any rows.
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, selectedMethod]);
 
-  // Gross Collections reflects the selected month AND the currently
-  // selected payment-method filter, so the figure always matches what's
-  // visible in the table below it.
   const grossCollections = payments
     .filter((p) => !selectedMonth || (p.date || "").slice(0, 7) === selectedMonth)
     .filter((p) => selectedMethod === "All" || p.paymentMethod === selectedMethod)
-  // Dynamic calculations for KPI summary section
+    .reduce((sum, p) => sum + p.amount, 0);
+
   const totalRevenue = payments.reduce((sum, item) => sum + item.amount, 0);
   const cardTotal = payments
     .filter((p) => p.paymentMethod === "credit_card")
@@ -89,7 +77,6 @@ const PaymentManagement = () => {
     .filter((p) => ["online", "bank_transfer"].includes(p.paymentMethod))
     .reduce((sum, p) => sum + p.amount, 0);
 
-  // Advanced compound filtering logic
   const filteredPayments = payments.filter((payment) => {
     const term = searchTerm.toLowerCase();
     const matchesSearch =
@@ -104,14 +91,12 @@ const PaymentManagement = () => {
     return matchesSearch && matchesMethod;
   });
 
-  // Pagination derived state
   const totalPages = Math.max(1, Math.ceil(filteredPayments.length / itemsPerPage));
   const paginatedPayments = filteredPayments.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage,
   );
 
-  // Badge style aligned with Booking page's getStatusStyle pattern
   const getMethodStyle = (method) => {
     switch (method) {
       case "credit_card":
@@ -130,8 +115,6 @@ const PaymentManagement = () => {
   return (
     <AdminLayout>
       <div className="w-full space-y-6 p-1">
-
-        {/* Statistics Panel */}
         <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex items-center justify-between gap-6 max-w-md">
           <div className="flex items-center gap-4">
             <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-100 text-xl text-slate-700">
@@ -153,10 +136,7 @@ const PaymentManagement = () => {
           />
         </div>
 
-        {/* Master Card Box Container (Matches Booking Layout) */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-5">
-
-          {/* Controls Horizontal Row */}
           <div className="flex items-center gap-3">
             <div className="relative w-[355px] h-11">
               <input
@@ -183,7 +163,6 @@ const PaymentManagement = () => {
               </select>
             </div>
 
-
             <button
               onClick={() => setShowAddModal(true)}
               className="h-11 px-5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-xl flex items-center justify-center gap-2 shadow-sm transition active:scale-95 ml-auto"
@@ -193,7 +172,6 @@ const PaymentManagement = () => {
             </button>
           </div>
 
-          {/* Nested Data Table Box */}
           <div className="overflow-x-auto border border-slate-100 rounded-xl">
             <table className="w-full border-collapse text-left text-sm text-slate-600">
               <thead className="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200">
@@ -247,8 +225,6 @@ const PaymentManagement = () => {
                         </span>
                       </td>
 
-                    
-
                       <td className="px-5 py-4 text-center">
                         {payment.proofUrl ? (
                           <a
@@ -269,8 +245,6 @@ const PaymentManagement = () => {
                       <td className="px-5 py-4 text-slate-500">
                         {payment.handledBy || "—"}
                       </td>
-
-                      
                     </tr>
                     );
                   })
@@ -285,7 +259,6 @@ const PaymentManagement = () => {
             </table>
           </div>
 
-          {/* Pagination Controls */}
           {!loading && !loadError && filteredPayments.length > 0 && (
             <div className="flex items-center justify-between px-1 pt-2">
               <p className="text-xs text-slate-400">
@@ -324,15 +297,7 @@ const PaymentManagement = () => {
             </div>
           )}
 
-<<<<<<< HEAD
         </div>
-=======
-        <AddPaymentModal
-          isOpen={showAddModal}
-          onClose={() => setShowAddModal(false)}
-          onSave={() => loadPayments()}
-        />
->>>>>>> origin/frontend_sht
       </div>
     </AdminLayout>
   );

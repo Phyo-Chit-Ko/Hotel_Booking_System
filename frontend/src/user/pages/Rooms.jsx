@@ -23,24 +23,6 @@ function describeRoom(room) {
   return `Comfortable accommodation for up to ${guests}${perkText}.`;
 }
 
-const BACKEND_URL = "http://localhost:8000";
-
-// Used only when a room type has no uploaded image yet, so the grid still looks presentable.
-const FALLBACK_IMAGES = [
-  "https://images.unsplash.com/photo-1618773928121-c32242e63f39?q=80&w=600&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1566665797739-1674de7a421a?q=80&w=600&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1590490360182-c33d57733427?q=80&w=600&auto=format&fit=crop",
-];
-
-function describeRoom(room) {
-  const perks = [];
-  if (room.breakfast) perks.push("complimentary breakfast");
-  if (room.bathtub) perks.push("a private bathtub");
-  const perkText = perks.length ? ` with ${perks.join(" and ")}` : "";
-  const guests = room.capacity === 1 ? "1 guest" : `${room.capacity} guests`;
-  return `Comfortable accommodation for up to ${guests}${perkText}.`;
-}
-
 export default function Rooms() {
   const navigate = useNavigate(); // Hook for navigation
   const { user } = useAuth();
@@ -163,25 +145,20 @@ export default function Rooms() {
 
     const data = new FormData();
 
-    // Loop and append every form state property securely
     Object.entries(formData).forEach(([key, value]) => {
-      // Blank child count means "no children" — send 0 instead of an empty string.
       data.append(key, key === "child" && value === "" ? 0 : value);
     });
 
     data.append("user_id", user.user_id);
-
-    // File payload mapped to match what Laravel's input validator expects ('payment_screenshot')
     data.append("payment_screenshot", paymentFile);
 
     setSubmitting(true);
 
     try {
-      // Sent directly to your unified API framework context endpoint
       const response = await fetch("http://localhost:8000/api/bookings", {
         method: "POST",
         headers: {
-          "Accept": "application/json", // Prevents the 302 Web Redirect loops when handling exceptions
+          "Accept": "application/json",
         },
         body: data,
       });
@@ -189,7 +166,6 @@ export default function Rooms() {
       const result = await response.json();
 
       if (!response.ok) {
-        // Parse custom field error structural tracking lists thrown by Laravel
         if (result.errors) {
           const errorMessages = Object.values(result.errors).flat().join("\n");
           throw new Error(errorMessages);
@@ -242,9 +218,7 @@ export default function Rooms() {
                   </div>
                   <div className="flip-card-back">
                     <h3 className="info-card-title">{room.title}</h3>
-
                     <p className="info-card-desc">{room.description}</p>
-
                     <div className="room-features">
                       {room.features.map((feature) => (
                         <div className="feature" key={feature.label}>
@@ -253,41 +227,30 @@ export default function Rooms() {
                         </div>
                       ))}
                     </div>
-
                     <button
-  className="book-now-btn"
-  onClick={() => {
-
-    if (!user) {
-
-      Swal.fire({
-  icon: "warning",
-  title: "Login Required",
-  text: "Please login before booking a room.",
-  confirmButtonText: "Go to Login"
-});
-
-      navigate("/account");
-
-      return;
-
-    }
-
-
-    setSelectedRoom(room);
-
-    setFormData((prev) => ({
-      ...prev,
-      room_type_id: room.id,
-      email: user.email || "",
-    }));
-
-    setShowForm(true);
-
-  }}
->
-  BOOK NOW
-</button>
+                      className="book-now-btn"
+                      onClick={() => {
+                        if (!user) {
+                          Swal.fire({
+                            icon: "warning",
+                            title: "Login Required",
+                            text: "Please login before booking a room.",
+                            confirmButtonText: "Go to Login"
+                          });
+                          navigate("/account");
+                          return;
+                        }
+                        setSelectedRoom(room);
+                        setFormData((prev) => ({
+                          ...prev,
+                          room_type_id: room.id,
+                          email: user.email || "",
+                        }));
+                        setShowForm(true);
+                      }}
+                    >
+                      BOOK NOW
+                    </button>
                   </div>
                 </div>
               </div>
@@ -302,7 +265,6 @@ export default function Rooms() {
             <h2>Book {selectedRoom?.title}</h2>
             <form onSubmit={handleSubmit}>
               <div className="form-columns">
-                {/* LEFT COLUMN — guest & stay details */}
                 <div className="form-col form-col-main">
                   <div className="form-grid">
                     <div className="field-group">
@@ -411,7 +373,6 @@ export default function Rooms() {
                       />
                     </div>
                   </div>
-
                   <div className="field-group">
                     <label>Special Requests</label>
                     <textarea
@@ -423,13 +384,11 @@ export default function Rooms() {
                   </div>
                 </div>
 
-                {/* RIGHT COLUMN — payment */}
                 <div className="form-col form-col-payment">
                   <div className="field-group">
                     <label>Deposit</label>
                     <input type="text" value="45$" readOnly className="read-only" />
                   </div>
-
                   <div className="field-group">
                     <label>Method*</label>
                     <select
@@ -459,16 +418,11 @@ export default function Rooms() {
 
                   <div className="field-group">
                     <label>Payment Screenshot*</label>
-
                     {!paymentFile ? (
                       <label className="file-dropzone">
                         <span className="file-dropzone-icon">📤</span>
-                        <span className="file-dropzone-text">
-                          Click or drag to upload
-                        </span>
-                        <span className="file-dropzone-hint">
-                          PNG / JPG, up to 5MB
-                        </span>
+                        <span className="file-dropzone-text">Click or drag to upload</span>
+                        <span className="file-dropzone-hint">PNG / JPG, up to 5MB</span>
                         <input
                           type="file"
                           accept="image/*"
@@ -488,9 +442,7 @@ export default function Rooms() {
                           <div className="file-preview-icon">📄</div>
                         )}
                         <div className="file-preview-info">
-                          <span className="file-preview-name">
-                            {paymentFile.name}
-                          </span>
+                          <span className="file-preview-name">{paymentFile.name}</span>
                           <span className="file-preview-size">
                             {(paymentFile.size / 1024).toFixed(1)} KB
                           </span>
