@@ -97,7 +97,8 @@ class RoomController extends Controller
 
         $rooms = Room::with('roomType')
             ->whereNotIn('room_number', $bookedRoomNumbers)
-            ->where('status', '!=', 'maintenance') // adjust to match your actual status values
+            ->whereNotIn('status', ['Maintenance', 'Cleaning'])
+            ->whereHas('roomType', fn ($q) => $q->where('status', 'Active'))
             ->get();
 
         return response()->json(['rooms' => $rooms]);

@@ -14,6 +14,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\Api\ReservationGuestController;
 use App\Http\Controllers\Api\RestaurantItemController;
+use App\Http\Controllers\Api\NightAuditReportController;
 
 Route::middleware('api')->post('/login', [AuthController::class, 'login']);
 Route::middleware('auth:sanctum')->post('/logout', [AuthController::class, 'logout']);
@@ -104,3 +105,8 @@ Route::patch('/reservations/{id}/extend', [ReservationController::class, 'extend
 Route::patch('/reservations/{id}/move-room', [ReservationController::class, 'moveRoom']);
 
 Route::get('/restaurant-items', [RestaurantItemController::class, 'index']);
+
+// routes/api.php
+
+
+Route::get('/night-audit-reports', [NightAuditReportController::class, 'index']);

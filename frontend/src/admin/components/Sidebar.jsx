@@ -46,6 +46,7 @@ export default function Sidebar({ isOpen = false, onClose }) {
         { name: "Room Type Management", path: "/admin/room-types", icon: <FaHotel /> },
         { name: "User Management", path: "/admin/user_management", icon: <FaUserShield /> },
         { name: "Restaurant", path: "/admin/restaurant", icon: <FaUtensils /> },
+        { name: "Reports", path: "/admin/reports", icon: <FaUtensils /> },
       ]
     }
   ]
@@ -158,19 +159,7 @@ export default function Sidebar({ isOpen = false, onClose }) {
           ))}
         </nav>
 
-        {/* Footer identity strip */}
-        <div className="shrink-0 px-4 py-4 border-t border-white/[0.06]">
-          <div className="flex items-center gap-3 px-2 py-2 rounded-xl bg-white/[0.03]">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 flex items-center justify-center font-bold text-xs shrink-0">
-              A
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-slate-200 text-xs font-semibold leading-tight truncate">System Admin</p>
-              <p className="text-slate-500 text-[10px] leading-tight">Administrator</p>
-            </div>
-            <span className="text-[9px] font-semibold text-slate-600 tracking-wide">v1.0</span>
-          </div>
-        </div>
+        
       </aside>
     </>
   );

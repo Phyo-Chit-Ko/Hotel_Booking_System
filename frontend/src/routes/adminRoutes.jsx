@@ -11,6 +11,7 @@ import Payments from "../admin/pages/Payments";
 import ExtraServices from "../admin/pages/ExtraServices";
 import Settings from "../admin/pages/Settings";
 import RestaurantManagement from "../admin/pages/RestaurantManagement";
+import Reports from "../admin/pages/Reports";
 import '../admin/admin.css';
 
 function AdminRoutes() {
@@ -43,6 +44,14 @@ function AdminRoutes() {
           element={
             <ProtectedRoute allowedRoles={["admin", "manager"]}>
               <RestaurantManagement />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="reports"
+          element={
+            <ProtectedRoute allowedRoles={["admin", "manager"]}>
+              <Reports />
             </ProtectedRoute>
           }
         />

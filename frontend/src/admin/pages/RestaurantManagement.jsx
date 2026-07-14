@@ -5,22 +5,16 @@ import { toast } from "react-hot-toast";
 import AdminLayout from "../layouts/AdminLayout";
 import { useAuth } from "../../context/AuthContext";
 import {
-  FaUtensils, FaCoins, FaClipboardList, FaPlus,
+  FaUtensils, FaClipboardList, FaPlus,
   FaEdit, FaTimes, FaSearch, FaCircle, FaTrash
 } from "react-icons/fa";
 
 export default function RestaurantManagement() {
   const { user } = useAuth();
   const canWrite = (user?.role || "").toLowerCase() === "manager";
-  // Default static dataset fallback records
-  const [menuItems, setMenuItems] = useState([
-    { item_id: 1, item_name: "Ribeye Steak with Garlic Butter", category: "Food", price: 38.50, status: "Available" },
-    { item_id: 2, item_name: "Club Sandwich with Fries", category: "Snack", price: 14.00, status: "Available" },
-    { item_id: 3, item_name: "Iced Caramel Macchiato", category: "Drink", price: 6.50, status: "Available" },
-    { item_id: 4, item_name: "Truffle Parmesan Fries", category: "Snack", price: 9.50, status: "Available" },
-    { item_id: 5, item_name: "Fresh Mint Mojito", category: "Drink", price: 8.00, status: "Out of Stock" },
-    { item_id: 6, item_name: "Matcha Cheesecake Slice", category: "Dessert", price: 10.50, status: "Available" }
-  ]);
+
+  // Data now comes entirely from the backend — no hardcoded fallback rows.
+  const [menuItems, setMenuItems] = useState([]);
   
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -136,6 +130,10 @@ export default function RestaurantManagement() {
     return matchesSearch && matchesCategory;
   });
 
+  // Dynamic stat values — both derived from the live menuItems dataset.
+  const totalMenuItems = menuItems.length;
+  const activeItemsCount = menuItems.filter((item) => item.status === "Available").length;
+
   return (
     <AdminLayout>
       {/* Container wrapper set up to structure viewport content rows seamlessly */}
@@ -145,13 +143,13 @@ export default function RestaurantManagement() {
         <div className="border-b border-slate-200 shrink-0"></div>
 
         {/* Analytics Metadata Metrics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 shrink-0">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-5 shrink-0">
           <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-xs flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="p-3.5 bg-amber-50 rounded-xl border border-amber-100 text-md text-amber-600"><FaUtensils /></div>
               <div>
                 <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Menu Items</p>
-                <h3 className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">{menuItems.length}</h3>
+                <h3 className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">{totalMenuItems}</h3>
               </div>
             </div>
           </div>
@@ -160,18 +158,8 @@ export default function RestaurantManagement() {
             <div className="flex items-center gap-4">
               <div className="p-3.5 bg-amber-50 rounded-xl border border-amber-100 text-md text-amber-600"><FaClipboardList /></div>
               <div>
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Active Restaurant Menus</p>
-                <h3 className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">2</h3>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-xs flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="p-3.5 bg-amber-50 rounded-xl border border-amber-100 text-md text-amber-600"><FaCoins /></div>
-              <div>
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">F&B Room Charge Total</p>
-                <h3 className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">$1,424.50</h3>
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Active Restaurant Items</p>
+                <h3 className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">{activeItemsCount}</h3>
               </div>
             </div>
           </div>
@@ -215,7 +203,7 @@ export default function RestaurantManagement() {
               {canWrite && (
                 <button
                   onClick={handleOpenAddModal}
-                  className="bg-[#1E293B] hover:bg-slate-800 text-white text-xs font-bold px-4 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm transition active:scale-95 ml-1.5 h-[30px]"
+                  className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm transition active:scale-95 ml-1.5 h-[30px]"
                 >
                   <FaPlus className="text-[10px]" />
                   <span className="whitespace-nowrap">Add New Item</span>

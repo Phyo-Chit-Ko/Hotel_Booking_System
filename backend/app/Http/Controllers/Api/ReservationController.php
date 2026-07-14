@@ -113,8 +113,21 @@ class ReservationController extends Controller
             ], 422);
         }
 
-        $reservation = DB::transaction(function () use ($validated, $request) {
-            $room = Room::with('roomType')->where('room_number', $validated['roomNumber'])->firstOrFail();
+        $room = Room::with('roomType')->where('room_number', $validated['roomNumber'])->firstOrFail();
+
+        if (in_array($room->status, ['Maintenance', 'Cleaning'], true)) {
+            return response()->json([
+                'message' => "Room {$room->room_number} is currently {$room->status} and cannot be booked.",
+            ], 422);
+        }
+
+        if (($room->roomType->status ?? 'Active') !== 'Active') {
+            return response()->json([
+                'message' => "The room type for Room {$room->room_number} is not currently available for booking.",
+            ], 422);
+        }
+
+        $reservation = DB::transaction(function () use ($validated, $request, $room) {
             $ratePerNight = (float) $room->roomType->base_price;
 
             $checkIn  = \Carbon\Carbon::parse($validated['checkIn']);
@@ -203,6 +216,11 @@ class ReservationController extends Controller
 
         $reservation->reservation_status = 'Checked-In';
         $reservation->save();
+
+        // Keep the room's own status in sync — Room Management otherwise
+        // keeps showing 'Available' for an occupied room.
+        Room::where('room_number', $reservation->room_number)->update(['status' => 'Occupied']);
+
         $reservation->load(['guest', 'roomType', 'payments', 'charges', 'additionalGuests.guest']);
 
         return $reservation;
@@ -243,7 +261,22 @@ class ReservationController extends Controller
             $reservation->checkout_override_by = $request->user()?->user_id;
         }
 
+        // If the guest is leaving before the planned check-out date, correct
+        // check_out_date (and nights, so it stays consistent with the date
+        // range) to reflect the actual departure day. Charges/total_amount
+        // are intentionally left untouched — early checkout is not an
+        // automatic refund.
+        $today = Carbon::today();
+        if ($today->lt($reservation->check_out_date)) {
+            $reservation->check_out_date = $today;
+            $reservation->nights = max(1, $reservation->check_in_date->diffInDays($today));
+        }
+
         $reservation->save();
+
+        // Free the room back up now that the guest has left.
+        Room::where('room_number', $reservation->room_number)->update(['status' => 'Available']);
+
         $reservation->load(['guest', 'roomType', 'payments', 'charges', 'additionalGuests.guest']);
 
         return response()->json(['booking' => $reservation->toTableRow()]);
@@ -681,7 +714,15 @@ public function moveRoom(Request $request, $id)
                 'room_charge'         => $newRoomCharge,
                 'extra_person_charge' => $newExtraCharge,
                 'tax_amount'          => $newTax,
-                'total_amount'        => $newRoomCharge + $newExtraCharge + $newTax + $carriedOver,
+                // Running total across BOTH legs of the stay: the old
+                // (already-shortened) reservation's total_amount + this
+                // leg's own new charges. Deliberately NOT $carriedOver here
+                // — that's the raw paid-vs-charged balance, not a total-cost
+                // figure, and mixing the two under/over-counts once any
+                // payment has been made on the old leg. remaining_amount
+                // is unaffected — it's driven purely by the carried_over
+                // ReservationCharge row created below.
+                'total_amount'        => (float) $reservation->total_amount + $newRoomCharge + $newExtraCharge + $newTax,
                 'deposit_amount'      => 0,
                 'reservation_status'  => 'Checked-In',
                 'created_by'          => $request->user()?->user_id ?? 1,
@@ -716,6 +757,11 @@ public function moveRoom(Request $request, $id)
                 'moved_at'           => $today->toDateTimeString(),
                 'reason'             => $validated['reason'],
             ]);
+
+            // Guest has physically left the old room and is now in the new
+            // one — sync both rooms' status.
+            Room::where('room_number', $oldRoomNum)->update(['status' => 'Available']);
+            Room::where('room_number', $newRoom->room_number)->update(['status' => 'Occupied']);
 
             return ['oldReservationId' => $reservation->reservation_id, 'newReservationId' => $newReservation->reservation_id];
         }

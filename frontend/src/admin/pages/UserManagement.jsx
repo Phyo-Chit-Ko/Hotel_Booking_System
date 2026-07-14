@@ -20,9 +20,19 @@ export default function UserManagement() {
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState(null);
 
+  // States for Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10; // adjust as needed
+
   useEffect(() => {
     fetchUsersFromDB();
   }, []);
+
+  // Reset to page 1 whenever the filtered result set changes,
+  // so we never get stuck on a page that no longer has any rows.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedRole]);
 
   const fetchUsersFromDB = async () => {
     try {
@@ -88,6 +98,13 @@ export default function UserManagement() {
 
     return matchesSearch && matchesRole;
   });
+
+  // Pagination derived state
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / itemsPerPage));
+  const paginatedUsers = filteredUsers.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage,
+  );
 
   return (
     <AdminLayout>
@@ -166,11 +183,12 @@ export default function UserManagement() {
                   </td>
                 </tr>
               ) : filteredUsers.length > 0 ? (
-                filteredUsers.map((user) => {
+                paginatedUsers.map((user, index) => {
                   const idToShow = user.user_id || user.id;
+                  const rowNumber = (currentPage - 1) * itemsPerPage + index + 1;
                   return (
                     <tr key={idToShow} className="hover:bg-slate-50/40 transition group">
-                      <td className="px-5 py-2 text-sm font-medium text-slate-400">#{idToShow}</td>
+                      <td className="px-5 py-2 text-sm font-medium text-slate-400">#{rowNumber}</td>
                       <td className="px-5 py-2 text-sm font-bold text-slate-800">{user.name}</td>
                       <td className="px-5 py-2 text-sm text-slate-500">{user.email}</td>
                       <td className="px-5 py-2 text-sm text-slate-500">{user.phone || "—"}</td>
@@ -231,6 +249,44 @@ export default function UserManagement() {
           </table>
         </div>
 
+        {/* Pagination Controls */}
+        {!loading && filteredUsers.length > 0 && (
+          <div className="flex items-center justify-between px-1 pt-2">
+            <p className="text-xs text-slate-400">
+              Showing {(currentPage - 1) * itemsPerPage + 1}
+              –{Math.min(currentPage * itemsPerPage, filteredUsers.length)} of {filteredUsers.length}
+            </p>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
+              >
+                Prev
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`w-8 h-8 text-xs font-semibold rounded-lg border transition ${
+                    page === currentPage
+                      ? "bg-slate-900 text-white border-slate-900"
+                      : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
 
       </div>
 

@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useCallback } from "react";
 import AdminLayout from "../layouts/AdminLayout";
-import AddPaymentModal from "../components/AddPaymentModal";
+import { useAuth } from "../../context/AuthContext";
 import {
-  FaPlus,
   FaSearch,
-  FaTrash,
-  FaCreditCard,
   FaMoneyBillWave,
-  FaWallet,
 } from "react-icons/fa";
+
+// 🟢 Set this to your Laravel backend URL
+const BACKEND_URL = "http://localhost:8000";
 
 const METHOD_LABELS = {
   cash: "Cash",
@@ -17,14 +16,22 @@ const METHOD_LABELS = {
   online: "Online",
 };
 
+const getCurrentMonth = () => new Date().toISOString().slice(0, 7);
+
 const PaymentManagement = () => {
+  const { user } = useAuth();
+  const canWrite = (user?.role || "").toLowerCase() === "manager";
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
-  const [showAddModal, setShowAddModal] = useState(false);
   // States for search and active multi-filters
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedMethod, setSelectedMethod] = useState("All");
+  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
+
+  // States for Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10; // adjust as needed
 
   const loadPayments = useCallback(async () => {
     setLoading(true);
@@ -33,7 +40,11 @@ const PaymentManagement = () => {
       const res = await fetch("/api/payments", { headers: { Accept: "application/json" } });
       if (!res.ok) throw new Error("Failed to load payments");
       const data = await res.json();
-      setPayments(data.payments || []);
+      const mapped = (data.payments || []).map((p) => ({
+        ...p,
+        proofUrl: p.proofPath ? `${BACKEND_URL}/storage/${p.proofPath}` : null,
+      }));
+      setPayments(mapped);
     } catch (err) {
       setLoadError(err.message);
     } finally {
@@ -45,13 +56,18 @@ const PaymentManagement = () => {
     loadPayments();
   }, [loadPayments]);
 
-  // Dynamic calculations for KPI summary section
-  const totalRevenue = payments.reduce((sum, item) => sum + item.amount, 0);
-  const cardTotal = payments
-    .filter((p) => p.paymentMethod === "credit_card")
-    .reduce((sum, p) => sum + p.amount, 0);
-  const onlineTotal = payments
-    .filter((p) => ["online", "bank_transfer"].includes(p.paymentMethod))
+  // Reset to page 1 whenever the search/filter criteria change,
+  // so we never get stuck on a page that no longer has any rows.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedMethod]);
+
+  // Gross Collections reflects the selected month AND the currently
+  // selected payment-method filter, so the figure always matches what's
+  // visible in the table below it.
+  const grossCollections = payments
+    .filter((p) => !selectedMonth || (p.date || "").slice(0, 7) === selectedMonth)
+    .filter((p) => selectedMethod === "All" || p.paymentMethod === selectedMethod)
     .reduce((sum, p) => sum + p.amount, 0);
 
   // Advanced compound filtering logic
@@ -68,6 +84,13 @@ const PaymentManagement = () => {
 
     return matchesSearch && matchesMethod;
   });
+
+  // Pagination derived state
+  const totalPages = Math.max(1, Math.ceil(filteredPayments.length / itemsPerPage));
+  const paginatedPayments = filteredPayments.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage,
+  );
 
   // Badge style aligned with Booking page's getStatusStyle pattern
   const getMethodStyle = (method) => {
@@ -89,43 +112,26 @@ const PaymentManagement = () => {
     <AdminLayout>
       <div className="w-full space-y-6 p-1">
 
-        {/* Statistics Panels */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-5">
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-100 text-xl text-slate-700">
-                <FaMoneyBillWave />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Gross Collections</p>
-                <h3 className="text-2xl font-semibold text-slate-900 tracking-tight mt-0.5">${totalRevenue.toFixed(2)}</h3>
-              </div>
+        {/* Statistics Panel */}
+        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex items-center justify-between gap-6 max-w-md">
+          <div className="flex items-center gap-4">
+            <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-100 text-xl text-slate-700">
+              <FaMoneyBillWave />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">
+                Gross Collections
+                {selectedMethod !== "All" ? ` · ${METHOD_LABELS[selectedMethod] || selectedMethod}` : ""}
+              </p>
+              <h3 className="text-2xl font-semibold text-slate-900 tracking-tight mt-0.5">${grossCollections.toFixed(2)}</h3>
             </div>
           </div>
-
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="p-3.5 bg-emerald-50 rounded-xl border border-emerald-100 text-xl text-emerald-600">
-                <FaCreditCard />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Card Processing</p>
-                <h3 className="text-2xl font-semibold text-slate-900 tracking-tight mt-0.5">${cardTotal.toFixed(2)}</h3>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="p-3.5 bg-amber-50 rounded-xl border border-amber-100 text-xl text-amber-600">
-                <FaWallet />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Digital & Alternate</p>
-                <h3 className="text-2xl font-semibold text-slate-900 tracking-tight mt-0.5">${onlineTotal.toFixed(2)}</h3>
-              </div>
-            </div>
-          </div>
+          <input
+            type="month"
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(e.target.value)}
+            className="h-9 px-3 border border-slate-200 rounded-lg text-xs text-slate-600 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 [color-scheme:light]"
+          />
         </div>
 
         {/* Master Card Box Container (Matches Booking Layout) */}
@@ -157,15 +163,6 @@ const PaymentManagement = () => {
                 <option value="bank_transfer">Bank Transfer</option>
               </select>
             </div>
-
-
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="h-11 px-5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-xl flex items-center justify-center gap-2 shadow-sm transition active:scale-95 ml-auto"
-            >
-              <FaPlus className="text-sm" />
-              <span>Add New</span>
-            </button>
           </div>
 
           {/* Nested Data Table Box */}
@@ -179,24 +176,25 @@ const PaymentManagement = () => {
                   <th className="px-5 py-3.5 font-medium">Payment Date</th>
                   <th className="px-5 py-3.5 font-medium">Amount</th>
                   <th className="px-5 py-3.5 font-medium">Payment Method</th>
-                  <th className="px-5 py-3.5 font-medium">Comment</th>
+                  <th className="px-5 py-3.5 font-medium text-center">Proof</th>
                   <th className="px-5 py-3.5 font-medium">Handled By</th>
-                  <th className="px-5 py-3.5 font-medium text-center">Actions</th>
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-slate-100">
                 {loading && (
-                  <tr><td colSpan="9" className="px-6 py-12 text-center text-sm text-slate-400">Loading payments…</td></tr>
+                  <tr><td colSpan="10" className="px-6 py-12 text-center text-sm text-slate-400">Loading payments…</td></tr>
                 )}
                 {!loading && loadError && (
-                  <tr><td colSpan="9" className="px-6 py-12 text-center text-sm text-red-500">{loadError}</td></tr>
+                  <tr><td colSpan="10" className="px-6 py-12 text-center text-sm text-red-500">{loadError}</td></tr>
                 )}
-                {!loading && !loadError && filteredPayments.length > 0 ? (
-                  filteredPayments.map((payment) => (
+                {!loading && !loadError && paginatedPayments.length > 0 ? (
+                  paginatedPayments.map((payment, index) => {
+                    const rowNumber = (currentPage - 1) * itemsPerPage + index + 1;
+                    return (
                     <tr key={payment.id} className="hover:bg-slate-50/70 transition-colors">
                       <td className="px-5 py-4 font-mono font-medium text-slate-900">
-                        #{payment.id}
+                        #{rowNumber}
                       </td>
 
                       <td className="px-5 py-4 font-mono font-medium text-slate-900">
@@ -221,35 +219,36 @@ const PaymentManagement = () => {
                         </span>
                       </td>
 
-                      <td className="px-5 py-4 text-xs text-slate-500 max-w-[220px] truncate" title={payment.comment || ""}>
-                        {payment.comment || "—"}
+                    
+
+                      <td className="px-5 py-4 text-center">
+                        {payment.proofUrl ? (
+                          <a
+                            href={payment.proofUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="bg-blue-50 text-blue-600 px-4 py-1.5 rounded-full text-xs font-bold hover:bg-blue-100 transition"
+                          >
+                            View
+                          </a>
+                        ) : (
+                          <span className="bg-slate-100 text-slate-500 px-4 py-1.5 rounded-full text-xs font-bold">
+                            Missing
+                          </span>
+                        )}
                       </td>
 
                       <td className="px-5 py-4 text-slate-500">
                         {payment.handledBy || "—"}
                       </td>
 
-                      <td className="px-5 py-4">
-                        <div className="flex justify-center items-center gap-1.5">
-                          <button
-                            className="px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium hover:bg-slate-100 transition active:scale-95"
-                            title="Edit Entry"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            className="p-2 rounded-lg bg-slate-50 border border-slate-200 text-rose-500 hover:bg-rose-50 transition active:scale-95"
-                            title="Delete Entry"
-                          >
-                            <FaTrash className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
+                      
                     </tr>
-                  ))
+                    );
+                  })
                 ) : (!loading && !loadError && (
                   <tr>
-                    <td colSpan="9" className="px-6 py-12 text-center text-sm text-slate-400">
+                    <td colSpan="10" className="px-6 py-12 text-center text-sm text-slate-400">
                       No matching historical payments or ledger records discovered.
                     </td>
                   </tr>
@@ -258,13 +257,46 @@ const PaymentManagement = () => {
             </table>
           </div>
 
-        </div>
+          {/* Pagination Controls */}
+          {!loading && !loadError && filteredPayments.length > 0 && (
+            <div className="flex items-center justify-between px-1 pt-2">
+              <p className="text-xs text-slate-400">
+                Showing {(currentPage - 1) * itemsPerPage + 1}
+                –{Math.min(currentPage * itemsPerPage, filteredPayments.length)} of {filteredPayments.length}
+              </p>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
+                >
+                  Prev
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`w-8 h-8 text-xs font-semibold rounded-lg border transition ${
+                      page === currentPage
+                        ? "bg-slate-900 text-white border-slate-900"
+                        : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
 
-        <AddPaymentModal
-          isOpen={showAddModal}
-          onClose={() => setShowAddModal(false)}
-          onSave={() => loadPayments()}
-        />
+        </div>
       </div>
     </AdminLayout>
   );

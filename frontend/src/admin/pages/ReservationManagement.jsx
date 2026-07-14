@@ -155,11 +155,17 @@ export default function ReservationManagement() {
   // doesn't inflate Daily Check-Outs.
   const isRealCheckOut = (b, date) => b.checkOut === date && b.rawStatus !== "Moved";
 
+  // A reservation "has checked in" once its status is Checked-In or beyond
+  // (Checked-Out/Moved both imply the guest did check in at some point).
+  const hasCheckedIn = (b) => ["Checked-In", "Checked-Out", "Moved"].includes(b.rawStatus);
+
   const stats = useMemo(() => {
-    const checkIns = primaryBookings.filter((b) => b.checkIn === selectedDate).length;
-    const checkOuts = primaryBookings.filter((b) => isRealCheckOut(b, selectedDate)).length;
+    const checkInTotal = primaryBookings.filter((b) => b.checkIn === selectedDate).length;
+    const checkInDone = primaryBookings.filter((b) => b.checkIn === selectedDate && hasCheckedIn(b)).length;
+    const checkOutTotal = primaryBookings.filter((b) => isRealCheckOut(b, selectedDate)).length;
+    const checkOutDone = primaryBookings.filter((b) => isRealCheckOut(b, selectedDate) && b.rawStatus === "Checked-Out").length;
     const inHouse = primaryBookings.filter((b) => isInHouseOn(b, selectedDate)).length;
-    return { checkIns, checkOuts, inHouse };
+    return { checkInDone, checkInTotal, checkOutDone, checkOutTotal, inHouse };
   }, [primaryBookings, selectedDate]);
 
   const filteredBookings = useMemo(() => {
@@ -369,7 +375,7 @@ export default function ReservationManagement() {
             <div>
               <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Daily Check-Ins</p>
               <h3 className="text-2xl font-semibold text-slate-900 tracking-tight mt-0.5">
-                {loading ? "…" : stats.checkIns}
+                {loading ? "…" : `${stats.checkInDone}/${stats.checkInTotal}`}
               </h3>
             </div>
           </button>
@@ -382,7 +388,7 @@ export default function ReservationManagement() {
             <div>
               <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Daily Check-Outs</p>
               <h3 className="text-2xl font-semibold text-slate-900 tracking-tight mt-0.5">
-                {loading ? "…" : stats.checkOuts}
+                {loading ? "…" : `${stats.checkOutDone}/${stats.checkOutTotal}`}
               </h3>
             </div>
           </button>
@@ -499,6 +505,7 @@ export default function ReservationManagement() {
                   <th className="px-5 py-2">Check-In</th>
                   <th className="px-5 py-2">Check-Out</th>
                   <th className="px-5 py-2 text-center">Nights</th>
+                  <th className="px-5 py-2 text-center">Guests</th>
                   <th className="px-5 py-2">Source</th>
                   <th className="px-5 py-2 text-center">Status</th>
                   <th className="px-5 py-2 text-right">Total Amount</th>
@@ -509,19 +516,19 @@ export default function ReservationManagement() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {loading && (
-                  <tr><td colSpan={14} className="px-5 py-6 text-center text-slate-400">Loading reservations…</td></tr>
+                  <tr><td colSpan={15} className="px-5 py-6 text-center text-slate-400">Loading reservations…</td></tr>
                 )}
                 {!loading && loadError && (
-                  <tr><td colSpan={14} className="px-5 py-6 text-center text-red-500">{loadError}</td></tr>
+                  <tr><td colSpan={15} className="px-5 py-6 text-center text-red-500">{loadError}</td></tr>
                 )}
                 {!loading && !loadError && filteredBookings.length === 0 && (
-                  <tr><td colSpan={14} className="px-5 py-6 text-center text-slate-400">
+                  <tr><td colSpan={15} className="px-5 py-6 text-center text-slate-400">
                     {bookings.length === 0 ? "No reservations yet." : "No reservations match this filter."}
                   </td></tr>
                 )}
-                {!loading && !loadError && pagedBookings.map((booking) => (
+                {!loading && !loadError && pagedBookings.map((booking, index) => (
                   <tr key={booking.rowId} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="px-5 py-2 text-slate-500 font-medium font-mono">{booking.id}</td>
+                    <td className="px-5 py-2 text-slate-500 font-medium font-mono">{(page - 1) * PAGE_SIZE + index + 1}</td>
                     <td className="px-5 py-2 font-medium text-slate-900">{booking.guestName}</td>
                     <td className="px-5 py-2">
                       <span className={`px-2 py-0.5 rounded-md text-xs font-semibold ${
@@ -537,6 +544,7 @@ export default function ReservationManagement() {
                     <td className="px-5 py-2 font-mono text-xs text-slate-500">{booking.checkIn}</td>
                     <td className="px-5 py-2 font-mono text-xs text-slate-500">{booking.checkOut}</td>
                     <td className="px-5 py-2 text-center font-mono text-slate-700">{booking.nights}</td>
+                    <td className="px-5 py-2 text-center font-mono text-slate-700">{booking.totalGuests}</td>
                     <td className="px-5 py-2 text-slate-600">{booking.source}</td>
                     <td className="px-5 py-2 text-center">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-medium inline-block ${getStatusBadgeClass(booking.status)}`}>
@@ -656,45 +664,67 @@ export default function ReservationManagement() {
 
       {/* Print-only: the FULL filtered set (ignores on-screen pagination), hidden
           on screen and forced visible via @media print below. */}
-      <div id="printable-reservations" className="hidden">
-        <h2 style={{ marginBottom: "12px" }}>Reservations{selectedDate ? ` — ${selectedDate}` : ""}</h2>
-        <table className="w-full text-left text-sm border-collapse">
+      <div id="printable-reservations" className="hidden" style={{ WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }}>
+        <div style={{ borderBottom: "2px solid #0f172a", paddingBottom: "10px", marginBottom: "14px" }}>
+          <h1 style={{ fontSize: "20px", fontWeight: 700, margin: 0, color: "#0f172a" }}>Reservation Report</h1>
+          <p style={{ fontSize: "11px", color: "#475569", margin: "4px 0 0" }}>
+            {selectedDate ? `Date: ${selectedDate}` : "All Dates"}
+            {roomTypeFilter && roomTypeFilter !== "All Room Types" ? ` · Room Type: ${roomTypeFilter}` : ""}
+            {` · Generated ${new Date().toLocaleString()}`}
+          </p>
+        </div>
+
+        <table className="w-full text-left" style={{ borderCollapse: "collapse", border: "1px solid #94a3b8", fontSize: "11px" }}>
           <thead>
-            <tr>
-              <th className="px-2 py-1">ID</th>
-              <th className="px-2 py-1">Guest Name</th>
-              <th className="px-2 py-1">Room</th>
-              <th className="px-2 py-1">Room Type</th>
-              <th className="px-2 py-1">Check-In</th>
-              <th className="px-2 py-1">Check-Out</th>
-              <th className="px-2 py-1">Nights</th>
-              <th className="px-2 py-1">Source</th>
-              <th className="px-2 py-1">Status</th>
-              <th className="px-2 py-1">Total Amount</th>
-              <th className="px-2 py-1">Balance</th>
-              <th className="px-2 py-1">Handled By</th>
+            <tr style={{ backgroundColor: "#0f172a" }}>
+              {["#", "Guest Name", "Room", "Room Type", "Check-In", "Check-Out", "Nights", "Guests", "Source", "Status", "Total Amount", "Balance", "Comments", "Handled By"].map((label) => (
+                <th key={label} style={{ border: "1px solid #94a3b8", padding: "6px 8px", fontWeight: 700, color: "#fff" }}>
+                  {label}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            {filteredBookings.map((booking) => (
-              <tr key={booking.rowId}>
-                <td className="px-2 py-1">{booking.id}</td>
-                <td className="px-2 py-1">{booking.guestName}</td>
-                <td className="px-2 py-1">{booking.roomNumber}</td>
-                <td className="px-2 py-1">{booking.roomType}</td>
-                <td className="px-2 py-1">{booking.checkIn}</td>
-                <td className="px-2 py-1">{booking.checkOut}</td>
-                <td className="px-2 py-1">{booking.nights}</td>
-                <td className="px-2 py-1">{booking.source}</td>
-                <td className="px-2 py-1">{booking.status}</td>
-                <td className="px-2 py-1">{booking.totalAmount}</td>
-                <td className="px-2 py-1">
+            {filteredBookings.map((booking, index) => (
+              <tr key={booking.rowId} style={{ backgroundColor: index % 2 === 0 ? "#ffffff" : "#f1f5f9" }}>
+                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px", fontWeight: 600 }}>{index + 1}</td>
+                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px", fontWeight: 600 }}>{booking.guestName}</td>
+                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px" }}>{booking.roomNumber}</td>
+                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px" }}>{booking.roomType}</td>
+                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px" }}>{booking.checkIn}</td>
+                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px" }}>{booking.checkOut}</td>
+                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px", textAlign: "center" }}>{booking.nights}</td>
+                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px", textAlign: "center" }}>{booking.totalGuests}</td>
+                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px" }}>{booking.source}</td>
+                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px" }}>{booking.status}</td>
+                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px", fontWeight: 600 }}>{booking.totalAmount}</td>
+                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px", fontWeight: 600 }}>
                   {booking.guestType === "Primary" ? `$${(booking.remainingAmount || 0).toFixed(2)}` : "—"}
                 </td>
-                <td className="px-2 py-1">{booking.handledBy || "—"}</td>
+                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px" }}>{booking.comments || "—"}</td>
+                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px" }}>{booking.handledBy || "—"}</td>
               </tr>
             ))}
           </tbody>
+          <tfoot>
+            <tr style={{ backgroundColor: "#e2e8f0", fontWeight: 700 }}>
+              <td colSpan={6} style={{ border: "1px solid #94a3b8", padding: "6px 8px", textAlign: "right" }}>
+                Totals — {filteredBookings.filter((b) => b.guestType === "Primary").length} reservation(s)
+              </td>
+              <td style={{ border: "1px solid #94a3b8", padding: "6px 8px", textAlign: "center" }}>
+                {filteredBookings.filter((b) => b.guestType === "Primary").reduce((sum, b) => sum + (b.totalGuests || 0), 0)}
+              </td>
+              <td style={{ border: "1px solid #94a3b8", padding: "6px 8px" }} />
+              <td style={{ border: "1px solid #94a3b8", padding: "6px 8px" }} />
+              <td style={{ border: "1px solid #94a3b8", padding: "6px 8px" }}>
+                ${filteredBookings.filter((b) => b.guestType === "Primary").reduce((sum, b) => sum + (b.totalAmountRaw || 0), 0).toFixed(2)}
+              </td>
+              <td style={{ border: "1px solid #94a3b8", padding: "6px 8px" }}>
+                ${filteredBookings.filter((b) => b.guestType === "Primary").reduce((sum, b) => sum + (b.remainingAmount || 0), 0).toFixed(2)}
+              </td>
+              <td colSpan={2} style={{ border: "1px solid #94a3b8", padding: "6px 8px" }} />
+            </tr>
+          </tfoot>
         </table>
       </div>
 
@@ -702,7 +732,7 @@ export default function ReservationManagement() {
         @media print {
           body * { visibility: hidden; }
           #printable-reservations, #printable-reservations * { visibility: visible; }
-          #printable-reservations { display: block !important; position: fixed; inset: 0; margin: 0; }
+          #printable-reservations { display: block !important; position: fixed; inset: 0; margin: 0; padding: 24px; }
           .no-print { display: none !important; }
         }
       `}</style>

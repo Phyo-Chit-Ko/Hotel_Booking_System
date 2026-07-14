@@ -9,25 +9,43 @@ import {
 } from "react-icons/fa";
 
 const CHANNEL_COLORS = ["bg-slate-900", "bg-amber-500", "bg-slate-300", "bg-emerald-500", "bg-sky-500"];
+const CHANNEL_HEX = ["#0f172a", "#f59e0b", "#cbd5e1", "#10b981", "#0ea5e9"];
 
-// Normalize a series of numeric values into an SVG polyline `d` attribute
-// inside a fixed 600x160 viewBox, so the chart is driven by real data points
-// instead of hand-authored Bezier curves.
-function buildPath(values, { width = 600, height = 160, topPad = 20, bottomPad = 10 } = {}) {
-  if (!values.length) return "";
+// Normalize a series of numeric values into plot points inside a fixed
+// 600x160 viewBox.
+function toPoints(values, { width = 600, height = 160, topPad = 20, bottomPad = 10 } = {}) {
+  if (!values.length) return [];
   const min = Math.min(...values);
   const max = Math.max(...values);
   const span = max - min || 1;
   const usableHeight = height - topPad - bottomPad;
   const stepX = values.length > 1 ? width / (values.length - 1) : 0;
 
-  return values
-    .map((v, i) => {
-      const x = i * stepX;
-      const y = height - bottomPad - ((v - min) / span) * usableHeight;
-      return `${i === 0 ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`;
-    })
-    .join(" ");
+  return values.map((v, i) => ({
+    x: i * stepX,
+    y: height - bottomPad - ((v - min) / span) * usableHeight,
+  }));
+}
+
+// Turns plot points into a smooth "wave" curve (Catmull-Rom -> cubic Bezier)
+// instead of straight point-to-point segments.
+function buildWavePath(points) {
+  if (points.length === 0) return "";
+  if (points.length === 1) return `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
+
+  let d = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[i === 0 ? i : i - 1];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[i + 2 < points.length ? i + 2 : i + 1];
+    const cp1x = p1.x + (p2.x - p0.x) / 6;
+    const cp1y = p1.y + (p2.y - p0.y) / 6;
+    const cp2x = p2.x - (p3.x - p1.x) / 6;
+    const cp2y = p2.y - (p3.y - p1.y) / 6;
+    d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+  }
+  return d;
 }
 
 const fmtMoney = (n) => `$${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -83,21 +101,48 @@ export default function Dashboard() {
     ];
   }, [data]);
 
-  const revenuePath = useMemo(
-    () => (data ? buildPath(data.chart_series.map((d) => d.revenue)) : ""),
+  const revenuePoints = useMemo(
+    () => (data ? toPoints(data.chart_series.map((d) => d.revenue)) : []),
     [data]
   );
-  const occupancyPath = useMemo(
-    () => (data ? buildPath(data.chart_series.map((d) => d.occupancy_rate)) : ""),
+  const occupancyPoints = useMemo(
+    () => (data ? toPoints(data.chart_series.map((d) => d.occupancy_rate)) : []),
     [data]
   );
+  const revenuePath = useMemo(() => buildWavePath(revenuePoints), [revenuePoints]);
+  const occupancyPath = useMemo(() => buildWavePath(occupancyPoints), [occupancyPoints]);
+  const revenueAreaPath = useMemo(() => {
+    if (!revenuePoints.length) return "";
+    const first = revenuePoints[0];
+    const last = revenuePoints[revenuePoints.length - 1];
+    return `${revenuePath} L ${last.x.toFixed(1)} 160 L ${first.x.toFixed(1)} 160 Z`;
+  }, [revenuePoints, revenuePath]);
 
   const channels = (data?.distribution_channels || []).map((c, i) => ({
     name: c.name,
+    percentValue: c.percent,
     value: `${c.percent}%`,
+    countValue: c.count,
     count: `${c.count} Booking${c.count === 1 ? "" : "s"}`,
     color: CHANNEL_COLORS[i % CHANNEL_COLORS.length],
+    hex: CHANNEL_HEX[i % CHANNEL_HEX.length],
   }));
+
+  const totalChannelBookings = channels.reduce((sum, c) => sum + c.countValue, 0);
+
+  // Donut chart geometry — each channel gets an arc proportional to its
+  // percent, drawn as a dash segment along a full-circle <circle>, rotated
+  // so the first segment starts at 12 o'clock.
+  const DONUT_SIZE = 160;
+  const DONUT_RADIUS = 62;
+  const DONUT_STROKE = 20;
+  const DONUT_CIRCUMFERENCE = 2 * Math.PI * DONUT_RADIUS;
+  const donutSegments = channels.map((chan, i) => {
+    const percentBefore = channels.slice(0, i).reduce((sum, c) => sum + c.percentValue, 0);
+    const dash = (chan.percentValue / 100) * DONUT_CIRCUMFERENCE;
+    const offset = DONUT_CIRCUMFERENCE - (percentBefore / 100) * DONUT_CIRCUMFERENCE;
+    return { ...chan, dash, offset };
+  });
 
   const recentActivities = data?.recent_activity || [];
 
@@ -131,19 +176,7 @@ export default function Dashboard() {
             </div>
 
             <div className="flex items-stretch gap-3">
-              <div className="h-11 flex items-stretch bg-slate-100 rounded-xl border border-slate-200 p-1 gap-1">
-                {[7, 30].map((r) => (
-                  <button
-                    key={r}
-                    onClick={() => setRange(r)}
-                    className={`px-4 rounded-lg text-sm font-semibold transition ${
-                      range === r ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
-                    }`}
-                  >
-                    {r}d
-                  </button>
-                ))}
-              </div>
+              
 
               <button
                 onClick={() => setIsModalOpen(true)}
@@ -215,8 +248,15 @@ export default function Dashboard() {
                 <div className="relative w-full h-full min-h-0 pt-4">
                   {!loading && data && (
                     <svg className="w-full h-full overflow-visible" viewBox="0 0 600 160" preserveAspectRatio="none">
-                      <path d={revenuePath} fill="none" stroke="#0f172a" strokeWidth="3" strokeLinecap="round" />
-                      <path d={occupancyPath} fill="none" stroke="#f59e0b" strokeWidth="3" strokeLinecap="round" />
+                      <defs>
+                        <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#0f172a" stopOpacity="0.18" />
+                          <stop offset="100%" stopColor="#0f172a" stopOpacity="0" />
+                        </linearGradient>
+                      </defs>
+                      <path d={revenueAreaPath} fill="url(#revenueGradient)" stroke="none" />
+                      <path d={revenuePath} fill="none" stroke="#0f172a" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d={occupancyPath} fill="none" stroke="#f59e0b" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   )}
                 </div>
@@ -239,24 +279,54 @@ export default function Dashboard() {
                   <h3 className="text-base font-semibold text-slate-900">Distribution Channels</h3>
                 </div>
 
-                <div className="space-y-3.5 flex-1 flex flex-col justify-center min-h-0 overflow-y-auto">
-                  {channels.length === 0 && !loading && (
-                    <p className="text-xs text-slate-400 text-center">No bookings in this period.</p>
+                <div className="flex-1 flex items-center gap-4 min-h-0 overflow-y-auto">
+                  {channels.length === 0 && !loading ? (
+                    <p className="text-xs text-slate-400 text-center w-full">No bookings in this period.</p>
+                  ) : (
+                    <>
+                      <div className="relative shrink-0" style={{ width: DONUT_SIZE * 0.8, height: DONUT_SIZE * 0.8 }}>
+                        <svg viewBox={`0 0 ${DONUT_SIZE} ${DONUT_SIZE}`} className="-rotate-90 w-full h-full">
+                          <circle
+                            cx={DONUT_SIZE / 2}
+                            cy={DONUT_SIZE / 2}
+                            r={DONUT_RADIUS}
+                            fill="none"
+                            stroke="#f1f5f9"
+                            strokeWidth={DONUT_STROKE}
+                          />
+                          {donutSegments.map((seg, i) => (
+                            <circle
+                              key={i}
+                              cx={DONUT_SIZE / 2}
+                              cy={DONUT_SIZE / 2}
+                              r={DONUT_RADIUS}
+                              fill="none"
+                              stroke={seg.hex}
+                              strokeWidth={DONUT_STROKE}
+                              strokeDasharray={`${seg.dash} ${DONUT_CIRCUMFERENCE - seg.dash}`}
+                              strokeDashoffset={seg.offset}
+                            />
+                          ))}
+                        </svg>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                          <span className="text-lg font-semibold text-slate-900 leading-none">{totalChannelBookings}</span>
+                          <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider mt-0.5">Bookings</span>
+                        </div>
+                      </div>
+
+                      <div className="flex-1 space-y-2 min-w-0">
+                        {channels.map((chan, index) => (
+                          <div key={index} className="flex justify-between items-center text-xs font-medium text-slate-700 gap-2">
+                            <span className="flex items-center gap-2 truncate">
+                              <span className={`w-2 h-2 rounded-full shrink-0 ${chan.color}`} />
+                              <span className="truncate">{chan.name}</span>
+                            </span>
+                            <span className="font-mono text-slate-500 shrink-0">{chan.value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </>
                   )}
-                  {channels.map((chan, index) => (
-                    <div key={index} className="space-y-1.5">
-                      <div className="flex justify-between text-xs font-medium text-slate-700">
-                        <span className="flex items-center gap-2">
-                          <span className={`w-2 h-2 rounded-full ${chan.color}`} />
-                          {chan.name}
-                        </span>
-                        <span className="font-mono">{chan.value}</span>
-                      </div>
-                      <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                        <div className={`h-full ${chan.color}`} style={{ width: chan.value }} />
-                      </div>
-                    </div>
-                  ))}
                 </div>
               </div>
 

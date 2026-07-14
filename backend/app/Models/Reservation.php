@@ -200,6 +200,8 @@ class Reservation extends Model
             'checkIn'       => $this->check_in_date->format('Y-m-d'),
             'checkOut'      => $this->check_out_date->format('Y-m-d'),
             'nights'        => $this->nights,
+            'totalGuests'   => (int) $this->adults + (int) $this->children,
+            'comments'      => $this->special_requests ?? '',
             'source'        => $this->booking_source,
             'status'        => $this->computeDisplayStatus(),
             'rawStatus'     => $this->reservation_status,

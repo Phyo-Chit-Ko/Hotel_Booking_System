@@ -12,6 +12,10 @@ const ExtraServices = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [metrics, setMetrics] = useState({ laundry_count: 0, car_rental_count: 0, food_count: 0 });
 
+  // States for Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10; // adjust as needed
+
   // 1. Fetch live records from XAMPP on component load
   const fetchServices = async () => {
     try {
@@ -28,6 +32,12 @@ const ExtraServices = () => {
   useEffect(() => {
     fetchServices();
   }, []);
+
+  // Reset to page 1 whenever the search term changes,
+  // so we never get stuck on a page that no longer has any rows.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   const getServiceTypeStyle = (type) => {
     switch (type) {
@@ -48,6 +58,13 @@ const ExtraServices = () => {
 
     return room.includes(term) || resId.includes(term) || name.includes(term) || type.includes(term);
   });
+
+  // Pagination derived state
+  const totalPages = Math.max(1, Math.ceil(filteredServices.length / itemsPerPage));
+  const paginatedServices = filteredServices.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage,
+  );
 
   const openAddModal = () => { setChargeToEdit(null); setIsModalOpen(true); };
   const openEditModal = (item) => { setChargeToEdit(item); setIsModalOpen(true); };
@@ -144,10 +161,12 @@ const ExtraServices = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredServices.length > 0 ? (
-                  filteredServices.map((item) => (
+                {paginatedServices.length > 0 ? (
+                  paginatedServices.map((item, index) => {
+                    const rowNumber = (currentPage - 1) * itemsPerPage + index + 1;
+                    return (
                     <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
-                      <td className="px-5 py-4 font-mono font-medium text-slate-900">#{item.id}</td>
+                      <td className="px-5 py-4 font-mono font-medium text-slate-900">#{rowNumber}</td>
                       <td className="px-5 py-4 font-semibold text-slate-900">
                         {item.room_number ? `Room ${item.room_number}` : <span className="text-slate-300">—</span>}
                         <span className="block text-[10px] font-normal text-slate-400">Res #{item.reservation_id}</span>
@@ -190,13 +209,53 @@ const ExtraServices = () => {
                         </div>
                       </td>
                     </tr>
-                  ))
+                    );
+                  })
                 ) : (
                   <tr><td colSpan="11" className="px-6 py-12 text-center text-slate-400">No entries match your filters.</td></tr>
                 )}
               </tbody>
             </table>
           </div>
+
+          {/* Pagination Controls */}
+          {filteredServices.length > 0 && (
+            <div className="flex items-center justify-between px-1 pt-2">
+              <p className="text-xs text-slate-400">
+                Showing {(currentPage - 1) * itemsPerPage + 1}
+                –{Math.min(currentPage * itemsPerPage, filteredServices.length)} of {filteredServices.length}
+              </p>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
+                >
+                  Prev
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`w-8 h-8 text-xs font-semibold rounded-lg border transition ${
+                      page === currentPage
+                        ? "bg-slate-900 text-white border-slate-900"
+                        : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <AddExtraChargeModal isOpen={isModalOpen} onClose={closeModal} onSave={handleSaveCharge} chargeToEdit={chargeToEdit} />

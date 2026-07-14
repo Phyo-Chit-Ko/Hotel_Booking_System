@@ -24,6 +24,10 @@ export default function BookingManagement() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [bookingToEdit, setBookingToEdit] = useState(null);
 
+  // States for Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10; // adjust as needed
+
   const COLUMN_COUNT = 14;
 
   const fetchBookings = useCallback(async () => {
@@ -54,6 +58,12 @@ export default function BookingManagement() {
     }, 300);
     return () => clearTimeout(timeout);
   }, [fetchBookings]);
+
+  // Reset to page 1 whenever the search/filter criteria change,
+  // so we never get stuck on a page that no longer has any rows.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, selectedDate]);
 
   // HANDLE EDIT SUBMISSION TO BACKEND
   const handleEditSubmit = async (e) => {
@@ -86,6 +96,17 @@ export default function BookingManagement() {
   }
 };
 
+  const toggleStatusFilter = (value) => {
+    setStatusFilter((prev) => (prev === value ? "All Status" : value));
+  };
+
+  const statCardClass = (value) => {
+    const isActive = statusFilter === value || (value === "All Status" && statusFilter === "All Status");
+    return `bg-white rounded-xl border p-5 shadow-sm flex items-center justify-between text-left transition ${
+      isActive ? "border-slate-900 ring-1 ring-slate-900" : "border-slate-200 hover:border-slate-300"
+    }`;
+  };
+
   const getStatusStyle = (status) => {
     switch (status?.toLowerCase()) {
       case "confirmed":
@@ -99,13 +120,24 @@ export default function BookingManagement() {
     }
   };
 
+  // Pagination derived state
+  const totalPages = Math.max(1, Math.ceil(bookings.length / itemsPerPage));
+  const paginatedBookings = bookings.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage,
+  );
+
   return (
     <AdminLayout>
       <div className="w-full space-y-6 p-1">
 
         {/* Statistics Panels */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => toggleStatusFilter("All Status")}
+            className={statCardClass("All Status")}
+          >
             <div className="flex items-center gap-4">
               <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-100 text-xl text-slate-700">
                 <FaCalendarCheck />
@@ -115,9 +147,13 @@ export default function BookingManagement() {
                 <h3 className="text-2xl font-semibold text-slate-900 tracking-tight mt-0.5">{stats.total}</h3>
               </div>
             </div>
-          </div>
+          </button>
 
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => toggleStatusFilter("Confirmed")}
+            className={statCardClass("Confirmed")}
+          >
             <div className="flex items-center gap-4">
               <div className="p-3.5 bg-emerald-50 rounded-xl border border-emerald-100 text-xl text-emerald-600">
                 <FaCheckCircle />
@@ -127,9 +163,13 @@ export default function BookingManagement() {
                 <h3 className="text-2xl font-semibold text-slate-900 tracking-tight mt-0.5">{stats.confirmed}</h3>
               </div>
             </div>
-          </div>
+          </button>
 
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => toggleStatusFilter("Pending")}
+            className={statCardClass("Pending")}
+          >
             <div className="flex items-center gap-4">
               <div className="p-3.5 bg-amber-50 rounded-xl border border-amber-100 text-xl text-amber-600">
                 <FaUsers />
@@ -139,7 +179,7 @@ export default function BookingManagement() {
                 <h3 className="text-2xl font-semibold text-slate-900 tracking-tight mt-0.5">{stats.pending}</h3>
               </div>
             </div>
-          </div>
+          </button>
         </div>
 
         {/* Master Card Box Container */}
@@ -237,10 +277,12 @@ export default function BookingManagement() {
                   </tr>
                 )}
 
-                {!loading && !error && bookings.map((booking) => (
+                {!loading && !error && paginatedBookings.map((booking, index) => {
+                  const rowNumber = (currentPage - 1) * itemsPerPage + index + 1;
+                  return (
                   <tr key={booking.raw_id || booking.id} className="hover:bg-slate-50/70 transition-colors">
                     <td className="px-5 py-4 font-mono font-medium text-slate-900">
-                      {booking.id}
+                      {rowNumber}
                     </td>
 
                     <td className="px-5 py-4 font-medium text-slate-900">
@@ -306,7 +348,7 @@ export default function BookingManagement() {
 
                     <td className="px-5 py-4">
   <div className="flex justify-center items-center gap-1.5">
-    {booking.status?.toLowerCase() === "converted" ? (
+    {booking.rawStatus?.toLowerCase() === "converted" ? (
       <button
         className="px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-medium hover:bg-emerald-100 transition active:scale-95"
         title="See Reservation"
@@ -329,10 +371,50 @@ export default function BookingManagement() {
   </div>
 </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
+
+          {/* Pagination Controls */}
+          {!loading && !error && bookings.length > 0 && (
+            <div className="flex items-center justify-between px-1 pt-2">
+              <p className="text-xs text-slate-400">
+                Showing {(currentPage - 1) * itemsPerPage + 1}
+                –{Math.min(currentPage * itemsPerPage, bookings.length)} of {bookings.length}
+              </p>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
+                >
+                  Prev
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`w-8 h-8 text-xs font-semibold rounded-lg border transition ${
+                      page === currentPage
+                        ? "bg-slate-900 text-white border-slate-900"
+                        : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
 
         </div>
 

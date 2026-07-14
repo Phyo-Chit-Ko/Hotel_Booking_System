@@ -27,6 +27,7 @@ class PaymentController extends Controller
                 'paymentMethod' => $p->payment_method,
                 'date'          => optional($p->date)->toDateString(),
                 'comment'       => $p->description,
+                'proofPath'     => $p->payment_proof_path,
                 'handledBy'     => $p->handledBy?->name,
             ])->values(),
         ]);
