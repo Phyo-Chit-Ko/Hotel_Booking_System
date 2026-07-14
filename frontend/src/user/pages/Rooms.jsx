@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import "./Rooms.css";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
+import Swal from "sweetalert2"; // Ensure you have this installed
 
 const BACKEND_URL = "http://localhost:8000";
 
@@ -21,6 +24,8 @@ function describeRoom(room) {
 }
 
 export default function Rooms() {
+  const navigate = useNavigate(); // Hook for navigation
+  const { user } = useAuth();
   const [showForm, setShowForm] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
@@ -142,8 +147,11 @@ export default function Rooms() {
 
     // Loop and append every form state property securely
     Object.entries(formData).forEach(([key, value]) => {
-      data.append(key, value);
+      // Blank child count means "no children" — send 0 instead of an empty string.
+      data.append(key, key === "child" && value === "" ? 0 : value);
     });
+
+    data.append("user_id", user.user_id);
 
     // File payload mapped to match what Laravel's input validator expects ('payment_screenshot')
     data.append("payment_screenshot", paymentFile);
@@ -229,18 +237,39 @@ export default function Rooms() {
                     </div>
 
                     <button
-                      className="book-now-btn"
-                      onClick={() => {
-                        setSelectedRoom(room);
-                        setFormData((prev) => ({
-                          ...prev,
-                          room_type_id: room.id, // Sets it directly to the button component state tracker
-                        }));
-                        setShowForm(true);
-                      }}
-                    >
-                      BOOK NOW
-                    </button>
+  className="book-now-btn"
+  onClick={() => {
+
+    if (!user) {
+
+      Swal.fire({
+  icon: "warning",
+  title: "Login Required",
+  text: "Please login before booking a room.",
+  confirmButtonText: "Go to Login"
+});
+
+      navigate("/account");
+
+      return;
+
+    }
+
+
+    setSelectedRoom(room);
+
+    setFormData((prev) => ({
+      ...prev,
+      room_type_id: room.id,
+      email: user.email || "",
+    }));
+
+    setShowForm(true);
+
+  }}
+>
+  BOOK NOW
+</button>
                   </div>
                 </div>
               </div>

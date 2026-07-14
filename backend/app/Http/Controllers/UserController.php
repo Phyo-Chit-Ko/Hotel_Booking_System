@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\User; // User Model ကို သုံးနိုင်ဖို့ import လုပ်ထားတာပါ
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
+use App\Http\Requests\StoreUserRequest;
+use App\Http\Requests\UpdateUserRequest;
 
 class UserController extends Controller
 {
@@ -30,30 +30,21 @@ class UserController extends Controller
      * Store a newly created resource in storage.
      * (React UI ကနေ Save User နှိပ်လိုက်ရင် ဒီနေရာကို ရောက်လာမှာပါ)
      */
-    public function store(Request $request)
+    public function store(StoreUserRequest $request)
     {
-        // ၁။ React ကနေ ပို့လိုက်တဲ့ data တွေကို စစ်ဆေး (Validate) ပါမယ်
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users', // email မတူအောင် စစ်ထားပါတယ်
-            'phone' => 'nullable|string|max:20',
-            'role' => 'required|string',
-            'status' => 'required|string',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-
-        // ၂။ Database ထဲကို Insert (Create) လုပ်ပါမယ်
-        // မှတ်ချက် - password ကို password_hash() သို့မဟုတ် ဒီတိုင်း default တစ်ခုခု သတ်မှတ်ပေးရပါမယ်
+        // Assign the real password chosen by the admin/manager — the User
+        // model's 'password' => 'hashed' cast hashes it automatically on
+        // save, so no manual bcrypt()/Hash::make() call is needed.
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'phone' => $request->phone,
             'role' => $request->role,
             'status' => $request->status,
-            'password' => bcrypt('password123') // Default password တစ်ခု သတ်မှတ်ပေးထားခြင်း
+            'password' => $request->password,
+            // The admin/manager chose this password on the new user's
+            // behalf — force them to set their own on first login.
+            'must_change_password' => true,
         ]);
 
         // ၃။ အောင်မြင်ကြောင်း React ဘက်ကို json ပြန်ပို့ပေးပါမယ်
@@ -89,7 +80,7 @@ class UserController extends Controller
      * Update the specified resource in storage.
      * (User Data ကို ပြန်ပြင်ချင်တဲ့အခါ သုံးဖို့ပါ)
      */
-    public function update(Request $request, string $id)
+    public function update(UpdateUserRequest $request, string $id)
     {
         // 1. ဒေတာဘေ့စ်ထဲမှာ အသုံးပြုသူ ရှိမရှိ အရင်ရှာမယ်
         $user = User::find($id);
@@ -98,28 +89,23 @@ class UserController extends Controller
             return response()->json(['message' => 'User not found'], 404);
         }
 
-        // 2. Data တွေကို စစ်ဆေးပါမယ်
-        // ပြင်ဆင်ချက် - unique rule ရဲ့ နောက်ဆုံးမှာ ဒေတာဘေ့စ် primary key ဖြစ်တဲ့ 'user_id' ကို အတိအကျ ထည့်ပေးလိုက်တာပါ
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users,email,' . $id . ',user_id',
-            'phone' => 'nullable|string|max:20',
-            'role' => 'required|string',
-            'status' => 'required|string',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-
-        // 3. Database မှာ Update လုပ်ခြင်း
-        $user->update([
+        // 2. Database မှာ Update လုပ်ခြင်း
+        $updateData = [
             'name' => $request->name,
             'email' => $request->email,
             'phone' => $request->phone,
             'role' => $request->role,
             'status' => $request->status,
-        ]);
+        ];
+
+        if ($request->filled('password')) {
+            $updateData['password'] = $request->password; // hashed automatically by the model cast
+            // Admin/manager set this password on the user's behalf, not the
+            // user themselves — force a change again.
+            $updateData['must_change_password'] = true;
+        }
+
+        $user->update($updateData);
 
         return response()->json([
             'message' => 'User updated successfully',
@@ -136,6 +122,15 @@ class UserController extends Controller
 
         if (!$user) {
             return response()->json(['message' => 'User not found'], 404);
+        }
+
+        // Universal rule: admin accounts can never be deleted, by anyone —
+        // not by another admin, not by a manager. Checked against the
+        // TARGET row's role, independent of who's making the request.
+        if (strtolower((string) $user->role) === 'admin') {
+            return response()->json([
+                'message' => 'Admin accounts cannot be deleted.',
+            ], 403);
         }
 
         // Database ကနေ Delete လုပ်ခြင်း

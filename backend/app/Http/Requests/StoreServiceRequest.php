@@ -20,11 +20,14 @@ class StoreServiceRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // Matches bigint(20) constraint perfectly
-            'reservation_id' => ['required', 'integer'], 
-            
-            'guest_name'     => ['required', 'string', 'max:255'],
-            
+            // The reservation is resolved server-side from the room number
+            // (see ExtraServiceController::resolveActiveReservation) — staff
+            // no longer type a raw reservation ID by hand, and guest_name is
+            // derived from that reservation rather than trusted from the client.
+            'room_number'    => ['required', 'string', 'exists:rooms,room_number'],
+
+            'guest_name'     => ['nullable', 'string', 'max:255'],
+
             'service_type'   => ['required', 'string', 'in:Laundry,Car Rental,Food'],
             
             'charge_date'    => ['required', 'date'],

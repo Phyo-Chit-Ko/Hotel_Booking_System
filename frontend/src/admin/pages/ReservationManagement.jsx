@@ -41,6 +41,11 @@ export default function ReservationManagement() {
   // null = no filter, show everything (still subject to search).
   const [activeFilter, setActiveFilter] = useState(null); // "checkin" | "checkout" | "inhouse" | null
   const [searchTerm, setSearchTerm] = useState("");
+  const [roomTypes, setRoomTypes] = useState([]);
+  const [roomTypeFilter, setRoomTypeFilter] = useState("All Room Types");
+
+  const PAGE_SIZE = 10;
+  const [page, setPage] = useState(1);
 
   // Which reservation is being checked in, if any. Presence of this id
   // switches AddReservation into "checkin" mode with prefilled data.
@@ -99,6 +104,18 @@ export default function ReservationManagement() {
     loadBookings();
   }, []);
 
+  useEffect(() => {
+    fetch("/api/room-types", { headers: { Accept: "application/json" } })
+      .then((r) => r.json())
+      .then((data) => setRoomTypes(Array.isArray(data) ? data : []))
+      .catch(() => setRoomTypes([]));
+  }, []);
+
+  // Reset to page 1 whenever the visible set of rows would change shape.
+  useEffect(() => {
+    setPage(1);
+  }, [activeFilter, selectedDate, searchTerm, roomTypeFilter]);
+
   const getStatusBadgeClass = (status) => {
     switch (status) {
       case "Occupied":
@@ -154,6 +171,14 @@ export default function ReservationManagement() {
       rows = rows.filter((b) => isRealCheckOut(b, selectedDate));
     } else if (activeFilter === "inhouse") {
       rows = rows.filter((b) => isInHouseOn(b, selectedDate));
+    } else if (selectedDate) {
+      // No stat card active — the date picker still filters the table on its
+      // own, to any reservation whose check-in OR check-out falls on this date.
+      rows = rows.filter((b) => b.checkIn === selectedDate || b.checkOut === selectedDate);
+    }
+
+    if (roomTypeFilter && roomTypeFilter !== "All Room Types") {
+      rows = rows.filter((b) => b.roomType === roomTypeFilter);
     }
 
     const term = searchTerm.trim().toLowerCase();
@@ -165,7 +190,20 @@ export default function ReservationManagement() {
     }
 
     return rows;
-  }, [bookings, activeFilter, selectedDate, searchTerm]);
+  }, [bookings, activeFilter, selectedDate, searchTerm, roomTypeFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredBookings.length / PAGE_SIZE));
+  const pagedBookings = useMemo(
+    () => filteredBookings.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filteredBookings, page]
+  );
+
+  // Print all rows matching the current filters (search/date/room type),
+  // ignoring on-screen pagination — same convention as InvoiceView.jsx's
+  // window.print()-based export, no PDF/Excel library involved.
+  const handleExport = () => {
+    window.print();
+  };
 
   const toggleFilter = (key) => {
     setActiveFilter((prev) => (prev === key ? null : key));
@@ -378,13 +416,15 @@ export default function ReservationManagement() {
             </div>
 
             <div className="h-11">
-              <select className="h-full w-34 px-4 border border-slate-300 rounded-xl text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 box-border [color-scheme:light]">
+              <select
+                value={roomTypeFilter}
+                onChange={(e) => setRoomTypeFilter(e.target.value)}
+                className="h-full w-34 px-4 border border-slate-300 rounded-xl text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 box-border [color-scheme:light]"
+              >
                 <option>All Room Types</option>
-                <option>Standard</option>
-                <option>Deluxe</option>
-                <option>Executive Room</option>
-                <option>Suite</option>
-                <option>Villa</option>
+                {roomTypes.map((rt) => (
+                  <option key={rt.room_type_id ?? rt.id ?? rt.name} value={rt.name}>{rt.name}</option>
+                ))}
               </select>
             </div>
 
@@ -426,7 +466,11 @@ export default function ReservationManagement() {
             )}
 
             <div className="h-11">
-              <button className="h-full px-4 border border-slate-300 bg-white hover:bg-slate-50 rounded-xl text-sm font-medium text-slate-700 flex items-center justify-center gap-2 shadow-sm transition active:scale-95">
+              <button
+                type="button"
+                onClick={handleExport}
+                className="h-full px-4 border border-slate-300 bg-white hover:bg-slate-50 rounded-xl text-sm font-medium text-slate-700 flex items-center justify-center gap-2 shadow-sm transition active:scale-95"
+              >
                 <FaFileExport className="text-slate-400 text-sm" />
                 <span>Export</span>
               </button>
@@ -447,20 +491,20 @@ export default function ReservationManagement() {
             <table className="w-full text-left text-sm text-slate-600 border-collapse">
               <thead>
                 <tr className="text-slate-500 font-semibold text-xs uppercase tracking-wider border-b border-slate-200 bg-slate-50">
-                  <th className="px-5 py-3.5">ID</th>
-                  <th className="px-5 py-3.5">Res Number</th>
-                  <th className="px-5 py-3.5">Guest Name</th>
-                  <th className="px-5 py-3.5">Guest Type</th>
-                  <th className="px-5 py-3.5">Room</th>
-                  <th className="px-5 py-3.5">Room Type</th>
-                  <th className="px-5 py-3.5">Check-In</th>
-                  <th className="px-5 py-3.5">Check-Out</th>
-                  <th className="px-5 py-3.5 text-center">Nights</th>
-                  <th className="px-5 py-3.5">Source</th>
-                  <th className="px-5 py-3.5 text-center">Status</th>
-                  <th className="px-5 py-3.5 text-right">Total Amount</th>
-                  <th className="px-5 py-3.5 text-right">Balance</th>
-                  <th className="px-5 py-3.5 text-center">Action</th>
+                  <th className="px-5 py-2">ID</th>
+                  <th className="px-5 py-2">Guest Name</th>
+                  <th className="px-5 py-2">Guest Type</th>
+                  <th className="px-5 py-2">Room</th>
+                  <th className="px-5 py-2">Room Type</th>
+                  <th className="px-5 py-2">Check-In</th>
+                  <th className="px-5 py-2">Check-Out</th>
+                  <th className="px-5 py-2 text-center">Nights</th>
+                  <th className="px-5 py-2">Source</th>
+                  <th className="px-5 py-2 text-center">Status</th>
+                  <th className="px-5 py-2 text-right">Total Amount</th>
+                  <th className="px-5 py-2 text-right">Balance</th>
+                  <th className="px-5 py-2">Handled By</th>
+                  <th className="px-5 py-2 text-center no-print">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -475,12 +519,11 @@ export default function ReservationManagement() {
                     {bookings.length === 0 ? "No reservations yet." : "No reservations match this filter."}
                   </td></tr>
                 )}
-                {!loading && !loadError && filteredBookings.map((booking) => (
+                {!loading && !loadError && pagedBookings.map((booking) => (
                   <tr key={booking.rowId} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="px-5 py-4 text-slate-500 font-medium font-mono">{booking.id}</td>
-                    <td className="px-5 py-4 font-mono font-semibold text-slate-900 tracking-tight">{booking.bookingNumber}</td>
-                    <td className="px-5 py-4 font-medium text-slate-900">{booking.guestName}</td>
-                    <td className="px-5 py-4">
+                    <td className="px-5 py-2 text-slate-500 font-medium font-mono">{booking.id}</td>
+                    <td className="px-5 py-2 font-medium text-slate-900">{booking.guestName}</td>
+                    <td className="px-5 py-2">
                       <span className={`px-2 py-0.5 rounded-md text-xs font-semibold ${
                         booking.guestType === "Primary"
                           ? "bg-amber-50 text-amber-700 border border-amber-100"
@@ -489,19 +532,19 @@ export default function ReservationManagement() {
                         {booking.guestType}
                       </span>
                     </td>
-                    <td className="px-5 py-4 font-mono font-medium text-slate-700">{booking.roomNumber}</td>
-                    <td className="px-5 py-4 text-slate-600">{booking.roomType}</td>
-                    <td className="px-5 py-4 font-mono text-xs text-slate-500">{booking.checkIn}</td>
-                    <td className="px-5 py-4 font-mono text-xs text-slate-500">{booking.checkOut}</td>
-                    <td className="px-5 py-4 text-center font-mono text-slate-700">{booking.nights}</td>
-                    <td className="px-5 py-4 text-slate-600">{booking.source}</td>
-                    <td className="px-5 py-4 text-center">
+                    <td className="px-5 py-2 font-mono font-medium text-slate-700">{booking.roomNumber}</td>
+                    <td className="px-5 py-2 text-slate-600">{booking.roomType}</td>
+                    <td className="px-5 py-2 font-mono text-xs text-slate-500">{booking.checkIn}</td>
+                    <td className="px-5 py-2 font-mono text-xs text-slate-500">{booking.checkOut}</td>
+                    <td className="px-5 py-2 text-center font-mono text-slate-700">{booking.nights}</td>
+                    <td className="px-5 py-2 text-slate-600">{booking.source}</td>
+                    <td className="px-5 py-2 text-center">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-medium inline-block ${getStatusBadgeClass(booking.status)}`}>
                         {booking.status}
                       </span>
                     </td>
-                    <td className="px-5 py-4 text-right font-mono font-semibold text-slate-900">{booking.totalAmount}</td>
-                    <td className="px-5 py-4 text-right font-mono">
+                    <td className="px-5 py-2 text-right font-mono font-semibold text-slate-900">{booking.totalAmount}</td>
+                    <td className="px-5 py-2 text-right font-mono">
                       {booking.guestType === "Primary" ? (
                         <div className="flex items-center justify-end gap-2">
                           {booking.remainingAmount > 0 ? (
@@ -517,7 +560,7 @@ export default function ReservationManagement() {
                             type="button"
                             title="Check Balance"
                             onClick={() => handleOpenLedger(booking)}
-                            className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-100 transition"
+                            className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-100 transition no-print"
                           >
                             <FaWallet size={12} />
                           </button>
@@ -526,7 +569,8 @@ export default function ReservationManagement() {
                         <span className="text-slate-300">—</span>
                       )}
                     </td>
-                    <td className="px-5 py-4 text-center">
+                    <td className="px-5 py-2 text-slate-500">{booking.handledBy || "—"}</td>
+                    <td className="px-5 py-2 text-center no-print">
                       <div className="flex flex-col items-center gap-1.5">
                         {booking.guestType === "Primary" && (booking.status === "Check-In" || booking.status === "No-Show") && (
                           <button onClick={() => handleOpenCheckIn(booking.id)}
@@ -540,6 +584,12 @@ export default function ReservationManagement() {
                             className="px-3 py-1.5 bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg transition w-full">
                             Check-Out
                           </button>
+                        )}
+
+                        {booking.guestType === "Primary" && booking.rawStatus === "Moved" && (
+                          <span className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-500 text-[11px] font-semibold border border-slate-200 w-full text-center">
+                            {booking.movedToRoom ? `Moved to Room ${booking.movedToRoom}` : "Moved"}
+                          </span>
                         )}
 
                         {booking.guestType === "Primary" &&
@@ -574,8 +624,88 @@ export default function ReservationManagement() {
             </table>
           </div>
 
+          {!loading && !loadError && filteredBookings.length > 0 && (
+            <div className="flex items-center justify-between pt-1 no-print">
+              <p className="text-xs text-slate-400">
+                Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredBookings.length)} of {filteredBookings.length}
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 hover:bg-slate-50 transition"
+                >
+                  Prev
+                </button>
+                <span className="text-xs text-slate-500">Page {page} of {totalPages}</span>
+                <button
+                  type="button"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 hover:bg-slate-50 transition"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
+
+      {/* Print-only: the FULL filtered set (ignores on-screen pagination), hidden
+          on screen and forced visible via @media print below. */}
+      <div id="printable-reservations" className="hidden">
+        <h2 style={{ marginBottom: "12px" }}>Reservations{selectedDate ? ` — ${selectedDate}` : ""}</h2>
+        <table className="w-full text-left text-sm border-collapse">
+          <thead>
+            <tr>
+              <th className="px-2 py-1">ID</th>
+              <th className="px-2 py-1">Guest Name</th>
+              <th className="px-2 py-1">Room</th>
+              <th className="px-2 py-1">Room Type</th>
+              <th className="px-2 py-1">Check-In</th>
+              <th className="px-2 py-1">Check-Out</th>
+              <th className="px-2 py-1">Nights</th>
+              <th className="px-2 py-1">Source</th>
+              <th className="px-2 py-1">Status</th>
+              <th className="px-2 py-1">Total Amount</th>
+              <th className="px-2 py-1">Balance</th>
+              <th className="px-2 py-1">Handled By</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredBookings.map((booking) => (
+              <tr key={booking.rowId}>
+                <td className="px-2 py-1">{booking.id}</td>
+                <td className="px-2 py-1">{booking.guestName}</td>
+                <td className="px-2 py-1">{booking.roomNumber}</td>
+                <td className="px-2 py-1">{booking.roomType}</td>
+                <td className="px-2 py-1">{booking.checkIn}</td>
+                <td className="px-2 py-1">{booking.checkOut}</td>
+                <td className="px-2 py-1">{booking.nights}</td>
+                <td className="px-2 py-1">{booking.source}</td>
+                <td className="px-2 py-1">{booking.status}</td>
+                <td className="px-2 py-1">{booking.totalAmount}</td>
+                <td className="px-2 py-1">
+                  {booking.guestType === "Primary" ? `$${(booking.remainingAmount || 0).toFixed(2)}` : "—"}
+                </td>
+                <td className="px-2 py-1">{booking.handledBy || "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <style>{`
+        @media print {
+          body * { visibility: hidden; }
+          #printable-reservations, #printable-reservations * { visibility: visible; }
+          #printable-reservations { display: block !important; position: fixed; inset: 0; margin: 0; }
+          .no-print { display: none !important; }
+        }
+      `}</style>
 
       <AddReservation
         isOpen={isModalOpen}

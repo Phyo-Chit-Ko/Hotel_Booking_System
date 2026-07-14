@@ -1,20 +1,26 @@
 import React, { useState, useRef } from "react";
-import { FaTimes, FaMoneyBillWave, FaHashtag, FaCalendarAlt, FaFileAlt, FaCloudUploadAlt } from "react-icons/fa";
+import { FaTimes, FaMoneyBillWave, FaHashtag, FaFileAlt, FaCloudUploadAlt } from "react-icons/fa";
 
+/**
+ * Posts directly to POST /api/payments — the same endpoint RecordPayment.jsx
+ * and AddReservation's payment step already use — so payment_method values
+ * here must match that endpoint's accepted enum (cash/credit_card/
+ * bank_transfer/online), not free-text labels.
+ */
 export default function AddPaymentModal({ isOpen, onClose, onSave }) {
-  // Fix 1: Use a unique key or ref to clear the file input programmatically upon reset
   const fileInputRef = useRef(null);
 
   const initialFormState = {
     reservation_id: "",
     amount: "",
-    payment_method: "Cash",
-    payment_proof: null, 
+    payment_method: "cash",
+    payment_proof: null,
     description: "",
-    date: new Date().toISOString().split("T")[0],
   };
 
   const [formData, setFormData] = useState(initialFormState);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   const handleChange = (e) => {
     const { name, value, files } = e.target;
@@ -27,30 +33,45 @@ export default function AddPaymentModal({ isOpen, onClose, onSave }) {
       setFormData((prev) => ({
         ...prev,
         [name]: value,
-        // Fix 2: Automatically discard proof if user switches back to Cash/Card mid-form filling
-        ...(name === "payment_method" && !value.includes("Mobile Payment") ? { payment_proof: null } : {})
+        ...(name === "payment_method" && value !== "online" ? { payment_proof: null } : {}),
       }));
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Pass clean data up
-    onSave(formData);
+    setError("");
+    setSaving(true);
+    try {
+      const payload = new FormData();
+      payload.append("reservationId", formData.reservation_id);
+      payload.append("depositAmount", formData.amount || 0);
+      payload.append("paymentMethod", formData.payment_method);
+      if (formData.description) payload.append("description", formData.description);
+      if (formData.payment_proof) payload.append("paymentProof", formData.payment_proof);
 
-    // Reset everything safely
-    setFormData(initialFormState);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ""; // Fixes the native file UI bug!
+      const res = await fetch("/api/payments", {
+        method: "POST",
+        headers: { Accept: "application/json" },
+        body: payload,
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || "Failed to record payment");
+      const data = await res.json();
+
+      onSave(data.booking);
+      setFormData(initialFormState);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      onClose();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
     }
-    
-    onClose();
   };
 
   if (!isOpen) return null;
 
-  const isMobilePayment = formData.payment_method.includes("Mobile Payment");
+  const isOnlinePayment = formData.payment_method === "online";
 
   return (
     <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex justify-center items-center z-50 p-4">
@@ -116,34 +137,17 @@ export default function AddPaymentModal({ isOpen, onClose, onSave }) {
                   onChange={handleChange}
                   className="w-full bg-transparent px-4 py-3 text-sm text-slate-700 outline-none font-medium cursor-pointer"
                 >
-                  <option value="Cash">Cash</option>
-                  <option value="Credit Card">Credit Card</option>
-                  <option value="Debit Card">Debit Card</option>
-                  <option value="Bank Transfer">Bank Transfer</option>
-                  <option value="Mobile Payment">Mobile Payment (KBZPay / WavePay)</option>
+                  <option value="cash">Cash</option>
+                  <option value="credit_card">Credit Card</option>
+                  <option value="bank_transfer">Direct Bank Account</option>
+                  <option value="online">Mobile Bank Transfer</option>
                 </select>
-              </div>
-            </div>
-
-            {/* Payment Date */}
-            <div className="flex flex-col">
-              <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Payment Date</label>
-              <div className="relative flex items-center bg-slate-50 rounded-xl border border-slate-200/80 focus-within:ring-2 focus-within:ring-amber-500/20 focus-within:border-amber-500">
-                <FaCalendarAlt className="absolute left-4 text-slate-400" size={14} />
-                <input
-                  type="date"
-                  name="date"
-                  value={formData.date}
-                  onChange={handleChange}
-                  className="w-full bg-transparent pl-11 pr-4 py-3 text-sm text-slate-700 outline-none font-medium"
-                  required
-                />
               </div>
             </div>
           </div>
 
           {/* Conditional Image Upload */}
-          {isMobilePayment && (
+          {isOnlinePayment && (
             <div className="flex flex-col">
               <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
                 Upload Payment Screenshot <span className="text-red-500">*</span>
@@ -168,7 +172,7 @@ export default function AddPaymentModal({ isOpen, onClose, onSave }) {
                     accept="image/*"
                     onChange={handleChange}
                     className="hidden"
-                    required={isMobilePayment} // Mandatory only if Mobile Pay is picked
+                    required={isOnlinePayment}
                   />
                 </label>
               </div>
@@ -191,21 +195,27 @@ export default function AddPaymentModal({ isOpen, onClose, onSave }) {
             </div>
           </div>
 
+          {error && (
+            <div className="bg-red-50 border border-red-100 text-red-700 text-sm px-4 py-3 rounded-xl">{error}</div>
+          )}
+
           {/* Actions Footer */}
           <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 border border-slate-200"
+              disabled={saving}
+              className="px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 border border-slate-200 disabled:opacity-60"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex items-center gap-2 px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold text-sm rounded-xl shadow-lg shadow-amber-500/20 transition-all"
+              disabled={saving}
+              className="flex items-center gap-2 px-6 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white font-semibold text-sm rounded-xl shadow-lg shadow-amber-500/20 transition-all"
             >
               <FaMoneyBillWave size={14} />
-              Save Payment
+              {saving ? "Saving…" : "Save Payment"}
             </button>
           </div>
         </form>

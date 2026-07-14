@@ -90,6 +90,15 @@ class Reservation extends Model
     }
 
     /**
+     * The room_moves row created WHEN this reservation was moved away
+     * (i.e. this reservation is the "old" side of a move), if any.
+     */
+    public function roomMoveTo()
+    {
+        return $this->hasOne(RoomMove::class, 'old_reservation_id', 'reservation_id');
+    }
+
+    /**
      * Pivot rows linking additional guests (beyond the primary guest_id)
      * to this reservation, via the reservation_guests table.
      */
@@ -194,6 +203,8 @@ class Reservation extends Model
             'source'        => $this->booking_source,
             'status'        => $this->computeDisplayStatus(),
             'rawStatus'     => $this->reservation_status,
+            'movedToRoom'   => $this->roomMoveTo?->newReservation?->room_number,
+            'handledBy'     => $this->createdBy?->name,
             'totalAmount'   => '$' . number_format((float) $this->total_amount, 2),
             // Numeric (unformatted) counterparts — used by the payment /
             // checkout UI for math and > 0 comparisons instead of parsing

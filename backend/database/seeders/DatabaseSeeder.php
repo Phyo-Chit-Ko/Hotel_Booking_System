@@ -16,7 +16,9 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-            UserSeeder::class, // This tells Laravel to run your UserSeeder once
+            RoomTypeSeeder::class, // must run before RoomSeeder (rooms reference room_type_id)
+            RoomSeeder::class,
+            UserSeeder::class,
         ]);
 
         User::factory()->create([

@@ -13,9 +13,6 @@ import Contact from "../user/pages/Contact";
 import Account from "../user/pages/Account";
 import Register from "../user/pages/Register";
 import '../user/user.css';
-// Admin pages accessible to receptionist/manager via user side
-import AvailableRooms from "../admin/pages/Available_rooms";
-import ReservationManagement from "../admin/pages/ReservationManagement";
 
 function UserRoutes() {
   // Desktop: sidebar starts visible. Mobile: starts collapsed (off-canvas),
@@ -37,22 +34,6 @@ function UserRoutes() {
           <Route path="/restaurant" element={<Restaurant />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/account" element={<Account />} />
-          {/* <Route
-            path="/available_rooms"
-            element={
-              <ProtectedRoute allowedRoles={["receptionist", "manager"]}>
-                <AvailableRooms />
-              </ProtectedRoute>
-            }
-          /> */}
-          {/* <Route
-            path="/reservations"
-            element={
-              <ProtectedRoute allowedRoles={["receptionist", "manager"]}>
-                <ReservationManagement />
-              </ProtectedRoute>
-            }
-          /> */}
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
         <Footer />

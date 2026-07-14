@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { FaTimes, FaMoneyBillWave, FaExchangeAlt, FaSignOutAlt } from "react-icons/fa";
+import { FaTimes, FaMoneyBillWave, FaExchangeAlt, FaSignOutAlt, FaPrint } from "react-icons/fa";
+import InvoiceView from "./InvoiceView";
 
 const fmt = (n) => `$${(parseFloat(n) || 0).toFixed(2)}`;
 
@@ -24,6 +25,7 @@ export default function ChargesLedgerModal({
   const [overrideReason, setOverrideReason] = useState("");
   const [checkoutSaving, setCheckoutSaving] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
+  const [showInvoice, setShowInvoice] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -189,6 +191,15 @@ export default function ChargesLedgerModal({
           >
             Close
           </button>
+          {!loading && !error && ledger && (
+            <button
+              type="button"
+              onClick={() => setShowInvoice(true)}
+              className="flex-1 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold py-3 rounded-xl text-sm transition-all flex items-center justify-center gap-2"
+            >
+              <FaPrint size={12} /> Print Invoice
+            </button>
+          )}
           {ledger && ledger.balance > 0 && onMakePayment && (
             <button
               type="button"
@@ -211,6 +222,8 @@ export default function ChargesLedgerModal({
           )}
         </div>
       </div>
+
+      {showInvoice && <InvoiceView booking={booking} onClose={() => setShowInvoice(false)} />}
     </div>
   );
 }

@@ -1,12 +1,25 @@
 import { NavLink, useLocation } from "react-router-dom";
 import {
   FaChartPie, FaBed, FaHotel, FaUsers, FaCalendarAlt,
-  FaSearch, FaCreditCard, FaConciergeBell, FaUtensils,
-  FaUserShield, FaCog, FaTimes
+  FaCreditCard, FaConciergeBell, FaUtensils,
+  FaUserShield, FaTimes
 } from "react-icons/fa";
+import { useAuth } from "../../context/AuthContext";
+
+// Paths a receptionist has no access to at all (User Management, Restaurant
+// Management) — kept in sync with the per-route ProtectedRoute wrappers in
+// adminRoutes.jsx and the backend route groups. Receptionist CAN see Room
+// Management / Room Type Management (read-only — write controls are gated
+// per-page via canWrite, and enforced server-side by role:manager).
+const RECEPTIONIST_RESTRICTED_PATHS = [
+  "/admin/user_management",
+  "/admin/restaurant",
+];
 
 export default function Sidebar({ isOpen = false, onClose }) {
   const location = useLocation();
+  const { user } = useAuth();
+  const isReceptionist = (user?.role || "").toLowerCase() === "receptionist";
 
   // Grouped menu structure for logical separation
   const menuGroups = [
@@ -19,7 +32,6 @@ export default function Sidebar({ isOpen = false, onClose }) {
     {
       groupName: "Front Desk & Operations",
       items: [
-        { name: "Available Search", path: "/admin/available_rooms", icon: <FaSearch /> },
         { name: "Bookings", path: "/admin/bookings", icon: <FaCalendarAlt /> },
         { name: "Reservations", path: "/admin/reservations", icon: <FaCalendarAlt /> },
         { name: "Guests", path: "/admin/guests", icon: <FaUsers /> },
@@ -34,10 +46,16 @@ export default function Sidebar({ isOpen = false, onClose }) {
         { name: "Room Type Management", path: "/admin/room-types", icon: <FaHotel /> },
         { name: "User Management", path: "/admin/user_management", icon: <FaUserShield /> },
         { name: "Restaurant", path: "/admin/restaurant", icon: <FaUtensils /> },
-        { name: "RoomLayoutEditor", path: "/admin/roomLayoutEditor", icon: <FaCog /> },
       ]
     }
-  ];
+  ]
+    .map((group) => ({
+      ...group,
+      items: isReceptionist
+        ? group.items.filter((item) => !RECEPTIONIST_RESTRICTED_PATHS.includes(item.path))
+        : group.items,
+    }))
+    .filter((group) => group.items.length > 0);
 
   return (
     <>

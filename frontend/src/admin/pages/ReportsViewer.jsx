@@ -1,66 +1,65 @@
 import React from "react";
 import { FaArrowLeft, FaFilePdf } from "react-icons/fa";
 
-// 1. Static Mock Data Matrix
-const staticReportData = {
-  ops_brief: {
-    title: "Daily Operations Brief",
-    subtitle: "Check-ins, check-outs, and room status matrix",
-    headers: ["Room ID", "Guest Name", "Class Tier", "Status Ledger"],
-    rows: [
-      ["RM-104", "Marcus Vance", "Suite Tier", "Checked In"],
-      ["RM-202", "Elena Rostova", "Deluxe Tier", "Arriving"],
-      ["RM-110", "Kenji Sato", "Standard Base", "Checked In"]
-    ]
-  },
-  rev_summary: {
-    title: "Revenue & Financial Summary",
-    subtitle: "Gross earnings, tax collections, and ADR tracking",
-    headers: ["Source", "Gross Amount", "Tax Collected", "Net Settlement"],
-    rows: [
-      ["Room Bookings", "$34,200.00", "$2,736.00", "$31,464.00"],
-      ["Food & Beverage", "$9,150.00", "$732.00", "$8,418.00"],
-      ["Spa & Amenities", "$4,900.00", "$392.00", "$4,508.00"]
-    ]
-  },
-  occ_forecast: {
-    title: "Occupancy Forecast",
-    subtitle: "Percentage trends and capacity limitations",
-    headers: ["Week Segment", "Projected Occ %", "Rooms Blocked", "Allotment Status"],
-    rows: [
-      ["Week 1 (June 01 - June 07)", "72.4%", "120 Rooms", "Optimal"],
-      ["Week 2 (June 08 - June 14)", "78.4%", "142 Rooms", "High Demand"],
-      ["Week 3 (June 15 - June 21)", "89.1%", "160 Rooms", "Near Capacity"]
-    ]
-  },
-  channel_perf: {
-    title: "Channel Performance Matrix",
-    subtitle: "Direct website bookings vs OTA metrics",
-    headers: ["Booking Channel", "Reservation Count", "Revenue Contribution", "Commission Paid"],
-    rows: [
-      ["Direct Website", "84 Bookings", "$28,400.00", "$0.00 (0%)"],
-      ["Booking.com", "38 Bookings", "$12,100.00", "$1,815.00 (15%)"],
-      ["Expedia Group", "20 Bookings", "$7,750.00", "$1,162.50 (15%)"]
-    ]
-  }
-};
+const fmtMoney = (n) => `$${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-export default function ReportViewer({ selectedType, dashboardDate, onBack }) {
-  const activeReport = staticReportData[selectedType] || staticReportData.ops_brief;
+// Builds the report's headers/rows from the SAME `data` object the Dashboard
+// page already fetched from /api/dashboard/stats — no separate mock data.
+function buildReport(selectedType, data) {
+  const stats = data?.stats;
+  const chartSeries = data?.chart_series || [];
+  const channels = data?.distribution_channels || [];
+  const recentActivity = data?.recent_activity || [];
+
+  if (selectedType === "rev_summary") {
+    return {
+      title: "Revenue & Financial Summary",
+      subtitle: `Total revenue ${fmtMoney(stats?.total_revenue?.value)} across the selected period, by booking channel`,
+      headers: ["Booking Channel", "Bookings", "Share of Bookings"],
+      rows: channels.length
+        ? channels.map((c) => [c.name, `${c.count} Booking${c.count === 1 ? "" : "s"}`, `${c.percent}%`])
+        : [["No bookings in this period", "-", "-"]],
+    };
+  }
+
+  if (selectedType === "occ_forecast") {
+    return {
+      title: "Occupancy Forecast",
+      subtitle: `Current occupancy rate ${stats?.occupancy_rate?.value ?? 0}% — daily trend for the selected period`,
+      headers: ["Date", "Occupancy Rate", "Gross Revenue"],
+      rows: chartSeries.length
+        ? chartSeries.map((d) => [d.date, `${d.occupancy_rate}%`, fmtMoney(d.revenue)])
+        : [["No data in this period", "-", "-"]],
+    };
+  }
+
+  // ops_brief (default)
+  return {
+    title: "Daily Operations Brief",
+    subtitle: `Active check-ins: ${stats?.active_check_ins?.value ?? 0} — recent bookings & payments activity`,
+    headers: ["Time", "Activity"],
+    rows: recentActivity.length
+      ? recentActivity.map((a) => [a.time, a.text])
+      : [["No recent activity", "-"]],
+  };
+}
+
+export default function ReportViewer({ selectedType, dashboardDate, data, onBack }) {
+  const activeReport = buildReport(selectedType, data);
 
   return (
     <div className="w-full animate-in fade-in duration-200">
       {/* Top Control bar (Hidden during printing) */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-5 mb-6 border-b border-slate-100 print:hidden">
-        <button 
-          onClick={onBack} 
+        <button
+          onClick={onBack}
           className="flex items-center gap-2 text-slate-400 hover:text-slate-600 transition text-xs font-bold uppercase tracking-wider"
         >
           <FaArrowLeft size={12} />
           <span>Back to Dashboard</span>
         </button>
-        
-        <button 
+
+        <button
           onClick={() => window.print()}
           className="bg-slate-950 hover:bg-slate-900 text-white text-xs font-semibold px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-sm transition active:scale-[0.98]"
         >

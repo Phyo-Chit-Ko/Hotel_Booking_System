@@ -11,6 +11,7 @@ class ReservationCharge extends Model
 
     protected $fillable = [
         'reservation_id',
+        'extra_charge_id',
         'charge_type',
         'description',
         'amount',
@@ -24,5 +25,14 @@ class ReservationCharge extends Model
     public function reservation()
     {
         return $this->belongsTo(Reservation::class, 'reservation_id', 'reservation_id');
+    }
+
+    /**
+     * The Laundry/Car Rental/Food row this charge was generated from, if any
+     * (charge_type 'service') — see ExtraServiceController.
+     */
+    public function extraCharge()
+    {
+        return $this->belongsTo(Service::class, 'extra_charge_id', 'id');
     }
 }

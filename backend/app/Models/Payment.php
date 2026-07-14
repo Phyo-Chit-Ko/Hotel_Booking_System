@@ -17,6 +17,7 @@ class Payment extends Model
         'transaction_no',
         'description',
         'payment_proof_path',
+        'handled_by',
     ];
 
     protected $casts = [
@@ -27,5 +28,10 @@ class Payment extends Model
     public function reservation()
     {
         return $this->belongsTo(Reservation::class, 'reservation_id', 'reservation_id');
+    }
+
+    public function handledBy()
+    {
+        return $this->belongsTo(User::class, 'handled_by', 'user_id');
     }
 }

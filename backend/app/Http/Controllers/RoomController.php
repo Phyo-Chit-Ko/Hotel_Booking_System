@@ -16,7 +16,9 @@ class RoomController extends Controller
 
     /**
      * GET /api/rooms/{roomNumber}
-     * Used by the reservation form to pull room type, floor, bed type, and rate.
+     * Used by the reservation form to pull room type, floor, bed type, and rate,
+     * and by the Room Management "eye" icon detail modal — which additionally
+     * needs to know who's currently staying in the room when it's occupied.
      */
     public function show(string $roomNumber)
     {
@@ -26,7 +28,50 @@ class RoomController extends Controller
             return response()->json(['message' => 'Room not found'], 404);
         }
 
-        return response()->json(['room' => $room]);
+        $currentStay = null;
+        if ($room->status === 'Occupied') {
+            $reservation = Reservation::with('guest')
+                ->where('room_number', $roomNumber)
+                ->where('reservation_status', 'Checked-In')
+                ->latest('check_in_date')
+                ->first();
+
+            if ($reservation) {
+                $currentStay = [
+                    'reservation_id' => $reservation->reservation_id,
+                    'guest_name'     => $reservation->guest?->full_name ?? $reservation->guest_name,
+                    'check_in_date'  => $reservation->check_in_date,
+                    'check_out_date' => $reservation->check_out_date,
+                ];
+            }
+        }
+
+        return response()->json(['room' => $room, 'current_stay' => $currentStay]);
+    }
+
+    /**
+     * GET /api/rooms/{roomNumber}/active-reservation
+     * Used by the Extra Charges form to resolve a room number to the guest
+     * currently checked into it, so staff no longer need to type a raw
+     * reservation ID by hand.
+     */
+    public function activeReservation(string $roomNumber)
+    {
+        $reservation = Reservation::with('guest')
+            ->where('room_number', $roomNumber)
+            ->where('reservation_status', 'Checked-In')
+            ->latest('reservation_id')
+            ->first();
+
+        if (!$reservation) {
+            return response()->json(['message' => 'No in-house guest found for this room.'], 404);
+        }
+
+        return response()->json([
+            'reservation_id' => $reservation->reservation_id,
+            'guest_name'     => $reservation->guest?->full_name ?? $reservation->guest_name,
+            'room_number'    => $roomNumber,
+        ]);
     }
 
     /**
@@ -62,7 +107,7 @@ class RoomController extends Controller
     {
         $validatedData = $request->validate([
             'room_number'       => 'required|string|max:10|unique:rooms,room_number',
-            'room_type_id'      => 'required',
+            'room_type_id'      => 'required|integer|exists:room_types,room_type_id',
             'floor'             => 'required|string',
             'capacity'          => 'required|integer|min:1',
             'bed_type'          => 'required|string',
@@ -84,7 +129,7 @@ class RoomController extends Controller
         $validatedData = $request->validate([
             // ignore this room's own current number so updating without changing it doesn't fail "unique"
             'room_number'       => ['required', 'string', 'max:10', Rule::unique('rooms', 'room_number')->ignore($room->room_number, 'room_number')],
-            'room_type_id'      => 'required',
+            'room_type_id'      => 'required|integer|exists:room_types,room_type_id',
             'floor'             => 'required|string',
             'capacity'          => 'required|integer|min:1',
             'bed_type'          => 'required|string',

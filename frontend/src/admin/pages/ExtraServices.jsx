@@ -3,9 +3,7 @@ import AdminLayout from "../layouts/AdminLayout";
 import { FaPlus, FaSearch, FaTrash, FaEdit, FaTshirt, FaUtensils, FaCar } from "react-icons/fa";
 import AddExtraChargeModal from "../../admin/components/AddExtraChargeModal";
 import axios from "axios";
-
-// Define your backend base URL if it's not globally configured
-axios.defaults.baseURL = "http://127.0.0.1:8000"; 
+// Base URL is already set globally in main.jsx — use relative paths here.
 
 const ExtraServices = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -43,11 +41,12 @@ const ExtraServices = () => {
   const filteredServices = services.filter((item) => {
     const term = searchTerm.toLowerCase();
     // Safely check fields in case database fields return numbers or null values
+    const room = item.room_number ? String(item.room_number).toLowerCase() : "";
     const resId = item.reservation_id ? String(item.reservation_id).toLowerCase() : "";
     const name = item.guest_name ? item.guest_name.toLowerCase() : "";
     const type = item.service_type ? item.service_type.toLowerCase() : "";
-    
-    return resId.includes(term) || name.includes(term) || type.includes(term);
+
+    return room.includes(term) || resId.includes(term) || name.includes(term) || type.includes(term);
   });
 
   const openAddModal = () => { setChargeToEdit(null); setIsModalOpen(true); };
@@ -58,9 +57,8 @@ const ExtraServices = () => {
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this charge?")) {
       try {
-        // Direct call bypassing global prefix matching issues
-        await axios.delete(`http://127.0.0.1:8000/api/services/${id}`);
-        
+        await axios.delete(`/api/services/${id}`);
+
         alert("Deleted successfully!");
         fetchServices(); // Refresh the table list data automatically
       } catch (error) {
@@ -74,11 +72,9 @@ const ExtraServices = () => {
   async function handleSaveCharge(data, editingId) {
     try {
       if (editingId) {
-        // Bypass global configs by writing out the exact full address
-        await axios.put(`http://127.0.0.1:8000/api/services/${editingId}`, data);
+        await axios.put(`/api/services/${editingId}`, data);
       } else {
-        // Bypass global configs by writing out the exact full address
-        await axios.post("http://127.0.0.1:8000/api/services", data);
+        await axios.post("/api/services", data);
       }
       fetchServices();
       closeModal();
@@ -121,7 +117,7 @@ const ExtraServices = () => {
           <div className="flex items-center gap-3">
             <div className="relative w-[355px] h-11">
               <FaSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none" />
-              <input type="text" placeholder="Search reservation ID, guest name..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full h-full border border-slate-300 rounded-xl pl-4 pr-11 text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 box-border" />
+              <input type="text" placeholder="Search room number, guest name..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full h-full border border-slate-300 rounded-xl pl-4 pr-11 text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 box-border" />
             </div>
             <button onClick={openAddModal} className="h-11 px-5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-xl flex items-center gap-2 shadow-sm ml-auto">
               <FaPlus /> <span>Add Extra Charge</span>
@@ -133,7 +129,7 @@ const ExtraServices = () => {
               <thead className="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200">
                 <tr>
                   <th className="px-5 py-3.5">ID</th>
-                  <th className="px-5 py-3.5">Reservation ID</th>
+                  <th className="px-5 py-3.5">Room</th>
                   <th className="px-5 py-3.5">Guest Name</th>
                   <th className="px-5 py-3.5">Service Type</th>
                   <th className="px-5 py-3.5">Charge Date</th>
@@ -143,6 +139,7 @@ const ExtraServices = () => {
                   <th className="px-5 py-3.5 text-center">QTY</th>
                   <th className="px-5 py-3.5">Rate</th>
                   <th className="px-5 py-3.5">Total</th>
+                  <th className="px-5 py-3.5">Handled By</th>
                   <th className="px-5 py-3.5 text-center">Actions</th>
                 </tr>
               </thead>
@@ -151,7 +148,10 @@ const ExtraServices = () => {
                   filteredServices.map((item) => (
                     <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
                       <td className="px-5 py-4 font-mono font-medium text-slate-900">#{item.id}</td>
-                      <td className="px-5 py-4 font-semibold text-slate-900">{item.reservation_id}</td>
+                      <td className="px-5 py-4 font-semibold text-slate-900">
+                        {item.room_number ? `Room ${item.room_number}` : <span className="text-slate-300">—</span>}
+                        <span className="block text-[10px] font-normal text-slate-400">Res #{item.reservation_id}</span>
+                      </td>
                       <td className="px-5 py-4 text-slate-700">{item.guest_name}</td>
                       <td className="px-5 py-4">
                         <span className={`px-2.5 py-1 rounded-full text-xs font-medium inline-block ${getServiceTypeStyle(item.service_type)}`}>
@@ -177,6 +177,7 @@ const ExtraServices = () => {
 <td className="px-5 py-4 text-center font-mono text-slate-700">{item.quantity}</td>
                       <td className="px-5 py-4 font-mono text-slate-600">${Number(item.rate).toFixed(2)}</td>
                       <td className="px-5 py-4 font-mono font-bold text-slate-900">${Number(item.total).toFixed(2)}</td>
+                      <td className="px-5 py-4 text-slate-500">{item.handled_by || "—"}</td>
                       <td className="px-5 py-4 text-center">
                         <div className="flex justify-center gap-1.5">
                           <button onClick={() => openEditModal(item)} className="p-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-400 hover:text-slate-600">
@@ -191,7 +192,7 @@ const ExtraServices = () => {
                     </tr>
                   ))
                 ) : (
-                  <tr><td colSpan="10" className="px-6 py-12 text-center text-slate-400">No entries match your filters.</td></tr>
+                  <tr><td colSpan="11" className="px-6 py-12 text-center text-slate-400">No entries match your filters.</td></tr>
                 )}
               </tbody>
             </table>

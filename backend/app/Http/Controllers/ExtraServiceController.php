@@ -2,11 +2,16 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Service; 
+use App\Models\Reservation;
+use App\Models\ReservationCharge;
+use App\Models\Service;
 use App\Http\Requests\StoreServiceRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Validation\ValidationException;
 
 class ExtraServiceController extends Controller
 {
@@ -16,7 +21,7 @@ class ExtraServiceController extends Controller
     public function index(Request $request): JsonResponse
     {
         $search = $request->query('search');
-        $query = Service::query();
+        $query = Service::with(['reservation', 'createdBy']);
 
         if (!empty($search)) {
             $query->where(function($q) use ($search) {
@@ -48,21 +53,23 @@ class ExtraServiceController extends Controller
                 if (is_array($decoded)) {
                     $rawFoodItems = implode(', ', $decoded);
                 } else {
-                    $rawFoodItems = trim($rawFoodItems, '"[]'); 
+                    $rawFoodItems = trim($rawFoodItems, '"[]');
                 }
             }
 
             return [
                 'id'             => $charge->id,
                 'reservation_id' => $charge->reservation_id,
+                'room_number'    => $charge->reservation->room_number ?? null,
                 'guest_name'     => $charge->guest_name ?? 'Unknown',
                 'charge_date'    => $charge->charge_date ? \Carbon\Carbon::parse($charge->charge_date)->format('Y-m-d') : null,
                 'service_type'   => $type,
                 'description'    => $charge->description ?? '',
-                'food_items'     => $rawFoodItems ?? '', 
+                'food_items'     => $rawFoodItems ?? '',
                 'quantity'       => (int) $charge->quantity,
                 'rate'           => (float) $charge->rate,
                 'total'          => (float) $charge->total,
+                'handled_by'     => $charge->createdBy?->name,
             ];
         });
 
@@ -78,25 +85,80 @@ class ExtraServiceController extends Controller
     }
 
     /**
-     * Store a newly created extra charge in the XAMPP database.
+     * Resolve a room number to the reservation currently checked into it.
+     * Shared by store()/update() so a bad room number (or a room with no
+     * in-house guest) gets a clean 422 instead of a raw FK error.
+     */
+    private function resolveActiveReservation(string $roomNumber): Reservation
+    {
+        $reservation = Reservation::where('room_number', $roomNumber)
+            ->where('reservation_status', 'Checked-In')
+            ->latest('reservation_id')
+            ->first();
+
+        if (!$reservation) {
+            throw ValidationException::withMessages([
+                'room_number' => 'No in-house guest found for this room. Extra charges can only be added to a checked-in reservation.',
+            ]);
+        }
+
+        return $reservation;
+    }
+
+    /**
+     * Keep a `reservation_charges` row (charge_type 'service') in sync with
+     * this extra charge, so it counts toward the reservation's real balance
+     * and shows up in the Check Balance ledger — previously these lived in
+     * a completely disconnected table.
+     */
+    private function syncLedgerCharge(Service $extraCharge, Reservation $reservation): void
+    {
+        ReservationCharge::updateOrCreate(
+            ['extra_charge_id' => $extraCharge->id],
+            [
+                'reservation_id' => $reservation->reservation_id,
+                'charge_type'    => 'service',
+                'description'    => trim("{$extraCharge->service_type} — " . ($extraCharge->description ?: 'Extra charge')),
+                'amount'         => $extraCharge->total,
+            ]
+        );
+    }
+
+    /**
+     * Store a newly created extra charge, linked to the room's current
+     * in-house reservation, and mirrored into the reservation's charge ledger.
      */
     public function store(StoreServiceRequest $request): JsonResponse
     {
         $validatedData = $request->validated();
 
+        try {
+            $reservation = $this->resolveActiveReservation($validatedData['room_number']);
+        } catch (ValidationException $e) {
+            return response()->json(['success' => false, 'message' => collect($e->errors())->first()[0]], 422);
+        }
+
+        unset($validatedData['room_number']);
+        $validatedData['reservation_id'] = $reservation->reservation_id;
+        $validatedData['guest_name']     = $reservation->guest?->full_name ?? $reservation->guest_name ?? 'Guest';
+
         $quantity = (int) $validatedData['quantity'];
         $rate = (float) $validatedData['rate'];
         $validatedData['total'] = $quantity * $rate;
 
-        $validatedData['created_by'] = Auth::id() ?? 1; 
-        
+        $validatedData['created_by'] = Auth::id() ?? 1;
+
         // FIX: If frontend sends it as a string instead of an array, don't double-json_encode it
         $foodInput = $request->input('food_items');
         $validatedData['food_items'] = !empty($foodInput) ? (is_array($foodInput) ? json_encode($foodInput) : json_encode([$foodInput])) : null;
         $validatedData['description'] = $request->input('description') ?? null;
 
         try {
-            $extraCharge = Service::create($validatedData);
+            $extraCharge = DB::transaction(function () use ($validatedData, $reservation) {
+                $extraCharge = Service::create($validatedData);
+                $this->syncLedgerCharge($extraCharge, $reservation);
+                return $extraCharge;
+            });
 
             return response()->json([
                 'success' => true,
@@ -104,17 +166,19 @@ class ExtraServiceController extends Controller
                 'data'    => $extraCharge
             ], 201);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            Log::error('Extra charge save failed', ['exception' => $e]);
             return response()->json([
                 'success' => false,
-                'message' => 'Database persistence failed. SQL Error: ' . $e->getMessage(),
-                'error'   => $e->getMessage()
+                'message' => 'Could not save this charge. Please check the details and try again.',
             ], 500);
         }
     }
 
     /**
-     * Update an existing extra charge record.
+     * Update an existing extra charge record, re-resolving the reservation
+     * (in case the room number changed) and keeping the linked ledger charge
+     * in sync.
      */
     public function update(StoreServiceRequest $request, $id): JsonResponse
     {
@@ -128,17 +192,30 @@ class ExtraServiceController extends Controller
         }
 
         $validatedData = $request->validated();
-        
+
+        try {
+            $reservation = $this->resolveActiveReservation($validatedData['room_number']);
+        } catch (ValidationException $e) {
+            return response()->json(['success' => false, 'message' => collect($e->errors())->first()[0]], 422);
+        }
+
+        unset($validatedData['room_number']);
+        $validatedData['reservation_id'] = $reservation->reservation_id;
+        $validatedData['guest_name']     = $reservation->guest?->full_name ?? $reservation->guest_name ?? 'Guest';
+
         $quantity = (int) $validatedData['quantity'];
         $rate = (float) $validatedData['rate'];
         $validatedData['total'] = $quantity * $rate;
-        
+
         $foodInput = $request->input('food_items');
         $validatedData['food_items'] = !empty($foodInput) ? (is_array($foodInput) ? json_encode($foodInput) : json_encode([$foodInput])) : null;
         $validatedData['description'] = $request->input('description') ?? null;
 
         try {
-            $extraCharge->update($validatedData);
+            DB::transaction(function () use ($extraCharge, $validatedData, $reservation) {
+                $extraCharge->update($validatedData);
+                $this->syncLedgerCharge($extraCharge, $reservation);
+            });
 
             return response()->json([
                 'success' => true,
@@ -146,17 +223,19 @@ class ExtraServiceController extends Controller
                 'data'    => $extraCharge
             ], 200);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            Log::error('Extra charge update failed', ['exception' => $e]);
             return response()->json([
                 'success' => false,
-                'message' => 'Database modification failed. SQL Error: ' . $e->getMessage(),
-                'error'   => $e->getMessage()
+                'message' => 'Could not update this charge. Please check the details and try again.',
             ], 500);
         }
     }
 
     /**
-     * Remove the specified extra charge from the database.
+     * Remove the specified extra charge from the database. The linked
+     * reservation_charges row is cascade-deleted by the DB FK, but we also
+     * delete it explicitly here for clarity/symmetry.
      */
     public function destroy($id): JsonResponse
     {
@@ -170,18 +249,21 @@ class ExtraServiceController extends Controller
                 ], 404);
             }
 
-            $extraCharge->delete();
+            DB::transaction(function () use ($extraCharge) {
+                ReservationCharge::where('extra_charge_id', $extraCharge->id)->delete();
+                $extraCharge->delete();
+            });
 
             return response()->json([
                 'success' => true,
                 'message' => 'Extra charge record deleted successfully!'
             ], 200);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            Log::error('Extra charge delete failed', ['exception' => $e]);
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to delete record.',
-                'error'   => $e->getMessage()
+                'message' => 'Failed to delete record. Please try again.',
             ], 500);
         }
     }
