@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import {
   FaTimes, FaMinus, FaSearch, FaUpload, FaCheck, FaCalculator, FaChevronRight
 } from "react-icons/fa";
+import { NAME_RE, PHONE_RE, EMAIL_RE, NATIONALITY_RE, validateIdNumber } from "../../utils/validators";
 
 const inp = "w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:ring-4 focus:ring-yellow-500/20 focus:border-yellow-500 transition-all placeholder-slate-400 bg-slate-50/50 hover:bg-yellow-50/40 hover:border-yellow-300 focus:bg-white";
 const sel = inp + " appearance-none pr-10 bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2364748b%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:1.25rem] bg-[right_0.75rem_center] bg-no-repeat";
@@ -37,7 +38,7 @@ const EMPTY = {
   // step 1 -> guests table
   guestSearch: "", guestId: null,
   firstName: "", lastName: "", phone: "", email: "",
-  nationality: "", idType: "Passport", idNumber: "",
+  nationality: "", gender: "", idType: "Passport", idNumber: "",
   idFront: null, idBack: null, isVip: false,
 
   // step 2 -> reservations table
@@ -71,6 +72,17 @@ export default function AddReservation({
   const [guestCreatedThisSession, setGuestCreatedThisSession] = useState(false);
   const [reservationCreatedThisSession, setReservationCreatedThisSession] = useState(false);
 
+  // CHECK-IN MODE step 3: read-only ledger summary (no payment step here —
+  // payment is handled exclusively through the Check Balance modal).
+  const [ledgerSummary, setLedgerSummary] = useState(null);
+  const [ledgerLoading, setLedgerLoading] = useState(false);
+
+  // CHECK-IN MODE: the guest count as it was when the form was opened, so we
+  // only PATCH the reservation (and trigger any extra-person charge) if the
+  // staff member actually changed adults/children during check-in.
+  const [originalAdults, setOriginalAdults] = useState(1);
+  const [originalChildren, setOriginalChildren] = useState(0);
+
   // CHECK-IN MODE: load the existing reservation + guests and prefill the form.
   useEffect(() => {
     if (mode !== "checkin" || !reservationId || !isOpen) return;
@@ -90,7 +102,7 @@ export default function AddReservation({
   ...p,
   guestId: r.guestId, guestSearch: `${r.firstName} ${r.lastName}`,
   firstName: r.firstName, lastName: r.lastName, phone: r.phone,
-  email: r.email, nationality: r.nationality, idType: r.idType,
+  email: r.email, nationality: r.nationality, gender: r.gender, idType: r.idType,
   idNumber: r.idNumber, isVip: r.isVip,
   reservationId: r.reservationId,
   roomNumber: r.roomNumber, roomType: r.roomType,
@@ -102,11 +114,14 @@ export default function AddReservation({
   taxAmount: r.taxAmount, totalAmount: r.totalAmount,
 }));
 
+        setOriginalAdults(r.adults || 1);
+        setOriginalChildren(r.children || 0);
+
         setAdditionalGuests((data.additionalGuests || []).map((g) => ({
           localId: `existing_${g.guestId}`,
           guestId: g.guestId, guestSearch: `${g.firstName} ${g.lastName}`,
           firstName: g.firstName, lastName: g.lastName, phone: g.phone,
-          email: g.email, nationality: g.nationality, idNumber: g.idNumber,
+          email: g.email, nationality: g.nationality, gender: g.gender || "", idNumber: g.idNumber,
           idType: "Passport", guestType: g.guestType,
           idFront: null, idBack: null,
           saved: true, savedGuestId: g.guestId, createdThisSession: false, error: "",
@@ -139,6 +154,24 @@ export default function AddReservation({
 
   const remainingAmount = Math.max(0, form.totalAmount - (parseFloat(form.depositAmount) || 0));
 
+  // Fetch the live ledger when the check-in flow reaches its final step,
+  // instead of computing the summary from manually entered numbers.
+  useEffect(() => {
+    if (!isOpen || mode !== "checkin" || currentStep !== 3 || !form.reservationId) return;
+    let active = true;
+    setLedgerLoading(true);
+    fetch(`/api/reservations/${form.reservationId}/ledger`, { headers: { Accept: "application/json" } })
+      .then((r) => r.json())
+      .then((d) => { if (active) setLedgerSummary(d); })
+      .catch(() => { if (active) setLedgerSummary(null); })
+      .finally(() => { if (active) setLedgerLoading(false); });
+    return () => { active = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, mode, currentStep, form.reservationId]);
+
+  const sumChargesByType = (charges, types) =>
+    (charges || []).filter((c) => types.includes(c.chargeType)).reduce((s, c) => s + c.amount, 0);
+
   const set   = (key, val) => setForm((p) => ({ ...p, [key]: val }));
   const field = (key) => (e) => set(key, e.target.value);
 
@@ -161,6 +194,7 @@ export default function AddReservation({
       guestId: guest.guest_id, firstName: guest.first_name,
       lastName: guest.last_name, phone: guest.phone,
       email: guest.email, nationality: guest.nationality,
+      gender: guest.gender || "",
       idNumber: guest.id_number, isVip: guest.is_vip || false,
     }));
     setGuestResults([]);
@@ -181,7 +215,7 @@ export default function AddReservation({
           floor:           data.room.floor,
           bedType:         data.room.bed_type,
           ratePerNight:    parseFloat(data.room.room_type?.base_price) || 0,
-          extraPersonRate: parseFloat(data.room.extra_person_rate) || 0,
+          extraPersonRate: parseFloat(data.room.room_type?.extra_person_rate) || 0,
         }));
       }
     } catch {}
@@ -195,26 +229,105 @@ export default function AddReservation({
       .catch(() => setAvailableRooms([]));
   }, [form.checkIn, form.checkOut]);
 
-  // STEP 1 -> POST /api/guests
+  // Shared FormData builder for POST /api/guests — used both for a brand new
+  // walk-in guest and for a check-in whose reservation has no linked guest yet.
+  const buildGuestFormData = () => {
+    const payload = new FormData();
+    payload.append("firstName", form.firstName);
+    payload.append("lastName", form.lastName);
+    payload.append("phone", form.phone);
+    if (form.email) payload.append("email", form.email);
+    if (form.nationality) payload.append("nationality", form.nationality);
+    if (form.gender) payload.append("gender", form.gender);
+    payload.append("idType", form.idType);
+    payload.append("idNumber", form.idNumber);
+    payload.append("isVip", form.isVip ? "1" : "0");
+    if (form.idFront) payload.append("idFront", form.idFront);
+    if (form.idBack) payload.append("idBack", form.idBack);
+    return payload;
+  };
+
+  // STEP 1 -> POST /api/guests (or, in check-in mode, PATCH /api/guests/{id}
+  // to persist any corrections made to the existing guest's details).
   const submitStep1 = async () => {
     setStepError("");
+
+    // Fields are only editable (and thus only need validating) when we're
+    // not just reusing an already-picked existing guest profile untouched.
+    if (isCheckin || !form.guestId) {
+      if (!NAME_RE.test(form.firstName.trim()) || !NAME_RE.test(form.lastName.trim())) {
+        setStepError("First/last name must contain only letters, spaces, apostrophes, hyphens, or periods.");
+        return;
+      }
+      if (!PHONE_RE.test(form.phone.trim())) {
+        setStepError("Enter a valid phone number.");
+        return;
+      }
+      if (form.email && !EMAIL_RE.test(form.email.trim())) {
+        setStepError("Enter a valid email address.");
+        return;
+      }
+      if (form.nationality && !NATIONALITY_RE.test(form.nationality.trim())) {
+        setStepError("Nationality must contain only letters.");
+        return;
+      }
+      const idError = validateIdNumber(form.idType, form.idNumber);
+      if (idError) { setStepError(idError); return; }
+    }
+
+    if (isCheckin) {
+      setSaving(true);
+      try {
+        if (!form.guestId) {
+          // Online/direct booking: reservations.guest_id stays null until a
+          // real check-in happens, so there's no existing Guest row to PATCH
+          // yet. Create one from the details captured on this step instead —
+          // handleSubmit() already sends this guestId to the check-in
+          // endpoint, which links it to the reservation on confirm.
+          const res = await fetch("/api/guests", {
+            method: "POST", headers: { Accept: "application/json" }, body: buildGuestFormData(),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.message || "Failed to save guest");
+
+          set("guestId", data.guest.guest_id);
+          setGuestCreatedThisSession(true); // eligible for rollback if check-in is cancelled
+        } else {
+          // Re-linking to a different guest mid check-in stays out of scope
+          // (the search input above is disabled in this mode) — only the
+          // identity fields for the already-linked guest can be corrected here.
+          const res = await fetch(`/api/guests/${form.guestId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify({
+              firstName: form.firstName,
+              lastName: form.lastName,
+              phone: form.phone,
+              email: form.email || null,
+              nationality: form.nationality || null,
+              gender: form.gender || null,
+              idType: form.idType,
+              idNumber: form.idNumber,
+              isVip: !!form.isVip,
+            }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.message || "Failed to update guest details");
+        }
+        setCurrentStep(2);
+      } catch (err) {
+        setStepError(err.message);
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
+
     if (form.guestId) { setCurrentStep(2); return; } // already picked an existing guest
 
     setSaving(true);
     try {
-      const payload = new FormData();
-      payload.append("firstName", form.firstName);
-      payload.append("lastName", form.lastName);
-      payload.append("phone", form.phone);
-      if (form.email) payload.append("email", form.email);
-      if (form.nationality) payload.append("nationality", form.nationality);
-      payload.append("idType", form.idType);
-      payload.append("idNumber", form.idNumber);
-      payload.append("isVip", form.isVip ? "1" : "0");
-      if (form.idFront) payload.append("idFront", form.idFront);
-      if (form.idBack) payload.append("idBack", form.idBack);
-
-      const res = await fetch("/api/guests", { method: "POST", headers: { Accept: "application/json" }, body: payload });
+      const res = await fetch("/api/guests", { method: "POST", headers: { Accept: "application/json" }, body: buildGuestFormData() });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || "Failed to save guest");
       const data = await res.json();
 
@@ -231,6 +344,17 @@ export default function AddReservation({
   // STEP 2 -> POST /api/reservations (skipped in checkin mode, reservation already exists)
   const submitStep2 = async () => {
     setStepError("");
+
+    if (mode === "checkin") {
+      const requiredAdults = Math.max(0, (parseInt(form.adults) || 0) - 1);
+      const isRowComplete = (g) => g.guestId || (g.firstName && g.lastName && g.phone && g.idNumber);
+      const providedAdults = additionalGuests.filter((g) => g.guestType === "Adult" && isRowComplete(g)).length;
+      if (providedAdults < requiredAdults) {
+        setStepError(`Add a guest profile for each additional adult before checking in (${providedAdults}/${requiredAdults} completed).`);
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       let reservationIdLocal = form.reservationId;
@@ -245,7 +369,7 @@ export default function AddReservation({
             checkIn: form.checkIn,
             checkOut: form.checkOut,
             adults: form.adults,
-            children: form.children,
+            children: form.children === "" ? 0 : form.children,
             bookingSource: form.bookingSource,
             specialRequests: form.specialRequests,
             reservationStatus: form.reservationStatus,
@@ -265,6 +389,22 @@ export default function AddReservation({
           totalAmount: data.reservation.totalAmount,
         }));
         setReservationCreatedThisSession(true);
+      } else if (mode === "checkin") {
+        // Guest count may have been edited during check-in — persist it,
+        // which is what triggers a new extra-person charge (remaining
+        // nights only) on the backend if the count went up. Step 3's ledger
+        // fetch will pick up the new charge automatically.
+        const adultsChanged   = Number(form.adults) !== Number(originalAdults);
+        const childrenChanged = Number(form.children) !== Number(originalChildren);
+        if (adultsChanged || childrenChanged) {
+          const res = await fetch(`/api/reservations/${reservationIdLocal}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify({ adults: Number(form.adults), children: Number(form.children) }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.message || "Failed to update guest count");
+        }
       }
 
       // persist any additional guests sharing this room
@@ -272,6 +412,16 @@ export default function AddReservation({
         if (g.saved) continue;
         if (!g.guestId && (!g.firstName || !g.lastName || !g.phone || !g.idNumber)) {
           throw new Error("Please complete all required fields for each added guest, or remove them.");
+        }
+        if (!g.guestId) {
+          if (!NAME_RE.test(g.firstName.trim()) || !NAME_RE.test(g.lastName.trim())) {
+            throw new Error(`Guest "${g.firstName} ${g.lastName}": name must contain only letters.`);
+          }
+          if (!PHONE_RE.test(g.phone.trim())) {
+            throw new Error(`Guest "${g.firstName} ${g.lastName}": invalid phone number.`);
+          }
+          const idErr = validateIdNumber(g.idType, g.idNumber);
+          if (idErr) throw new Error(`Guest "${g.firstName} ${g.lastName}": ${idErr}`);
         }
 
         const gPayload = new FormData();
@@ -283,6 +433,7 @@ export default function AddReservation({
           gPayload.append("phone", g.phone);
           if (g.email) gPayload.append("email", g.email);
           if (g.nationality) gPayload.append("nationality", g.nationality);
+          if (g.gender) gPayload.append("gender", g.gender);
           gPayload.append("idType", g.idType);
           gPayload.append("idNumber", g.idNumber);
           if (g.idFront) gPayload.append("idFront", g.idFront);
@@ -309,33 +460,44 @@ export default function AddReservation({
     }
   };
 
-  // STEP 3 -> POST /api/payments (new mode) OR POST /api/reservations/{id}/check-in (checkin mode)
+  // STEP 3 -> POST /api/payments (new mode) OR POST /api/reservations/{id}/check-in (checkin mode).
+  // Check-in never takes a payment — that's handled exclusively through the
+  // Check Balance modal after the guest is checked in.
   const handleSubmit = async (e) => {
     e.preventDefault();
     setStepError("");
     setSaving(true);
     try {
-      const endpoint = mode === "checkin"
-        ? `/api/reservations/${form.reservationId}/check-in`
-        : "/api/payments";
+      let data;
 
-      const payload = new FormData();
-      if (mode !== "checkin") payload.append("reservationId", form.reservationId);
-      if (mode === "checkin" && form.guestId) payload.append("guestId", form.guestId);
-      payload.append("depositAmount", form.depositAmount || 0);
-      payload.append("paymentMethod", form.paymentMethod);
-      if (form.transactionNo) payload.append("transactionNo", form.transactionNo);
-      if (form.paymentProof) payload.append("paymentProof", form.paymentProof);
+      if (mode === "checkin") {
+        const res = await fetch(`/api/reservations/${form.reservationId}/check-in`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify(form.guestId ? { guestId: form.guestId } : {}),
+        });
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || "Failed to check in");
+        data = await res.json();
+      } else {
+        const payload = new FormData();
+        payload.append("reservationId", form.reservationId);
+        payload.append("depositAmount", form.depositAmount || 0);
+        payload.append("paymentMethod", form.paymentMethod);
+        if (form.transactionNo) payload.append("transactionNo", form.transactionNo);
+        if (form.paymentProof) payload.append("paymentProof", form.paymentProof);
 
-      const res = await fetch(endpoint, { method: "POST", headers: { Accept: "application/json" }, body: payload });
-      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || "Failed to save");
-      const data = await res.json();
+        const res = await fetch("/api/payments", { method: "POST", headers: { Accept: "application/json" }, body: payload });
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || "Failed to save");
+        data = await res.json();
+      }
+
       onSave(data.booking);
       setForm(EMPTY);
       setAdditionalGuests([]);
       setCurrentStep(1);
       setGuestCreatedThisSession(false);
       setReservationCreatedThisSession(false);
+      setLedgerSummary(null);
     } catch (err) {
       setStepError(err.message);
     } finally {
@@ -351,8 +513,10 @@ export default function AddReservation({
   };
 
   // Cancel / X: roll back anything THIS session committed but never
-  // finished, then reset and close for real. In checkin mode nothing new
-  // was created (we're editing an existing reservation), so no rollback runs.
+  // finished, then reset and close for real. In checkin mode the reservation
+  // itself is never created/deleted here (it already existed), but a Guest
+  // row may have been created in step 1 for a previously-unlinked check-in —
+  // that still needs cleanup if the flow is cancelled before confirming.
   const handleClose = async () => {
     setSaving(true);
     try {
@@ -374,6 +538,13 @@ export default function AddReservation({
             method: "DELETE", headers: { Accept: "application/json" },
           }).catch(() => {});
         }
+      } else if (guestCreatedThisSession && form.guestId) {
+        // A Guest record was created earlier in THIS check-in (the
+        // reservation had no guest_id yet) but check-in was never confirmed,
+        // so the reservation was never linked to it — safe to delete.
+        await fetch(`/api/guests/${form.guestId}`, {
+          method: "DELETE", headers: { Accept: "application/json" },
+        }).catch(() => {});
       }
     } finally {
       setForm(EMPTY);
@@ -390,7 +561,7 @@ export default function AddReservation({
   const makeGuestRow = () => ({
     localId: `g_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     guestId: null, guestSearch: "", guestResults: [],
-    firstName: "", lastName: "", phone: "", email: "", nationality: "",
+    firstName: "", lastName: "", phone: "", email: "", nationality: "", gender: "",
     idType: "Passport", idNumber: "", guestType: "Adult",
     idFront: null, idBack: null,
     saved: false, savedGuestId: null, createdThisSession: false, error: "",
@@ -418,7 +589,8 @@ export default function AddReservation({
       ...g,
       guestId: guest.guest_id, guestSearch: `${guest.first_name} ${guest.last_name}`,
       firstName: guest.first_name, lastName: guest.last_name, phone: guest.phone,
-      email: guest.email, nationality: guest.nationality, idNumber: guest.id_number,
+      email: guest.email, nationality: guest.nationality, gender: guest.gender || "",
+      idNumber: guest.id_number,
       guestResults: [],
     } : g)));
   };
@@ -426,8 +598,9 @@ export default function AddReservation({
   if (!isOpen) return null;
 
   const fmt = (n) => `$${(parseFloat(n) || 0).toFixed(2)}`;
-  const steps = ["Guest Info", "Room & Stay", "Payment"];
   const isCheckin = mode === "checkin";
+  const steps = isCheckin ? ["Guest Info", "Room & Stay", "Summary"] : ["Guest Info", "Room & Stay", "Payment"];
+  const totalGuestsCount = (parseInt(form.adults) || 0) + (parseInt(form.children) || 0);
 
   return (
     <div className={`fixed inset-0 z-50 ${isMinimized ? "hidden" : "flex"} items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-sm transition-opacity`}>
@@ -513,7 +686,9 @@ export default function AddReservation({
                   )}
                   {form.guestId && (
                     <p className="text-xs text-emerald-600 font-semibold mt-2">
-                      ✓ {isCheckin ? "Existing reservation guest" : "Using existing guest profile"} — manual fields below are ignored.
+                      {isCheckin
+                        ? "✓ Existing reservation guest — you may correct their details below before checking in."
+                        : "✓ Using existing guest profile — manual fields below are ignored."}
                     </p>
                   )}
                 </div>
@@ -526,31 +701,50 @@ export default function AddReservation({
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div><label className={lbl}>First Name *</label>
-                    <input className={inp} placeholder="John" value={form.firstName} onChange={field("firstName")} required disabled={!!form.guestId} /></div>
+                    <input className={inp} placeholder="John" value={form.firstName} onChange={field("firstName")} required disabled={!isCheckin && !!form.guestId} /></div>
                   <div><label className={lbl}>Last Name *</label>
-                    <input className={inp} placeholder="Smith" value={form.lastName} onChange={field("lastName")} required disabled={!!form.guestId} /></div>
+                    <input className={inp} placeholder="Smith" value={form.lastName} onChange={field("lastName")} required disabled={!isCheckin && !!form.guestId} /></div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div><label className={lbl}>Phone Number *</label>
-                    <input className={inp} type="tel" placeholder="+1 (555) 000-0000" value={form.phone} onChange={field("phone")} required disabled={!!form.guestId} /></div>
+                    <input className={inp} type="tel" placeholder="+1 (555) 000-0000" value={form.phone} onChange={field("phone")} required disabled={!isCheckin && !!form.guestId} /></div>
                   <div><label className={lbl}>Email Address</label>
-                    <input className={inp} type="email" placeholder="john.smith@example.com" value={form.email} onChange={field("email")} disabled={!!form.guestId} /></div>
+                    <input className={inp} type="email" placeholder="john.smith@example.com" value={form.email} onChange={field("email")} disabled={!isCheckin && !!form.guestId} /></div>
                 </div>
 
-                <div><label className={lbl}>Nationality</label>
-                  <input className={inp} placeholder="e.g. Canadian, Japanese" value={form.nationality} onChange={field("nationality")} disabled={!!form.guestId} /></div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div><label className={lbl}>Nationality</label>
+                    <input className={inp} placeholder="e.g. Canadian, Japanese" value={form.nationality} onChange={field("nationality")} disabled={!isCheckin && !!form.guestId} /></div>
+                  <div><label className={lbl}>Gender</label>
+                    <select className={sel} value={form.gender} onChange={field("gender")} disabled={!isCheckin && !!form.guestId}>
+                      <option value="">— Select —</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Other">Other</option>
+                    </select></div>
+                </div>
+
+                <label className="flex items-center gap-2.5 px-1 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={!!form.isVip}
+                    onChange={(e) => set("isVip", e.target.checked)}
+                    className="w-4 h-4 rounded border-slate-300 text-yellow-500 focus:ring-yellow-500/40"
+                  />
+                  <span className="text-sm font-semibold text-slate-700">Mark as VIP Guest</span>
+                </label>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="md:col-span-1"><label className={lbl}>ID Type *</label>
-                    <select className={sel} value={form.idType} onChange={field("idType")} required disabled={!!form.guestId}>
+                    <select className={sel} value={form.idType} onChange={field("idType")} required disabled={!isCheckin && !!form.guestId}>
                       <option value="Passport">Passport</option>
                       <option value="NRC">NRC</option>
                       <option value="Driver's License">Driver's License</option>
                       <option value="National ID">National ID</option>
                     </select></div>
                   <div className="md:col-span-2"><label className={lbl}>Identification Document Number *</label>
-                    <input className={inp} placeholder="Document serial identifier..." value={form.idNumber} onChange={field("idNumber")} required disabled={!!form.guestId} /></div>
+                    <input className={inp} placeholder="Document serial identifier..." value={form.idNumber} onChange={field("idNumber")} required disabled={!isCheckin && !!form.guestId} /></div>
                 </div>
 
                 {!form.guestId && (
@@ -622,10 +816,15 @@ export default function AddReservation({
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div><label className={lbl}>Adults *</label>
-                    <input className={inp} type="number" min="1" placeholder="1" value={form.adults} onChange={field("adults")} required disabled={isCheckin} /></div>
+                    <input className={inp} type="number" min="1" placeholder="1" value={form.adults} onChange={field("adults")} required /></div>
                   <div><label className={lbl}>Children</label>
-                    <input className={inp} type="number" min="0" placeholder="0" value={form.children} onChange={field("children")} disabled={isCheckin} /></div>
+                    <input className={inp} type="number" min="0" placeholder="0" value={form.children} onChange={field("children")} /></div>
                 </div>
+                {isCheckin && (
+                  <p className="text-[11px] text-slate-400 -mt-2 ml-0.5">
+                    Increasing guest count adds an extra-person charge for the remaining nights only.
+                  </p>
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div><label className={lbl}>Booking Source</label>
@@ -642,7 +841,7 @@ export default function AddReservation({
                     <select className={sel} value={form.reservationStatus} onChange={field("reservationStatus")} disabled={isCheckin}>
                       <option value="Reserved">Reserved</option>
                       <option value="Confirmed">Confirmed</option>
-                      <option value="Checked-In">Checked In</option>
+                      <option value="Checked-In">Occupied</option>
                     </select></div>
                 </div>
 
@@ -723,6 +922,13 @@ export default function AddReservation({
                                   <option value="Driver's License">Driver's License</option>
                                   <option value="National ID">National ID</option>
                                 </select>
+                                <select className={sel + " py-2.5"} value={g.gender} disabled={g.saved}
+                                  onChange={(e) => updateGuestRow(g.localId, "gender", e.target.value)}>
+                                  <option value="">Gender — Select</option>
+                                  <option value="Male">Male</option>
+                                  <option value="Female">Female</option>
+                                  <option value="Other">Other</option>
+                                </select>
                               </div>
 
                               {!g.saved && (
@@ -763,7 +969,44 @@ export default function AddReservation({
               </div>
             )}
 
-            {currentStep === 3 && (
+            {currentStep === 3 && isCheckin && (
+              <div className={sec}>
+                {ledgerLoading && <p className="text-sm text-slate-400 text-center py-6">Loading room summary…</p>}
+                {!ledgerLoading && ledgerSummary && (
+                  <div className="bg-slate-900 text-white rounded-2xl p-5 space-y-3 shadow-inner">
+                    <div className="flex items-center gap-2 pb-2 border-b border-slate-800">
+                      <FaCalculator size={12} className="text-yellow-400" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Room Summary</span>
+                    </div>
+                    <div className="space-y-1.5 text-sm">
+                      <div className="flex justify-between text-slate-300">
+                        <span>Room charges ({form.nights}n)</span>
+                        <span>{fmt(sumChargesByType(ledgerSummary.charges, ["room", "tax"]))}</span>
+                      </div>
+                      {totalGuestsCount > 2 && (
+                        <div className="flex justify-between text-slate-300">
+                          <span>Extra person charges</span>
+                          <span>{fmt(sumChargesByType(ledgerSummary.charges, ["extra_person"]))}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-emerald-400">
+                        <span>Deposit Already Paid</span>
+                        <span>− {fmt((ledgerSummary.payments || []).reduce((s, p) => s + p.amount, 0))}</span>
+                      </div>
+                      <div className="flex justify-between font-bold text-white pt-2 border-t border-slate-800">
+                        <span>Remaining Amount Due</span>
+                        <span className="text-lg text-amber-400">{fmt(ledgerSummary.balance)}</span>
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-slate-400 pt-1">
+                      Payment isn't collected here — use Check Balance after check-in to record one.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {currentStep === 3 && !isCheckin && (
               <div className={sec}>
                 <div><label className={lbl}>Settlement Method *</label>
                   <select className={sel} value={form.paymentMethod} onChange={field("paymentMethod")}>
@@ -773,7 +1016,7 @@ export default function AddReservation({
                     <option value="online">Mobile Bank Transfer</option>
                   </select></div>
 
-                <div><label className={lbl}>{isCheckin ? "Additional Payment" : "Deposit Amount"}</label>
+                <div><label className={lbl}>Deposit Amount</label>
                   <input className={inp} type="number" min="0" step="0.01" placeholder="0.00"
                     value={form.depositAmount} onChange={field("depositAmount")} /></div>
 

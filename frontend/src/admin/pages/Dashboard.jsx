@@ -1,23 +1,150 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import axios from "axios";
 import AdminLayout from "../layouts/AdminLayout";
-import ReportViewer from "./ReportsViewer"; 
-import { 
-  FaBed, FaCoins, FaUserCheck, FaArrowUp, FaArrowDown, 
-  FaFileExport, FaTimes, FaClipboardList, 
-  FaChartLine, FaPercentage, FaHubspot, FaCalendarAlt
+import ReportViewer from "./ReportsViewer";
+import {
+  FaBed, FaCoins, FaUserCheck,
+  FaFileExport, FaTimes, FaClipboardList,
+  FaChartLine, FaPercentage
 } from "react-icons/fa";
 
+const CHANNEL_COLORS = ["bg-slate-900", "bg-amber-500", "bg-slate-300", "bg-emerald-500", "bg-sky-500"];
+const CHANNEL_HEX = ["#0f172a", "#f59e0b", "#cbd5e1", "#10b981", "#0ea5e9"];
+
+// Normalize a series of numeric values into plot points inside a fixed
+// 600x160 viewBox.
+function toPoints(values, { width = 600, height = 160, topPad = 20, bottomPad = 10 } = {}) {
+  if (!values.length) return [];
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const span = max - min || 1;
+  const usableHeight = height - topPad - bottomPad;
+  const stepX = values.length > 1 ? width / (values.length - 1) : 0;
+
+  return values.map((v, i) => ({
+    x: i * stepX,
+    y: height - bottomPad - ((v - min) / span) * usableHeight,
+  }));
+}
+
+// Turns plot points into a smooth "wave" curve (Catmull-Rom -> cubic Bezier)
+// instead of straight point-to-point segments.
+function buildWavePath(points) {
+  if (points.length === 0) return "";
+  if (points.length === 1) return `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
+
+  let d = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[i === 0 ? i : i - 1];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[i + 2 < points.length ? i + 2 : i + 1];
+    const cp1x = p1.x + (p2.x - p0.x) / 6;
+    const cp1y = p1.y + (p2.y - p0.y) / 6;
+    const cp2x = p2.x - (p3.x - p1.x) / 6;
+    const cp2y = p2.y - (p3.y - p1.y) / 6;
+    d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+  }
+  return d;
+}
+
+const fmtMoney = (n) => `$${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const fmtChange = (n, suffix = "%") => (n > 0 ? "+" : "") + n + suffix;
+
 export default function Dashboard() {
-  const [viewState, setViewState] = useState("dashboard"); 
+  const [viewState, setViewState] = useState("dashboard");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedType, setSelectedType] = useState("ops_brief");
-  const [dashboardDate, setDashboardDate] = useState("2026-06");
+  const [range, setRange] = useState(7);
 
-  const stats = [
-    { title: "Total Revenue", value: "$48,250.00", change: "+12.5%", isPositive: true, icon: <FaCoins className="text-xl text-amber-600" /> },
-    { title: "Occupancy Rate", value: "78.4%", change: "+4.2%", isPositive: true, icon: <FaBed className="text-xl text-amber-600" /> },
-    { title: "Active Check-Ins", value: "32", change: "-2 entries", isPositive: false, icon: <FaUserCheck className="text-xl text-amber-600" /> }
-  ];
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError("");
+    axios
+      .get("/api/dashboard/stats", { params: { range } })
+      .then((res) => { if (active) setData(res.data); })
+      .catch(() => { if (active) setError("Failed to load dashboard data."); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [range]);
+
+  const stats = useMemo(() => {
+    if (!data) return [];
+    const s = data.stats;
+    return [
+      {
+        title: "Total Revenue",
+        value: fmtMoney(s.total_revenue.value),
+        change: fmtChange(s.total_revenue.change),
+        isPositive: s.total_revenue.change >= 0,
+        icon: <FaCoins className="text-xl text-amber-600" />,
+      },
+      {
+        title: "Occupancy Rate",
+        value: `${s.occupancy_rate.value}%`,
+        change: fmtChange(s.occupancy_rate.change),
+        isPositive: s.occupancy_rate.change >= 0,
+        icon: <FaBed className="text-xl text-amber-600" />,
+      },
+      {
+        title: "Active Check-Ins",
+        value: String(s.active_check_ins.value),
+        change: `${s.active_check_ins.change > 0 ? "+" : ""}${s.active_check_ins.change} entries`,
+        isPositive: s.active_check_ins.change >= 0,
+        icon: <FaUserCheck className="text-xl text-amber-600" />,
+      },
+    ];
+  }, [data]);
+
+  const revenuePoints = useMemo(
+    () => (data ? toPoints(data.chart_series.map((d) => d.revenue)) : []),
+    [data]
+  );
+  const occupancyPoints = useMemo(
+    () => (data ? toPoints(data.chart_series.map((d) => d.occupancy_rate)) : []),
+    [data]
+  );
+  const revenuePath = useMemo(() => buildWavePath(revenuePoints), [revenuePoints]);
+  const occupancyPath = useMemo(() => buildWavePath(occupancyPoints), [occupancyPoints]);
+  const revenueAreaPath = useMemo(() => {
+    if (!revenuePoints.length) return "";
+    const first = revenuePoints[0];
+    const last = revenuePoints[revenuePoints.length - 1];
+    return `${revenuePath} L ${last.x.toFixed(1)} 160 L ${first.x.toFixed(1)} 160 Z`;
+  }, [revenuePoints, revenuePath]);
+
+  const channels = (data?.distribution_channels || []).map((c, i) => ({
+    name: c.name,
+    percentValue: c.percent,
+    value: `${c.percent}%`,
+    countValue: c.count,
+    count: `${c.count} Booking${c.count === 1 ? "" : "s"}`,
+    color: CHANNEL_COLORS[i % CHANNEL_COLORS.length],
+    hex: CHANNEL_HEX[i % CHANNEL_HEX.length],
+  }));
+
+  const totalChannelBookings = channels.reduce((sum, c) => sum + c.countValue, 0);
+
+  // Donut chart geometry — each channel gets an arc proportional to its
+  // percent, drawn as a dash segment along a full-circle <circle>, rotated
+  // so the first segment starts at 12 o'clock.
+  const DONUT_SIZE = 160;
+  const DONUT_RADIUS = 62;
+  const DONUT_STROKE = 20;
+  const DONUT_CIRCUMFERENCE = 2 * Math.PI * DONUT_RADIUS;
+  const donutSegments = channels.map((chan, i) => {
+    const percentBefore = channels.slice(0, i).reduce((sum, c) => sum + c.percentValue, 0);
+    const dash = (chan.percentValue / 100) * DONUT_CIRCUMFERENCE;
+    const offset = DONUT_CIRCUMFERENCE - (percentBefore / 100) * DONUT_CIRCUMFERENCE;
+    return { ...chan, dash, offset };
+  });
+
+  const recentActivities = data?.recent_activity || [];
 
   const reportTypes = [
     { id: "ops_brief", label: "Daily Operations Brief", desc: "Check-ins, check-outs, and room status.", icon: <FaClipboardList className="text-base" /> },
@@ -25,31 +152,19 @@ export default function Dashboard() {
     { id: "occ_forecast", label: "Occupancy Forecast", desc: "Percentage trends and capacity limitations.", icon: <FaPercentage className="text-base" /> },
   ];
 
-  const recentActivities = [
-    { id: 1, text: "Room 201 - VIP Check-in completed", time: "10m ago" },
-    { id: 2, text: "Room 104 marked Cleaned by Staff", time: "25m ago" },
-    { id: 3, text: "New booking via Booking.com ($450)", time: "1h ago" },
-    { id: 4, text: "Late check-out request approved", time: "2h ago" }
-  ];
-
-  const channels = [
-    { name: "Phone", value: "42%", count: "124 Bookings", color: "bg-slate-900" },
-    { name: "Booking.com", value: "38%", count: "110 Bookings", color: "bg-amber-500" },
-    { name: "Others", value: "20%", count: "58 Bookings", color: "bg-slate-300" }
-  ];
-
   return (
     <AdminLayout>
       {viewState === "view_report" ? (
-        <ReportViewer 
-          selectedType={selectedType} 
-          dashboardDate={dashboardDate} 
-          onBack={() => setViewState("dashboard")} 
+        <ReportViewer
+          selectedType={selectedType}
+          dashboardDate={new Date().toISOString().slice(0, 7)}
+          data={data}
+          onBack={() => setViewState("dashboard")}
         />
       ) : (
         /* Viewport Lock Wrapper */
         <div className="w-full h-[calc(100vh-110px)] flex flex-col gap-5 overflow-hidden p-1">
-          
+
           <div className="flex items-center justify-between pb-3 border-b border-slate-200 shrink-0">
             <div>
               <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">
@@ -57,17 +172,11 @@ export default function Dashboard() {
               </h1>
               <p className="text-sm font-normal text-slate-500 mt-0.5">
                 Real-time terminal environment
-              </p>  
+              </p>
             </div>
 
-            {/* FIXED: Single unified layout row forcing identical heights & flex baseline alignment */}
             <div className="flex items-stretch gap-3">
-              <input
-                type="month"
-                value={dashboardDate}
-                onChange={(e) => setDashboardDate(e.target.value)}
-                className="h-11 !w-44 px-4 bg-white [color-scheme:light] border border-slate-300 rounded-xl text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 box-border"
-              />
+              
 
               <button
                 onClick={() => setIsModalOpen(true)}
@@ -79,35 +188,44 @@ export default function Dashboard() {
             </div>
           </div>
 
+          {error && (
+            <div className="bg-red-50 border border-red-100 text-red-700 text-sm px-4 py-3 rounded-xl shrink-0">{error}</div>
+          )}
+
           {/* 2. Key Metrics Row */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5 shrink-0">
-            {stats.map((stat, i) => (
+            {(loading ? [0, 1, 2] : stats).map((stat, i) => (
               <div key={i} className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="p-3.5 bg-amber-50 rounded-xl border border-amber-100 text-xl">{stat.icon}</div>
-                  <div>
-                    <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">{stat.title}</p>
-                    <h3 className="text-2xl font-semibold text-slate-900 tracking-tight mt-0.5">{stat.value}</h3>
-                  </div>
-                </div>
-                <span className={`text-xs font-medium px-3 py-1 rounded-full ${stat.isPositive ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>
-                  {stat.change}
-                </span>
+                {loading ? (
+                  <div className="w-full h-10 bg-slate-50 animate-pulse rounded-lg" />
+                ) : (
+                  <>
+                    <div className="flex items-center gap-4">
+                      <div className="p-3.5 bg-amber-50 rounded-xl border border-amber-100 text-xl">{stat.icon}</div>
+                      <div>
+                        <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">{stat.title}</p>
+                        <h3 className="text-2xl font-semibold text-slate-900 tracking-tight mt-0.5">{stat.value}</h3>
+                      </div>
+                    </div>
+                    <span className={`text-xs font-medium px-3 py-1 rounded-full ${stat.isPositive ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>
+                      {stat.change}
+                    </span>
+                  </>
+                )}
               </div>
             ))}
           </div>
 
           {/* 3. Main Split Framework Core */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 flex-1 min-h-0">
-            
+
             {/* Left Hand Side: Chart */}
             <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm lg:col-span-2 flex flex-col justify-between min-h-0">
               <div className="flex justify-between items-center pb-3 shrink-0">
                 <div>
                   <h2 className="text-md font-semibold text-slate-900 tracking-tight">Analytical Performance Dynamics</h2>
                 </div>
-                
-                {/* Fixed Simultaneous Line Legends */}
+
                 <div className="flex items-center gap-4 bg-slate-50 border border-slate-100 rounded-lg px-3 py-1.5">
                   <span className="flex items-center gap-2 text-xs font-medium text-slate-700">
                     <span className="w-3 h-1 bg-slate-900 rounded-full inline-block" /> Gross Revenue ($)
@@ -118,10 +236,8 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Enhanced Grid & Chart Container Area */}
               <div className="relative flex-1 bg-slate-50/50 rounded-xl border border-slate-100 p-4 flex flex-col justify-between min-h-0 overflow-hidden">
-                
-                {/* Horizontal Baseline Guides */}
+
                 <div className="absolute inset-0 p-4 flex flex-col justify-between pointer-events-none">
                   {[1, 2, 3, 4].map((n) => (
                     <div key={n} className="w-full border-b border-slate-200/50 h-0" />
@@ -129,68 +245,88 @@ export default function Dashboard() {
                   <div className="w-full h-0" />
                 </div>
 
-                {/* Simultaneous Real-time Dual Line Plot Canvas */}
                 <div className="relative w-full h-full min-h-0 pt-4">
-                  <svg className="w-full h-full overflow-visible" viewBox="0 0 600 160" preserveAspectRatio="none">
-                    <path 
-                      d="M 0 110 Q 100 60, 200 85 T 400 30 T 600 50" 
-                      fill="none" 
-                      stroke="#0f172a" 
-                      strokeWidth="3" 
-                      strokeLinecap="round" 
-                    />
-                    <path 
-                      d="M 0 140 Q 120 100, 240 115 T 480 50 T 600 75" 
-                      fill="none" 
-                      stroke="#f59e0b" 
-                      strokeWidth="3" 
-                      strokeLinecap="round" 
-                    />
-                    <circle cx="200" cy="85" r="4.5" className="fill-slate-900 stroke-white stroke-2" />
-                    <circle cx="400" cy="30" r="4.5" className="fill-slate-900 stroke-white stroke-2" />
-                    <circle cx="240" cy="115" r="4.5" className="fill-amber-500 stroke-white stroke-2" />
-                    <circle cx="480" cy="50" r="4.5" className="fill-amber-500 stroke-white stroke-2" />
-                  </svg>
-
-                  <div className="absolute top-2 left-[64%] bg-slate-900 text-white font-mono text-xs px-2 py-0.5 rounded shadow-sm pointer-events-none">
-                    Rev: $4,250/d
-                  </div>
-                  <div className="absolute top-16 left-[78%] bg-amber-500 text-white font-mono text-xs px-2 py-0.5 rounded shadow-sm pointer-events-none">
-                    Occ: 88.5%
-                  </div>
+                  {!loading && data && (
+                    <svg className="w-full h-full overflow-visible" viewBox="0 0 600 160" preserveAspectRatio="none">
+                      <defs>
+                        <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#0f172a" stopOpacity="0.18" />
+                          <stop offset="100%" stopColor="#0f172a" stopOpacity="0" />
+                        </linearGradient>
+                      </defs>
+                      <path d={revenueAreaPath} fill="url(#revenueGradient)" stroke="none" />
+                      <path d={revenuePath} fill="none" stroke="#0f172a" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d={occupancyPath} fill="none" stroke="#f59e0b" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
                 </div>
 
                 {/* X-Axis Horizontal Matrix Labels */}
                 <div className="flex justify-between text-xs text-slate-500 font-medium pt-2 border-t border-slate-200 shrink-0">
-                  <span>01 Jun</span><span>07 Jun</span><span>14 Jun</span><span>21 Jun</span><span>30 Jun</span>
+                  {(data?.chart_series || []).filter((_, i, arr) => i % Math.ceil(arr.length / 5) === 0).map((d) => (
+                    <span key={d.date}>{new Date(d.date).toLocaleDateString(undefined, { day: "2-digit", month: "short" })}</span>
+                  ))}
                 </div>
               </div>
             </div>
 
             {/* Right Hand Column */}
             <div className="grid grid-rows-2 gap-5 min-h-0">
-              
+
               {/* Channel Yield Configuration Block */}
               <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between min-h-0">
                 <div className="shrink-0">
                   <h3 className="text-base font-semibold text-slate-900">Distribution Channels</h3>
                 </div>
 
-                <div className="space-y-3.5 flex-1 flex flex-col justify-center min-h-0">
-                  {channels.map((chan, index) => (
-                    <div key={index} className="space-y-1.5">
-                      <div className="flex justify-between text-xs font-medium text-slate-700">
-                        <span className="flex items-center gap-2">
-                          <span className={`w-2 h-2 rounded-full ${chan.color}`} />
-                          {chan.name}
-                        </span>
-                        <span className="font-mono">{chan.value}</span>
+                <div className="flex-1 flex items-center gap-4 min-h-0 overflow-y-auto">
+                  {channels.length === 0 && !loading ? (
+                    <p className="text-xs text-slate-400 text-center w-full">No bookings in this period.</p>
+                  ) : (
+                    <>
+                      <div className="relative shrink-0" style={{ width: DONUT_SIZE * 0.8, height: DONUT_SIZE * 0.8 }}>
+                        <svg viewBox={`0 0 ${DONUT_SIZE} ${DONUT_SIZE}`} className="-rotate-90 w-full h-full">
+                          <circle
+                            cx={DONUT_SIZE / 2}
+                            cy={DONUT_SIZE / 2}
+                            r={DONUT_RADIUS}
+                            fill="none"
+                            stroke="#f1f5f9"
+                            strokeWidth={DONUT_STROKE}
+                          />
+                          {donutSegments.map((seg, i) => (
+                            <circle
+                              key={i}
+                              cx={DONUT_SIZE / 2}
+                              cy={DONUT_SIZE / 2}
+                              r={DONUT_RADIUS}
+                              fill="none"
+                              stroke={seg.hex}
+                              strokeWidth={DONUT_STROKE}
+                              strokeDasharray={`${seg.dash} ${DONUT_CIRCUMFERENCE - seg.dash}`}
+                              strokeDashoffset={seg.offset}
+                            />
+                          ))}
+                        </svg>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                          <span className="text-lg font-semibold text-slate-900 leading-none">{totalChannelBookings}</span>
+                          <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider mt-0.5">Bookings</span>
+                        </div>
                       </div>
-                      <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                        <div className={`h-full ${chan.color}`} style={{ width: chan.value }} />
+
+                      <div className="flex-1 space-y-2 min-w-0">
+                        {channels.map((chan, index) => (
+                          <div key={index} className="flex justify-between items-center text-xs font-medium text-slate-700 gap-2">
+                            <span className="flex items-center gap-2 truncate">
+                              <span className={`w-2 h-2 rounded-full shrink-0 ${chan.color}`} />
+                              <span className="truncate">{chan.name}</span>
+                            </span>
+                            <span className="font-mono text-slate-500 shrink-0">{chan.value}</span>
+                          </div>
+                        ))}
                       </div>
-                    </div>
-                  ))}
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -198,10 +334,13 @@ export default function Dashboard() {
               <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between min-h-0">
                 <div className="shrink-0">
                   <h3 className="text-base font-semibold text-slate-900">Live Activity Log</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">System telemetry events</p>
+                  <p className="text-xs text-slate-400 mt-0.5">Recent bookings & payments</p>
                 </div>
-                
+
                 <div className="flex-1 overflow-y-auto mt-3 pr-1 space-y-2.5 min-h-0 scrollbar-none">
+                  {recentActivities.length === 0 && !loading && (
+                    <p className="text-xs text-slate-400 text-center">No recent activity.</p>
+                  )}
                   {recentActivities.map((act) => (
                     <div key={act.id} className="flex justify-between items-center gap-3 text-xs py-1.5 border-b border-slate-50 last:border-0">
                       <p className="text-slate-700 font-medium truncate">{act.text}</p>
@@ -221,7 +360,7 @@ export default function Dashboard() {
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs" onClick={() => setIsModalOpen(false)} />
-          
+
           <div className="bg-white w-full max-w-md rounded-2xl border border-slate-200 shadow-2xl relative z-10 overflow-hidden">
             <div className="flex items-center justify-between p-5 border-b border-slate-100">
               <div>
@@ -237,8 +376,8 @@ export default function Dashboard() {
                   key={type.id}
                   onClick={() => setSelectedType(type.id)}
                   className={`w-full text-left p-3.5 rounded-xl border flex gap-3 transition items-center ${
-                    selectedType === type.id 
-                      ? "border-slate-900 bg-slate-900 text-white shadow-sm" 
+                    selectedType === type.id
+                      ? "border-slate-900 bg-slate-900 text-white shadow-sm"
                       : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
                   }`}
                 >
@@ -253,11 +392,11 @@ export default function Dashboard() {
 
             <div className="bg-slate-50 px-5 py-4 flex items-center justify-end gap-2 border-t border-slate-100">
               <button onClick={() => setIsModalOpen(false)} className="text-xs font-semibold text-slate-500 hover:text-slate-700 px-4 py-2">Cancel</button>
-              <button 
+              <button
                 onClick={() => {
                   setIsModalOpen(false);
-                  setViewState("view_report"); 
-                }} 
+                  setViewState("view_report");
+                }}
                 className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold px-4 py-2 rounded-lg transition"
               >
                 View HTML Report

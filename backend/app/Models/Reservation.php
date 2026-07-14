@@ -75,6 +75,29 @@ class Reservation extends Model
         return $this->hasMany(Payment::class, 'reservation_id', 'reservation_id');
     }
 
+    public function charges()
+    {
+        return $this->hasMany(ReservationCharge::class, 'reservation_id', 'reservation_id');
+    }
+
+    /**
+     * The room_moves row that created THIS reservation (i.e. this
+     * reservation is the "new" side of a move), if any.
+     */
+    public function roomMoveFrom()
+    {
+        return $this->hasOne(RoomMove::class, 'new_reservation_id', 'reservation_id');
+    }
+
+    /**
+     * The room_moves row created WHEN this reservation was moved away
+     * (i.e. this reservation is the "old" side of a move), if any.
+     */
+    public function roomMoveTo()
+    {
+        return $this->hasOne(RoomMove::class, 'old_reservation_id', 'reservation_id');
+    }
+
     /**
      * Pivot rows linking additional guests (beyond the primary guest_id)
      * to this reservation, via the reservation_guests table.
@@ -106,16 +129,21 @@ class Reservation extends Model
     }
 
     /**
-     * total_amount minus whatever's actually been paid so far.
-     * Always derived — never trust a stored snapshot for this.
+     * SUM(charges.amount) - SUM(payments.amount), always derived live.
+     * Never trust total_amount/deposit_amount for this — those are
+     * display-only snapshots.
      */
     public function getRemainingAmountAttribute(): float
     {
+        $charged = $this->relationLoaded('charges')
+            ? $this->charges->sum('amount')
+            : $this->charges()->sum('amount');
+
         $paid = $this->relationLoaded('payments')
             ? $this->payments->sum('amount')
             : $this->payments()->sum('amount');
 
-        return max(0, (float) $this->total_amount - (float) $paid);
+        return max(0, (float) $charged - (float) $paid);
     }
 
     /**
@@ -172,9 +200,13 @@ class Reservation extends Model
             'checkIn'       => $this->check_in_date->format('Y-m-d'),
             'checkOut'      => $this->check_out_date->format('Y-m-d'),
             'nights'        => $this->nights,
+            'totalGuests'   => (int) $this->adults + (int) $this->children,
+            'comments'      => $this->special_requests ?? '',
             'source'        => $this->booking_source,
             'status'        => $this->computeDisplayStatus(),
             'rawStatus'     => $this->reservation_status,
+            'movedToRoom'   => $this->roomMoveTo?->newReservation?->room_number,
+            'handledBy'     => $this->createdBy?->name,
             'totalAmount'   => '$' . number_format((float) $this->total_amount, 2),
             // Numeric (unformatted) counterparts — used by the payment /
             // checkout UI for math and > 0 comparisons instead of parsing

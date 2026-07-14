@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Storage;
 use App\Models\Room;
 use App\Models\RoomType;
 use App\Models\Reservation;
+use App\Models\ReservationCharge;
 use App\Models\Payment;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -17,7 +18,7 @@ class BookingController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Booking::with('roomType');
+        $query = Booking::with(['roomType', 'handledBy']);
 
         // Search by booking id, guest name, or email
         if ($request->filled('search')) {
@@ -30,9 +31,16 @@ class BookingController extends Controller
             });
         }
 
-        // Filter by status
+        // Filter by status. 'confirmed' also matches 'converted' — a
+        // converted booking is still a confirmed one, just further along
+        // (it now has a linked Reservation too).
         if ($request->filled('status') && $request->status !== 'All Status') {
-            $query->where('status', strtolower($request->status));
+            $statusValue = strtolower($request->status);
+            if ($statusValue === 'confirmed') {
+                $query->whereIn('status', ['confirmed', 'converted']);
+            } else {
+                $query->where('status', $statusValue);
+            }
         }
 
         // Filter by check-in date
@@ -61,13 +69,21 @@ class BookingController extends Controller
                     'depositScreenshot'  => $b->deposit_screenshot
                         ? Storage::disk('public')->url($b->deposit_screenshot)
                         : null,
-                    'status'             => ucfirst($b->status),
+                    // Display label collapses 'converted' into 'Confirmed' —
+                    // guests/staff don't need a third status word for what
+                    // is still, from their perspective, a confirmed booking.
+                    // rawStatus keeps the real value so the UI can still
+                    // tell converted bookings apart (e.g. to link to their
+                    // Reservation instead of allowing further edits).
+                    'status'             => $b->status === 'converted' ? 'Confirmed' : ucfirst($b->status),
+                    'rawStatus'          => $b->status,
                     'reservationId'  => $b->reservation_id,
+                    'handledBy'          => $b->handledBy?->name,
                 ];
             }),
             'stats' => [
                 'total'     => Booking::count(),
-                'confirmed' => Booking::where('status', 'confirmed')->count(),
+                'confirmed' => Booking::whereIn('status', ['confirmed', 'converted'])->count(),
                 'pending'   => Booking::where('status', 'pending')->count(),
             ],
         ]);
@@ -153,6 +169,20 @@ class BookingController extends Controller
     if ($shouldConvert) {
         $room = Room::with('roomType')->where('room_number', $validated['room_number'])->firstOrFail();
 
+        if (in_array($room->status, ['Maintenance', 'Cleaning'], true)) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => "Room {$room->room_number} is currently {$room->status} and cannot be assigned.",
+            ], 422);
+        }
+
+        if (($room->roomType->status ?? 'Active') !== 'Active') {
+            return response()->json([
+                'status'  => 'error',
+                'message' => "This room type is not currently available for booking.",
+            ], 422);
+        }
+
         // NEW: reject if the assigned room isn't the type the guest actually booked
         if ((int) $room->room_type_id !== (int) $booking->room_type_id) {
             return response()->json([
@@ -176,6 +206,7 @@ class BookingController extends Controller
         }
     }
 
+    $validated['handled_by'] = Auth::id() ?? $booking->handled_by;
     $booking->update($validated);
 
     if ($shouldConvert) {
@@ -191,7 +222,7 @@ class BookingController extends Controller
             $totalGuests = $adults + $children;
 
             $roomCharge        = $nights * $rateNight;
-            $extraPersonCharge = max(0, $totalGuests - 2) * (float) $room->extra_person_rate * $nights;
+            $extraPersonCharge = max(0, $totalGuests - 2) * (float) ($room->roomType->extra_person_rate ?? 0) * $nights;
             $taxAmount         = ($roomCharge + $extraPersonCharge) * 0.1;
             $totalAmount       = $roomCharge + $extraPersonCharge + $taxAmount;
             $deposit           = (float) $booking->deposit;
@@ -218,6 +249,31 @@ class BookingController extends Controller
                 'reservation_status'  => 'Confirmed',
                 'created_by'          => Auth::id(),
             ]);
+
+            ReservationCharge::create([
+                'reservation_id' => $reservation->reservation_id,
+                'charge_type'    => 'room',
+                'description'    => "Room charge — {$nights} night(s)",
+                'amount'         => $roomCharge,
+            ]);
+
+            if ($extraPersonCharge > 0) {
+                ReservationCharge::create([
+                    'reservation_id' => $reservation->reservation_id,
+                    'charge_type'    => 'extra_person',
+                    'description'    => "Extra person charge — {$nights} night(s)",
+                    'amount'         => $extraPersonCharge,
+                ]);
+            }
+
+            if ($taxAmount > 0) {
+                ReservationCharge::create([
+                    'reservation_id' => $reservation->reservation_id,
+                    'charge_type'    => 'tax',
+                    'description'    => 'Tax',
+                    'amount'         => $taxAmount,
+                ]);
+            }
 
             if ($deposit > 0) {
                 Payment::create([

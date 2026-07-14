@@ -7,6 +7,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Guest;
 use App\Models\Reservation;
 use App\Models\ReservationGuest;
+use App\Support\IdNumberOverlapChecker;
+use App\Support\ValidationPatterns;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -25,17 +27,18 @@ class ReservationGuestController extends Controller
         $reservation = Reservation::findOrFail($reservationId);
 
         $validated = $request->validate([
-            'guestId'     => 'nullable|integer|exists:guests,guest_id',
-            'guestType'   => 'nullable|in:Adult,Child',
-            'firstName'   => 'required_without:guestId|string|max:255',
-            'lastName'    => 'required_without:guestId|string|max:255',
-            'phone'       => 'required_without:guestId|string|max:50',
-            'email'       => 'nullable|email|max:255',
-            'nationality' => 'nullable|string|max:255',
-            'idType'      => 'required_without:guestId|string|max:50',
-            'idNumber'    => 'required_without:guestId|string|max:100',
-            'idFront'     => 'nullable|file|image|max:5120',
-            'idBack'      => 'nullable|file|image|max:5120',
+            'guestId'     => ['nullable', 'integer', 'exists:guests,guest_id'],
+            'guestType'   => ['nullable', 'in:Adult,Child'],
+            'firstName'   => ['required_without:guestId', 'string', 'max:255', 'regex:' . ValidationPatterns::NAME],
+            'lastName'    => ['required_without:guestId', 'string', 'max:255', 'regex:' . ValidationPatterns::NAME],
+            'phone'       => ['required_without:guestId', 'string', 'max:50', 'regex:' . ValidationPatterns::PHONE],
+            'email'       => ['nullable', 'string', 'email:rfc', 'max:255'],
+            'nationality' => ['nullable', 'string', 'max:100', 'regex:' . ValidationPatterns::NATIONALITY],
+            'gender'      => ['nullable', 'in:Male,Female,Other'],
+            'idType'      => ['required_without:guestId', 'string', 'in:Passport,NRC,Driver\'s License,National ID'],
+            'idNumber'    => ['required_without:guestId', 'string', 'max:100', ValidationPatterns::idNumberRule($request->input('idType', ''))],
+            'idFront'     => ['nullable', 'file', 'image', 'max:5120'],
+            'idBack'      => ['nullable', 'file', 'image', 'max:5120'],
         ]);
 
         try {
@@ -50,6 +53,7 @@ class ReservationGuestController extends Controller
                         'phone'       => $validated['phone'],
                         'email'       => $validated['email'] ?? null,
                         'nationality' => $validated['nationality'] ?? null,
+                        'gender'      => $validated['gender'] ?? null,
                         'id_type'     => $validated['idType'],
                         'id_number'   => $validated['idNumber'],
                         'is_vip'      => false,
@@ -66,6 +70,15 @@ class ReservationGuestController extends Controller
 
                 if ($reservation->guest_id == $guest->guest_id) {
                     throw new \RuntimeException('This guest is already the primary guest on this reservation.');
+                }
+
+                if ($guest->id_number && IdNumberOverlapChecker::hasConflict(
+                    $guest->id_number,
+                    $reservation->check_in_date,
+                    $reservation->check_out_date,
+                    $reservation->reservation_id
+                )) {
+                    throw new \RuntimeException("This guest's Identification Document Number is already used on another reservation that overlaps these dates.");
                 }
 
                 $link = ReservationGuest::firstOrCreate(

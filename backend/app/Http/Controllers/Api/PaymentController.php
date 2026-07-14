@@ -10,6 +10,29 @@ use Illuminate\Support\Facades\DB;
 
 class PaymentController extends Controller
 {
+    public function index()
+    {
+        $payments = Payment::with(['reservation.room', 'reservation.guest', 'handledBy'])
+            ->orderByDesc('payment_id')
+            ->get();
+
+        return response()->json([
+            'payments' => $payments->map(fn ($p) => [
+                'id'            => $p->payment_id,
+                'reservationId' => $p->reservation_id,
+                'bookingNumber' => $p->reservation?->booking_number,
+                'roomNumber'    => $p->reservation?->room_number,
+                'guestName'     => $p->reservation?->guest?->full_name ?? $p->reservation?->guest_name,
+                'amount'        => (float) $p->amount,
+                'paymentMethod' => $p->payment_method,
+                'date'          => optional($p->date)->toDateString(),
+                'comment'       => $p->description,
+                'proofPath'     => $p->payment_proof_path,
+                'handledBy'     => $p->handledBy?->name,
+            ])->values(),
+        ]);
+    }
+
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -17,6 +40,7 @@ class PaymentController extends Controller
             'depositAmount' => 'nullable|numeric|min:0',
             'paymentMethod' => 'required|string|in:cash,credit_card,bank_transfer,online',
             'transactionNo' => 'nullable|string|max:100',
+            'description'   => 'nullable|string|max:1000',
             'paymentProof'  => 'nullable|file|max:5120',
         ]);
 
@@ -31,7 +55,8 @@ class PaymentController extends Controller
                     'payment_method' => $validated['paymentMethod'],
                     'date'           => now()->toDateString(),
                     'transaction_no' => $validated['transactionNo'] ?? null,
-                    'description'    => 'Initial deposit at booking',
+                    'description'    => $validated['description'] ?? 'Initial deposit at booking',
+                    'handled_by'     => $request->user()?->user_id ?? 1,
                 ];
 
                 if ($request->hasFile('paymentProof')) {
@@ -42,7 +67,7 @@ class PaymentController extends Controller
             }
 
             $reservation->update(['deposit_amount' => $deposit]);
-            $reservation->load(['guest', 'roomType', 'payments']);
+            $reservation->load(['guest', 'roomType', 'payments', 'charges']);
 
             return $reservation;
         });

@@ -11,9 +11,11 @@ class RoomType extends Model
 
     protected $fillable = [
         'name',
-        'code',         
+        'code',
+        'image',
         'num_of_rooms',
         'base_price',
+        'extra_person_rate',
         'capacity',
         'breakfast',
         'bathtub',
@@ -24,6 +26,7 @@ class RoomType extends Model
         'breakfast'    => 'boolean',
         'bathtub'      => 'boolean',
         'base_price'   => 'decimal:2',
+        'extra_person_rate' => 'decimal:2',
         'num_of_rooms' => 'integer',
         'capacity'     => 'integer',
     ];

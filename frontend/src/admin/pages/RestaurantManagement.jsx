@@ -1,21 +1,20 @@
 import React, { useState, useEffect } from "react";
+import axios from "axios";
+import { toast } from "react-hot-toast";
 
 import AdminLayout from "../layouts/AdminLayout";
-import { 
-  FaUtensils, FaCoins, FaClipboardList, FaPlus, 
+import { useAuth } from "../../context/AuthContext";
+import {
+  FaUtensils, FaClipboardList, FaPlus,
   FaEdit, FaTimes, FaSearch, FaCircle, FaTrash
 } from "react-icons/fa";
 
 export default function RestaurantManagement() {
-  // Default static dataset fallback records
-  const [menuItems, setMenuItems] = useState([
-    { item_id: 1, item_name: "Ribeye Steak with Garlic Butter", category: "Food", price: 38.50, status: "Available" },
-    { item_id: 2, item_name: "Club Sandwich with Fries", category: "Snack", price: 14.00, status: "Available" },
-    { item_id: 3, item_name: "Iced Caramel Macchiato", category: "Drink", price: 6.50, status: "Available" },
-    { item_id: 4, item_name: "Truffle Parmesan Fries", category: "Snack", price: 9.50, status: "Available" },
-    { item_id: 5, item_name: "Fresh Mint Mojito", category: "Drink", price: 8.00, status: "Out of Stock" },
-    { item_id: 6, item_name: "Matcha Cheesecake Slice", category: "Dessert", price: 10.50, status: "Available" }
-  ]);
+  const { user } = useAuth();
+  const canWrite = (user?.role || "").toLowerCase() === "manager";
+
+  // Data now comes entirely from the backend — no hardcoded fallback rows.
+  const [menuItems, setMenuItems] = useState([]);
   
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -29,37 +28,26 @@ export default function RestaurantManagement() {
     fetchItemsFromDB();
   }, [searchQuery, selectedCategory]);
 
-  const API = "http://localhost/Hotel-Booking-System/backend/public/api";
+  // Base URL is already set globally in main.jsx (axios), same pattern used
+  // by RoomTypeManagement.jsx / GuestManagement.jsx — no need for a
+  // hardcoded host here.
+  const fetchItemsFromDB = async () => {
+    try {
+      const response = await axios.get("/api/restaurant-items", {
+        params: { search: searchQuery, category: selectedCategory },
+      });
 
-const fetchItemsFromDB = async () => {
-  try {
-    const response = await fetch(
-      `${API}/restaurant-items?search=${encodeURIComponent(
-        searchQuery
-      )}&category=${encodeURIComponent(selectedCategory)}`
-    );
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+      const data = response.data;
+      if (Array.isArray(data)) {
+        setMenuItems(data.map((item) => ({ ...item, price: Number(item.price) })));
+      } else {
+        setMenuItems([]);
+      }
+    } catch (error) {
+      console.error("Backend Error:", error);
+      toast.error(error.response?.data?.message || "Failed to connect to the backend server.");
     }
-
-    const data = await response.json();
-
-    if (Array.isArray(data)) {
-  setMenuItems(
-    data.map(item => ({
-      ...item,
-      price: Number(item.price)
-    }))
-  );
-} else {
-  setMenuItems([]);
-}
-  } catch (error) {
-    console.error("Backend Error:", error);
-    alert("Failed to connect to the backend server.");
-  }
-};
+  };
 
   const handleOpenAddModal = () => {
     setIsEditMode(false);
@@ -80,113 +68,71 @@ const fetchItemsFromDB = async () => {
   };
 
   const handleFormSubmit = async (e) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  const url = isEditMode
-    ? `${API}/restaurant-items/${formItem.item_id}`
-    : `${API}/restaurant-items`;
+    const payload = {
+      item_name: formItem.item_name,
+      category: formItem.category,
+      price: parseFloat(formItem.price),
+      status: formItem.status,
+    };
 
-  const method = isEditMode ? "PUT" : "POST";
-
-  try {
-    const response = await fetch(url, {
-      method,
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        item_name: formItem.item_name,
-        category: formItem.category,
-        price: parseFloat(formItem.price),
-        status: formItem.status,
-      }),
-    });
-
-    const result = await response.json();
-
-    if (!response.ok) {
-      throw new Error(result.message || "Operation failed.");
-    }
-
-    alert(
-      isEditMode
-        ? "Item updated successfully!"
-        : "Item added successfully!"
-    );
-
-    setIsFormOpen(false);
-
-    setFormItem({
-      item_id: null,
-      item_name: "",
-      category: "Food",
-      price: "",
-      status: "Available",
-    });
-
-    fetchItemsFromDB();
-  } catch (error) {
-    console.error(error);
-    alert(error.message);
-  }
-};
-
-const handleDelete = async (id) => {
-  if (!window.confirm("Delete this menu item?")) return;
-
-  try {
-    const response = await fetch(
-      `${API}/restaurant-items/${id}`,
-      {
-        method: "DELETE",
-        headers: {
-          "Accept": "application/json",
-        },
+    try {
+      if (isEditMode) {
+        await axios.put(`/api/restaurant-items/${formItem.item_id}`, payload);
+      } else {
+        await axios.post("/api/restaurant-items", payload);
       }
-    );
 
-    const result = await response.json();
+      toast.success(isEditMode ? "Item updated successfully!" : "Item added successfully!");
 
-    console.log("Delete response:", result);
+      setIsFormOpen(false);
+      setFormItem({
+        item_id: null,
+        item_name: "",
+        category: "Food",
+        price: "",
+        status: "Available",
+      });
 
-    if (!response.ok) {
-      throw new Error(result.message || result.error || "Delete failed");
+      fetchItemsFromDB();
+    } catch (error) {
+      console.error(error);
+      toast.error(error.response?.data?.message || "Operation failed.");
     }
+  };
 
-    alert("Item deleted successfully!");
+  const handleDelete = async (id) => {
+    if (!window.confirm("Delete this menu item?")) return;
 
-    fetchItemsFromDB();
-
-  } catch (error) {
-    console.error("Delete error:", error);
-    alert(error.message);
-  }
-};
-
-const handleToggleStatus = async (id) => {
-  try {
-    const response = await fetch(
-      `${API}/restaurant-items/${id}/toggle-status`,
-      {
-        method: "PATCH",
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error("Unable to update status.");
+    try {
+      await axios.delete(`/api/restaurant-items/${id}`);
+      toast.success("Item deleted successfully!");
+      fetchItemsFromDB();
+    } catch (error) {
+      console.error("Delete error:", error);
+      toast.error(error.response?.data?.message || "Delete failed");
     }
+  };
 
-    fetchItemsFromDB();
-  } catch (error) {
-    alert(error.message);
-  }
-};
+  const handleToggleStatus = async (id) => {
+    try {
+      await axios.patch(`/api/restaurant-items/${id}/toggle-status`);
+      fetchItemsFromDB();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Unable to update status.");
+    }
+  };
 
   const filteredItems = menuItems.filter(item => {
     const matchesSearch = item.item_name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === "All" || item.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
+
+  // Dynamic stat values — both derived from the live menuItems dataset.
+  const totalMenuItems = menuItems.length;
+  const activeItemsCount = menuItems.filter((item) => item.status === "Available").length;
 
   return (
     <AdminLayout>
@@ -197,13 +143,13 @@ const handleToggleStatus = async (id) => {
         <div className="border-b border-slate-200 shrink-0"></div>
 
         {/* Analytics Metadata Metrics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 shrink-0">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-5 shrink-0">
           <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-xs flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="p-3.5 bg-amber-50 rounded-xl border border-amber-100 text-md text-amber-600"><FaUtensils /></div>
               <div>
                 <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Menu Items</p>
-                <h3 className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">{menuItems.length}</h3>
+                <h3 className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">{totalMenuItems}</h3>
               </div>
             </div>
           </div>
@@ -212,18 +158,8 @@ const handleToggleStatus = async (id) => {
             <div className="flex items-center gap-4">
               <div className="p-3.5 bg-amber-50 rounded-xl border border-amber-100 text-md text-amber-600"><FaClipboardList /></div>
               <div>
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Active Restaurant Orders</p>
-                <h3 className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">2</h3>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-xs flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="p-3.5 bg-amber-50 rounded-xl border border-amber-100 text-md text-amber-600"><FaCoins /></div>
-              <div>
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">F&B Room Charge Total</p>
-                <h3 className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">$1,424.50</h3>
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Active Restaurant Items</p>
+                <h3 className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">{activeItemsCount}</h3>
               </div>
             </div>
           </div>
@@ -264,13 +200,15 @@ const handleToggleStatus = async (id) => {
               ))}
 
               {/* + Add New Item Button strictly appended after Dessert filter option element */}
-              <button 
-                onClick={handleOpenAddModal}
-                className="bg-[#1E293B] hover:bg-slate-800 text-white text-xs font-bold px-4 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm transition active:scale-95 ml-1.5 h-[30px]"
-              >
-                <FaPlus className="text-[10px]" />
-                <span className="whitespace-nowrap">Add New Item</span>
-              </button>
+              {canWrite && (
+                <button
+                  onClick={handleOpenAddModal}
+                  className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm transition active:scale-95 ml-1.5 h-[30px]"
+                >
+                  <FaPlus className="text-[10px]" />
+                  <span className="whitespace-nowrap">Add New Item</span>
+                </button>
+              )}
             </div>
 
           </div>
@@ -307,25 +245,29 @@ const handleToggleStatus = async (id) => {
                     </td>
                     <td className="p-3.5 text-xs text-right">
   <div className="flex justify-end items-center gap-2">
+    {canWrite ? (
+      <>
+        {/* Edit Button */}
+        <button
+          onClick={() => handleOpenEditModal(item)}
+          className="text-slate-400 hover:text-blue-600 p-1.5 rounded-lg hover:bg-blue-50 transition"
+          title="Edit Item"
+        >
+          <FaEdit className="text-xs" />
+        </button>
 
-    {/* Edit Button */}
-    <button 
-      onClick={() => handleOpenEditModal(item)}
-      className="text-slate-400 hover:text-blue-600 p-1.5 rounded-lg hover:bg-blue-50 transition"
-      title="Edit Item"
-    >
-      <FaEdit className="text-xs" />
-    </button>
-
-    {/* Delete Button */}
-    <button 
-      onClick={() => handleDelete(item.item_id)}
-      className="text-slate-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition"
-      title="Delete Item"
-    >
-      <FaTrash className="text-xs" />
-    </button>
-
+        {/* Delete Button */}
+        <button
+          onClick={() => handleDelete(item.item_id)}
+          className="text-slate-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition"
+          title="Delete Item"
+        >
+          <FaTrash className="text-xs" />
+        </button>
+      </>
+    ) : (
+      <span className="text-slate-300 text-xs italic">—</span>
+    )}
   </div>
 </td>
                   </tr>

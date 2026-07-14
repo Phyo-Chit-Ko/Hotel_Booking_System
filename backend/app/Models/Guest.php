@@ -17,6 +17,7 @@ class Guest extends Model
         'id_number',
         'id_type',
         'nationality',
+        'gender',
         'is_vip',
         'id_front_path',
         'id_back_path',

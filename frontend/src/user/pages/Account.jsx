@@ -85,6 +85,21 @@ if (!isLogin) {
          
           setUser(userData); // This triggers the Navbar update
           sessionStorage.setItem("auth_token", response.data.token);
+
+          if (userData.must_change_password) {
+            await Swal.fire({
+              icon: "info",
+              title: "Password Change Required",
+              text: "Please change your password before continuing.",
+              width: "320px",
+              padding: "1em",
+              confirmButtonColor: "#28a745",
+              confirmButtonText: "OK",
+            });
+            navigate("/force-change-password");
+            return;
+          }
+
           await Swal.fire({
   icon: "success",
   title: "Login Successful!",
@@ -97,11 +112,13 @@ if (!isLogin) {
   timerProgressBar: true,
   showConfirmButton: false,
 });
- 
-          const { role } = userData;
-          if (role === 'manager') navigate("/admin/dashboard");
-          else if (role === 'Receptionist') navigate("/admin/dashboard"); // no separate reception-dashboard route exists in App.jsx — sending to admin instead
-          else navigate("/homepage");
+
+          const role = (userData.role || "").toLowerCase();
+          if (["admin", "manager", "receptionist"].includes(role)) {
+            navigate("/admin/dashboard"); // no separate per-role dashboard route exists in App.jsx — sending everyone with admin-panel access to the same dashboard
+          } else {
+            navigate("/homepage");
+          }
         }
       } else {
         const response = await axios.post("/api/register", {

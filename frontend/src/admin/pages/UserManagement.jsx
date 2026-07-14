@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import AdminLayout from "../layouts/AdminLayout";
 import AddUser from "../components/AddUser";
 import axios from "axios";
+import { toast } from "react-hot-toast";
 import {
   FaPlus,
   FaSearch,
@@ -19,9 +20,19 @@ export default function UserManagement() {
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState(null);
 
+  // States for Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10; // adjust as needed
+
   useEffect(() => {
     fetchUsersFromDB();
   }, []);
+
+  // Reset to page 1 whenever the filtered result set changes,
+  // so we never get stuck on a page that no longer has any rows.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedRole]);
 
   const fetchUsersFromDB = async () => {
     try {
@@ -30,7 +41,7 @@ export default function UserManagement() {
       setUsers(response.data);
     } catch (error) {
       console.error("Error retrieving users:", error);
-      alert("Could not load users from the server.");
+      toast.error("Could not load users from the server.");
     } finally {
       setLoading(false);
     }
@@ -56,10 +67,10 @@ export default function UserManagement() {
     } catch (error) {
       console.error("API Error:", error);
       const serverMessage = error.response?.data?.message || error.message;
-      const errorsDetail = error.response?.data?.errors 
-        ? "\n" + JSON.stringify(error.response.data.errors) 
+      const errorsDetail = error.response?.data?.errors
+        ? " " + JSON.stringify(error.response.data.errors)
         : "";
-      alert(`error\n  ${serverMessage}${errorsDetail}`);
+      toast.error(`${serverMessage}${errorsDetail}`);
     }
   };
 
@@ -70,7 +81,7 @@ export default function UserManagement() {
         setUsers(users.filter((user) => user.user_id !== userId && user.id !== userId));
       } catch (error) {
         console.error("Error deleting database record:", error);
-        alert("Could not remove user from the database.");
+        toast.error(error.response?.data?.message || "Could not remove user from the database.");
       }
     }
   };
@@ -87,6 +98,13 @@ export default function UserManagement() {
 
     return matchesSearch && matchesRole;
   });
+
+  // Pagination derived state
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / itemsPerPage));
+  const paginatedUsers = filteredUsers.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage,
+  );
 
   return (
     <AdminLayout>
@@ -123,8 +141,6 @@ export default function UserManagement() {
                 <option value="Admin">Admin</option>
                 <option value="Manager">Manager</option>
                 <option value="Receptionist">Receptionist</option>
-                <option value="Housekeeping">Housekeeping</option>
-                <option value="User">User</option>
               </select>
               <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center text-slate-400">
                 <svg className="fill-current h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
@@ -167,11 +183,12 @@ export default function UserManagement() {
                   </td>
                 </tr>
               ) : filteredUsers.length > 0 ? (
-                filteredUsers.map((user) => {
+                paginatedUsers.map((user, index) => {
                   const idToShow = user.user_id || user.id;
+                  const rowNumber = (currentPage - 1) * itemsPerPage + index + 1;
                   return (
                     <tr key={idToShow} className="hover:bg-slate-50/40 transition group">
-                      <td className="px-5 py-2 text-sm font-medium text-slate-400">#{idToShow}</td>
+                      <td className="px-5 py-2 text-sm font-medium text-slate-400">#{rowNumber}</td>
                       <td className="px-5 py-2 text-sm font-bold text-slate-800">{user.name}</td>
                       <td className="px-5 py-2 text-sm text-slate-500">{user.email}</td>
                       <td className="px-5 py-2 text-sm text-slate-500">{user.phone || "—"}</td>
@@ -200,13 +217,22 @@ export default function UserManagement() {
                           >
                             <FaEdit className="w-3.5 h-3.5" />
                           </button>
-                          <button 
-                            type="button" 
-                            onClick={() => handleDeleteUser(idToShow)}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition"
-                          >
-                            <FaTrash className="w-3.5 h-3.5" />
-                          </button>
+                          {user.role?.toLowerCase() !== "admin" ? (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteUser(idToShow)}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition"
+                            >
+                              <FaTrash className="w-3.5 h-3.5" />
+                            </button>
+                          ) : (
+                            <span
+                              title="Admin accounts cannot be deleted."
+                              className="p-1.5 text-slate-200 cursor-not-allowed"
+                            >
+                              <FaTrash className="w-3.5 h-3.5" />
+                            </span>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -223,6 +249,44 @@ export default function UserManagement() {
           </table>
         </div>
 
+        {/* Pagination Controls */}
+        {!loading && filteredUsers.length > 0 && (
+          <div className="flex items-center justify-between px-1 pt-2">
+            <p className="text-xs text-slate-400">
+              Showing {(currentPage - 1) * itemsPerPage + 1}
+              –{Math.min(currentPage * itemsPerPage, filteredUsers.length)} of {filteredUsers.length}
+            </p>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
+              >
+                Prev
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`w-8 h-8 text-xs font-semibold rounded-lg border transition ${
+                    page === currentPage
+                      ? "bg-slate-900 text-white border-slate-900"
+                      : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
 
       </div>
 

@@ -1,27 +1,38 @@
 import React, { useState, useEffect } from "react";
 import { FaTimes } from "react-icons/fa";
+import { NAME_RE, PHONE_RE, EMAIL_RE } from "../../utils/validators";
 
 export default function AddUser({ isOpen, onClose, onSave, editingUser = null }) {
   const initialFormState = {
     name: "",
     email: "",
     phone: "",
-    role: "Receptionist",
-    status: "Active"
+    role: "receptionist",
+    status: "Active",
+    password: "",
+    password_confirmation: "",
   };
-  
+
   const [formData, setFormData] = useState(initialFormState);
+  const [passwordError, setPasswordError] = useState("");
+  const [formError, setFormError] = useState("");
 
   // Sync state with editingUser prop whenever it changes or modal toggles
   useEffect(() => {
+    setPasswordError("");
+    setFormError("");
     if (editingUser) {
       setFormData({
         name: editingUser.name || "",
         email: editingUser.email || "",
         phone: editingUser.phone || "",
-        // Ensure values match options case sensitivity precisely
-        role: editingUser.role ? editingUser.role.charAt(0).toUpperCase() + editingUser.role.slice(1).toLowerCase() : "Receptionist",
-        status: editingUser.status ? editingUser.status.charAt(0).toUpperCase() + editingUser.status.slice(1).toLowerCase() : "Active"
+        // Role is stored/compared lowercase everywhere (backend, ProtectedRoute,
+        // Sidebar) — keep it lowercase here too instead of re-capitalizing.
+        role: editingUser.role ? editingUser.role.toLowerCase() : "receptionist",
+        status: editingUser.status ? editingUser.status.charAt(0).toUpperCase() + editingUser.status.slice(1).toLowerCase() : "Active",
+        // Never prefilled — the backend never returns the password hash.
+        password: "",
+        password_confirmation: "",
       });
     } else {
       setFormData(initialFormState);
@@ -35,15 +46,48 @@ export default function AddUser({ isOpen, onClose, onSave, editingUser = null })
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
+    setPasswordError("");
+    setFormError("");
+
+    if (!NAME_RE.test(formData.name.trim())) {
+      setFormError("Name must contain only letters, spaces, apostrophes, hyphens, or periods.");
+      return;
+    }
+    if (!EMAIL_RE.test(formData.email.trim())) {
+      setFormError("Enter a valid email address.");
+      return;
+    }
+    if (formData.phone && !PHONE_RE.test(formData.phone.trim())) {
+      setFormError("Enter a valid phone number.");
+      return;
+    }
+
+    // Client-side nicety — the server enforces `confirmed` either way.
+    if (formData.password && formData.password !== formData.password_confirmation) {
+      setPasswordError("Passwords do not match.");
+      return;
+    }
+    if (!editingUser && !formData.password) {
+      setPasswordError("Password is required.");
+      return;
+    }
+
+    const payload = { ...formData };
+    // Editing + left blank = keep the current password; don't send empty
+    // password keys at all, sidestepping nullable-vs-sometimes ambiguity.
+    if (editingUser && !formData.password) {
+      delete payload.password;
+      delete payload.password_confirmation;
+    }
+
     if (editingUser) {
       // Pass back updated values along with the original user_id
-      onSave({ ...formData, user_id: editingUser.user_id });
+      onSave({ ...payload, user_id: editingUser.user_id });
     } else {
-      onSave(formData);
+      onSave(payload);
     }
-    
-    setFormData(initialFormState); 
+
+    setFormData(initialFormState);
     onClose();
   };
 
@@ -133,20 +177,64 @@ export default function AddUser({ isOpen, onClose, onSave, editingUser = null })
                   onChange={handleInputChange}
                   className="w-full bg-transparent px-4 py-3 text-sm text-slate-700 outline-none font-medium cursor-pointer"
                 >
-                  <option value="Admin">Admin</option>
-                  <option value="Manager">Manager</option>
-                  <option value="Receptionist">Receptionist</option>
-                  <option value="Housekeeping">Housekeeping</option>
+                  <option value="admin">Admin</option>
+                  <option value="manager">Manager</option>
+                  <option value="receptionist">Receptionist</option>
                 </select>
               </div>
             </div>
           </div>
 
+          {/* Password */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="flex flex-col">
+              <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
+                {editingUser ? "New Password (optional)" : "Password *"}
+              </label>
+              <div className="relative flex items-center bg-slate-50 rounded-xl border border-slate-200/80 focus-within:ring-2 focus-within:ring-slate-500/20 focus-within:border-slate-500">
+                <input
+                  type="password"
+                  name="password"
+                  required={!editingUser}
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  placeholder="Min 8 chars: upper, lower, number & symbol"
+                  className="w-full bg-transparent px-4 py-3 text-sm text-slate-800 outline-none"
+                />
+              </div>
+            </div>
+            <div className="flex flex-col">
+              <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
+                {editingUser ? "Confirm New Password" : "Confirm Password *"}
+              </label>
+              <div className="relative flex items-center bg-slate-50 rounded-xl border border-slate-200/80 focus-within:ring-2 focus-within:ring-slate-500/20 focus-within:border-slate-500">
+                <input
+                  type="password"
+                  name="password_confirmation"
+                  required={!editingUser}
+                  value={formData.password_confirmation}
+                  onChange={handleInputChange}
+                  placeholder="Re-enter password"
+                  className="w-full bg-transparent px-4 py-3 text-sm text-slate-800 outline-none"
+                />
+              </div>
+            </div>
+          </div>
+          {editingUser && (
+            <p className="text-[11px] text-slate-400 -mt-3 ml-0.5">Leave blank to keep the current password.</p>
+          )}
+          {passwordError && (
+            <p className="text-xs text-rose-600 font-semibold -mt-1 ml-0.5">{passwordError}</p>
+          )}
+          {formError && (
+            <p className="text-xs text-rose-600 font-semibold -mt-1 ml-0.5">{formError}</p>
+          )}
+
           {/* Account Status Configuration */}
           <div className="flex flex-col">
             <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Account Status</label>
             <div className="relative flex items-center bg-slate-50 rounded-xl border border-slate-200/80 focus-within:ring-2 focus-within:ring-slate-500/20 focus-within:border-slate-500">
-             
+
               <select
                 name="status"
                 value={formData.status}

@@ -32,6 +32,7 @@ class Booking extends Model
         'payment_method', // Safely mass-assignable now!
         'status',
         'reservation_id',
+        'handled_by',
     ];
 
     protected $casts = [
@@ -55,5 +56,10 @@ class Booking extends Model
     public function roomType(): BelongsTo
     {
         return $this->belongsTo(RoomType::class, 'room_type_id', 'room_type_id');
+    }
+
+    public function handledBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'handled_by', 'user_id');
     }
 }

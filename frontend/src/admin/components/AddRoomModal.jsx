@@ -1,20 +1,19 @@
 import { useState, useEffect } from "react";
 import { FaTimes, FaSave } from "react-icons/fa";
+import { STATUS_ORDER } from "../constants/roomStatus";
 
-export default function AddRoomModal({ isOpen, onClose, onSave, roomToEdit = null, roomTypes = [] }) {
-  if (!isOpen) return null;
+// Cleaned: Removed base_price and housekeeping_status to match your database exactly
+const initialFormState = {
+  room_number: "",
+  room_type_id: "",
+  floor: "",
+  capacity: "2",
+  bed_type: "Single",
+  status: "Available",
+};
 
-  // Cleaned: Removed base_price and housekeeping_status to match your database exactly
-  const initialFormState = {
-    room_number: "",
-    room_type_id: "",
-    floor: "Ground",
-    capacity: "2",
-    bed_type: "Single",
-    extra_person_rate: "0",
-    status: "Available",
-  };
-
+export default function AddRoomModal({ isOpen, onClose, onSave, roomToEdit = null, roomTypes = [], floors = [] }) {
+  // All hooks MUST run on every render, regardless of `isOpen`.
   const [formData, setFormData] = useState(initialFormState);
   const [errors, setErrors] = useState({});
 
@@ -24,10 +23,9 @@ export default function AddRoomModal({ isOpen, onClose, onSave, roomToEdit = nul
       setFormData({
         room_number: roomToEdit.room_number || "",
         room_type_id: String(roomToEdit.room_type_id || ""),
-        floor: roomToEdit.floor || "Ground",
+        floor: roomToEdit.floor || "",
         capacity: String(roomToEdit.capacity || "2"),
         bed_type: roomToEdit.bed_type || "Single",
-        extra_person_rate: String(roomToEdit.extra_person_rate || "0"),
         status: roomToEdit.status || "Available",
       });
     } else {
@@ -37,6 +35,9 @@ export default function AddRoomModal({ isOpen, onClose, onSave, roomToEdit = nul
       });
     }
   }, [roomToEdit, isOpen, roomTypes]);
+
+  // Safe to bail out AFTER all hooks have been called.
+  if (!isOpen) return null;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -48,7 +49,8 @@ export default function AddRoomModal({ isOpen, onClose, onSave, roomToEdit = nul
     const tempErrors = {};
     if (!formData.room_number.trim()) tempErrors.room_number = "Room number is required.";
     if (!formData.room_type_id) tempErrors.room_type_id = "Please select a room type.";
-    
+    if (!formData.floor.trim()) tempErrors.floor = "Floor is required.";
+
     setErrors(tempErrors);
     return Object.keys(tempErrors).length === 0;
   };
@@ -122,20 +124,28 @@ export default function AddRoomModal({ isOpen, onClose, onSave, roomToEdit = nul
               </select>
             </div>
 
-            {/* Floor */}
+            {/* Floor — free text, suggestions drawn from floors that already exist */}
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">Floor</label>
-              <select
+              <input
+                type="text"
                 name="floor"
+                list="existing-floors"
                 value={formData.floor}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-500/20"
-              >
-                <option value="Ground">Ground</option>
-                <option value="1st Floor">1st Floor</option>
-                <option value="2nd Floor">2nd Floor</option>
-                <option value="3rd Floor">3rd Floor</option>
-              </select>
+                placeholder="e.g., 2"
+                className={`w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm focus:outline-none focus:ring-2 transition-all ${
+                  errors.floor
+                    ? "border-rose-300 focus:ring-rose-500/20 focus:border-rose-500"
+                    : "border-slate-200 focus:ring-slate-500/20 focus:border-slate-500"
+                }`}
+              />
+              <datalist id="existing-floors">
+                {floors.map((f) => (
+                  <option key={f} value={f} />
+                ))}
+              </datalist>
+              {errors.floor && <p className="text-xs font-medium text-rose-500 mt-1.5 ml-1">{errors.floor}</p>}
             </div>
 
             {/* Capacity */}
@@ -166,18 +176,6 @@ export default function AddRoomModal({ isOpen, onClose, onSave, roomToEdit = nul
               </select>
             </div>
 
-            {/* Extra Person Rate */}
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Extra Person Rate</label>
-              <input
-                type="number"
-                name="extra_person_rate"
-                value={formData.extra_person_rate}
-                onChange={handleChange}
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-500/20"
-              />
-            </div>
-
             {/* Current Status — Fixed value keys to be unique */}
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">Current Status</label>
@@ -187,13 +185,9 @@ export default function AddRoomModal({ isOpen, onClose, onSave, roomToEdit = nul
                 onChange={handleChange}
                 className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-500/20"
               >
-                <option value="Available">Available</option>
-                <option value="Clean">Clean</option>
-                <option value="Dirty">Dirty</option>
-                <option value="Check-in">Check-in</option>
-                <option value="Check-out">Check-out</option>
-                <option value="Occupied">Occupied</option>
-                <option value="Out of Service">Out of Service</option>
+                {STATUS_ORDER.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
               </select>
             </div>
 

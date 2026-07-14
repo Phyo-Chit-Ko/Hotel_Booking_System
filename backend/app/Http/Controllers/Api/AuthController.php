@@ -38,11 +38,21 @@ class AuthController extends Controller
                 'id' => $user->user_id,
                 'name' => $user->name,
                 'email' => $user->email,
-                'role' => $user->role
+                'role' => $user->role,
+                'must_change_password' => (bool) $user->must_change_password,
             ]
         ]);
     }
     
+
+    // Revoke the current Sanctum token so a logout actually invalidates it
+    // server-side, not just clears local state on the frontend.
+    public function logout(Request $request)
+    {
+        $request->user()?->currentAccessToken()->delete();
+
+        return response()->json(['success' => true, 'message' => 'Logged out.']);
+    }
 
     // Handle Registration
     public function register(Request $request)
