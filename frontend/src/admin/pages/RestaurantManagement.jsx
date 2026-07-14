@@ -5,7 +5,7 @@ import { toast } from "react-hot-toast";
 import AdminLayout from "../layouts/AdminLayout";
 import { useAuth } from "../../context/AuthContext";
 import {
-  FaUtensils, FaClipboardList, FaPlus,
+  FaUtensils, FaCoins, FaClipboardList, FaPlus,
   FaEdit, FaTimes, FaSearch, FaCircle, FaTrash
 } from "react-icons/fa";
 

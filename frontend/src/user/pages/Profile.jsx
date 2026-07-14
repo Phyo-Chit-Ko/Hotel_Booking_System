@@ -2,10 +2,14 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
 import axios from "axios";
 import "./Profile.css";
-import { useNavigate } from "react-router-dom"; // Add this import
+import Swal from "sweetalert2"; // <--- Add this at the top
+import { useNavigate } from "react-router-dom";
 
 export default function Profile() {
-  const { user, setUser } = useAuth();
+
+  const navigate = useNavigate();
+
+const { user, setUser, logout } = useAuth();
   const [editing, setEditing] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -15,33 +19,28 @@ export default function Profile() {
   old_password: "",
   password: ""
 });
- const handleSave = async () => {
-  const token = localStorage.getItem("token");
-  console.log("Token being sent:", token); // If this prints 'null', the issue is in your Login component
+//   const handleSave = async () => {
+//   try {
+//     const res = await axios.put("http://localhost:8000/api/profile/update", {
+//       user_id: user.user_id,
+//       name: form.name,
+//       email: form.email,
+//       old_password: form.old_password || "",
+//       new_password: form.password || ""
+//     });
 
-  try {
-    const res = await axios.put("http://localhost:8000/api/profile/update", {
-      name: form.name,
-      email: form.email,
-      old_password: form.old_password || null,
-      new_password: form.password || null
-    }, {
-      headers: {
-        "Authorization": `Bearer ${token}`, // Ensure this header is exactly right
-        "Accept": "application/json"
-      }
-    });
+//     const updatedUser = res.data.user;
 
-    const updatedUser = res.data.user;
-    setUser(updatedUser);
-    localStorage.setItem("user", JSON.stringify(updatedUser));
-    setEditing(false);
-    alert("Profile updated successfully!");
-  } catch (err) {
-    console.error("Full error response:", err.response);
-    alert("Update failed: " + (err.response?.data?.message || "Check console for details"));
-  }
-};
+//     setUser(updatedUser);
+//     localStorage.setItem("user", JSON.stringify(updatedUser));
+
+//     setEditing(false);
+//     alert("Profile updated successfully!");
+//   } catch (err) {
+//     console.log(err);
+//     alert(err.response?.data?.message || "Update failed");
+//   }
+// };
 
   useEffect(() => {
     if (user) {
@@ -60,25 +59,51 @@ export default function Profile() {
     }));
   };
 
-  const handleSaveLocal = () => {
+  const handleSave = () => {
+    // 1. Prepare the updated user object
     const updatedUser = {
       ...user,
       name: form.name,
       email: form.email,
     };
 
+    // 2. Update Context and Local Storage
     setUser(updatedUser);
     localStorage.setItem("user", JSON.stringify(updatedUser));
 
+    // 3. Exit editing mode
     setEditing(false);
-    alert("Profile updated successfully!");
-  };
 
-  const handleLogout = () => {
-  localStorage.removeItem("token");
-  localStorage.removeItem("user");
-  setUser(null);
-  window.location.href = "/";
+    // 4. Use SweetAlert2 for feedback
+    Swal.fire({
+      icon: "success",
+      title: "Profile Updated",
+      text: "Your changes have been saved successfully.",
+      confirmButtonColor: "#c79b56", // Gold luxury theme
+      confirmButtonText: "Okay"
+    });
+  };
+ const handleLogout = () => {
+  Swal.fire({
+    title: "Are you sure?",
+    text: "You will be logged out of your account.",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#c79b56",
+    cancelButtonColor: "#d33",
+    confirmButtonText: "Yes, logout",
+    cancelButtonText: "Cancel"
+  }).then((result) => {
+
+    if (result.isConfirmed) {
+
+      logout(); // removes user + auth_token correctly
+
+      window.location.href = "/";
+
+    }
+
+  });
 };
 
   const goBack = () => {
@@ -174,27 +199,29 @@ export default function Profile() {
 
           {/* BUTTONS */}
           <div className="actions">
-            {!editing ? (
-              <button className="btn edit" onClick={() => setEditing(true)}>
-                ✏ Edit
-              </button>
-            ) : (
-              <button className="btn save" onClick={handleSave}>
-                💾 Save Changes
-              </button>
-            )}
 
-            <button 
-    className="btn bookings" 
-    onClick={() => window.location.href = "/my-bookings"}
+  <button 
+    className="btn booking"
+    onClick={() => navigate("/my-bookings")}
   >
-    📅Bookings
+    📋 My Bookings
   </button>
 
-            <button className="btn logout" onClick={handleLogout}>
-              Logout
-            </button>
-          </div>
+  {!editing ? (
+    <button className="btn edit" onClick={() => setEditing(true)}>
+      ✏ Edit Profile
+    </button>
+  ) : (
+    <button className="btn save" onClick={handleSave}>
+      💾 Save Changes
+    </button>
+  )}
+
+  <button className="btn logout" onClick={handleLogout}>
+    Logout
+  </button>
+
+</div>
 
           {/* FOOTER */}
           <div className="security-note">
