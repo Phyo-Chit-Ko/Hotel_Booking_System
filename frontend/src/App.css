@@ -1,0 +1,55 @@
+body {
+  font-family: Arial, sans-serif;
+}
+
+.custom-navbar {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.hero-section {
+  height: 100vh;
+  background: url("https://images.unsplash.com/photo-1564501049412-61c2a3083791")
+    center center/cover;
+}
+
+.hero-overlay {
+  height: 100%;
+  background: rgba(0, 0, 0, 0.55);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: white;
+}
+
+.room-card {
+  transition: 0.3s;
+}
+
+.room-card:hover {
+  transform: translateY(-8px);
+}
+
+.room-card img {
+  height: 250px;
+  object-fit: cover;
+}
+
+.facility-icon {
+  font-size: 3rem;
+  margin-bottom: 15px;
+}
+
+.review-card {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 15px;
+}
+
+.footer {
+  background: #222;
+  color: white;
+  padding: 30px;
+}
+

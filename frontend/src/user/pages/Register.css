@@ -1,0 +1,45 @@
+.account-page {
+  background-image: url('/images/7.png');
+  background-size: cover;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+ 
+.auth-card {
+  width: 100%;
+  max-width: 400px;
+  padding: 40px;
+  background: rgba(0, 0, 0, 0.9);
+  border-radius: 20px;
+  text-align: center;
+}
+ 
+.auth-card form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px; /* Ensures space between all inputs */
+}
+ 
+input {
+  width: 100%;
+  display: block; /* Forces inputs to show up */
+  padding: 12px;
+  background: #222;
+  border: 1px solid #444;
+  color: white;
+  border-radius: 8px;
+  box-sizing: border-box; /* Keeps padding inside the width */
+}
+ 
+.submit-btn {
+  width: 100%;
+  padding: 12px;
+  background: #c49a5b;
+  border: none;
+  cursor: pointer;
+  border-radius: 50px;
+  font-weight: bold;
+}
+ 

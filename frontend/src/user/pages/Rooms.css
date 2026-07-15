@@ -1,0 +1,321 @@
+.rooms-page { width: 100%; background-color: #1c1c1c; color: #f5f5f4; }
+
+/* Hero & Intro */
+.rooms-hero { position: relative; width: 100%; height: 45vh; min-height: 300px; background-image: url('https://images.unsplash.com/photo-1540518614846-7eded433c457?q=80&w=1200&auto=format&fit=crop'); background-size: cover; background-position: center; display: flex; align-items: center; justify-content: center; }
+.rooms-hero-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.55); z-index: 1; }
+.rooms-hero-content { position: relative; z-index: 2; text-align: center; }
+.hotel-tagline { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.3em; color: #ffffff; opacity: 0.8; }
+.rooms-page-title { font-family: 'Playfair Display', Georgia, serif; font-size: 3.5rem; color: #ffffff; margin: 0.5rem 0 0 0; font-weight: 400; }
+.rooms-intro { padding: 4rem 2rem 2rem 2rem; text-align: center; }
+.star-rating-gold { color: #c49a5b; font-size: 1.1rem; margin-bottom: 0.5rem; }
+.rooms-intro h2 { font-family: 'Playfair Display', Georgia, serif; font-size: 2.2rem; color: #ffffff; margin: 0.75rem 0; font-weight: 400; }
+.accent-gold-line { width: 50px; height: 1px; background-color: #c49a5b; margin: 1.5rem auto 0 auto; }
+
+/* Centered Grid Layout */
+.rooms-grid-container { padding: 2rem 1rem 6rem 1rem; width: 100%; max-width: 1400px; margin: 0 auto; }
+.rooms-status-text { text-align: center; color: #a3a3a3; font-size: 1rem; padding: 3rem 1rem; }
+.rooms-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 2rem;
+  justify-items: center;
+  justify-content: center;
+}
+
+/* Small Card Dimensions */
+.flip-card { background-color: transparent; width: 320px; height: 360px; perspective: 1000px; }
+.flip-card-inner { position: relative; width: 100%; height: 100%; text-align: center; transition: transform 0.7s; transform-style: preserve-3d; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); }
+.flip-card:hover .flip-card-inner { transform: rotateY(180deg); }
+
+.flip-card-front, .flip-card-back { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; overflow: hidden; border-radius: 4px; }
+.flip-card-front { background-color: #242424; }
+.room-img { width: 100%; height: 100%; object-fit: cover; }
+.book-ribbon { position: absolute; top: 0; left: 1.5rem; background-color: #c49a5b; color: #ffffff; font-size: 0.65rem; font-weight: bold; padding: 0.8rem 0.5rem; writing-mode: vertical-rl; z-index: 3; }
+.room-image-title { position: absolute; bottom: 0; width: 100%; padding: 2rem; background: linear-gradient(transparent, rgba(0,0,0,0.9)); text-align: left; }
+.room-image-title h3 { font-family: 'Playfair Display', Georgia, serif; font-size: 1.5rem; margin: 0; }
+
+.flip-card-back {
+    position: absolute;
+    inset: 0;
+    background: #2d2d2d;
+    color: #fff;
+    border-radius: 18px;
+    padding: 35px 30px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    backface-visibility: hidden;
+    transform: rotateY(180deg);
+}
+
+.info-card-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 18px;
+    color: #fff;
+}
+
+.info-card-desc {
+    color: #c9c9c9;
+    line-height: 1.8;
+    font-size: 15px;
+    margin-bottom: 28px;
+}
+
+.room-features {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px 18px;
+    margin-bottom: 35px;
+}
+
+.feature {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #d8d8d8;
+    font-size: 15px;
+}
+
+.feature span:first-child {
+    font-size: 18px;
+    color: #d4af37;
+}
+
+.book-now-btn {
+    margin-top: auto;
+    align-self: center;
+    width: 180px;
+    padding: 14px 0;
+    border: 2px solid #d4af37;
+    background: transparent;
+    color: #d4af37;
+    font-size: 15px;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: .3s ease;
+}
+
+.book-now-btn:hover {
+    background: #d4af37;
+    color: #222;
+}
+
+/* --- Modal & Form Styles --- */
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); display: flex; justify-content: center; align-items: center; z-index: 1000; padding: 1rem; }
+.reservation-form { background: #1c1c1c; padding: 1.5rem 1.75rem; border: 1px solid #c49a5b; width: 95%; max-width: 960px; color: #f5f5f4; }
+.reservation-form h2 { font-family: 'Playfair Display', serif; color: #c49a5b; text-align: center; margin-bottom: 1rem; font-size: 1.35rem; }
+
+/* Two-column layout: main details (wider) + payment (narrower).
+   Keeps the modal's height fixed to the taller column, so the QR
+   image appearing/disappearing on the right never triggers scroll. */
+.form-columns {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.form-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 0;
+}
+
+.field-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 0; }
+.field-group label { font-size: 0.65rem; text-transform: uppercase; color: #a3a3a3; letter-spacing: 0.05em; }
+.reservation-form input,
+.reservation-form select,
+.reservation-form textarea {
+  width: 100%;
+  padding: 8px;
+  background: #242424;
+  border: 1px solid #333;
+  color: white;
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+.reservation-form input:focus,
+.reservation-form select:focus,
+.reservation-form textarea:focus {
+  outline: none;
+  border-color: #c49a5b;
+}
+.reservation-form textarea { resize: none; }
+.reservation-form .read-only {
+  color: #a3a3a3;
+  cursor: not-allowed;
+}
+
+.form-actions {
+  display: flex;
+  gap: 15px;
+  margin-top: 1.25rem;
+}
+
+/* Force both buttons to be identical in shape and size */
+.submit-btn,
+.cancel-btn {
+  flex: 1;
+  padding: 11px 0;
+  text-transform: uppercase;
+  font-weight: bold;
+  cursor: pointer;
+  border: 1px solid #c49a5b;
+  border-radius: 4px;
+  text-align: center;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+}
+
+.submit-btn {
+  background-color: #c49a5b;
+  color: #141414;
+}
+
+.cancel-btn {
+  background: transparent;
+  color: #c49a5b;
+}
+
+.submit-btn:hover { background-color: #d4a760; border-color: #d4a760; }
+.cancel-btn:hover { background-color: rgba(196, 154, 91, 0.1); }
+
+/* --- QR Payment Box --- */
+.qr-payment-box {
+  text-align: center;
+  padding: 0.6rem;
+  border: 1px dashed #c49a5b;
+  border-radius: 6px;
+  background: #242424;
+}
+.qr-payment-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #c49a5b;
+  margin-bottom: 0.5rem;
+}
+.qr-payment-img {
+  width: 92px;
+  height: 92px;
+  object-fit: contain;
+  margin: 0 auto;
+  background: #fff;
+  padding: 6px;
+  border-radius: 4px;
+}
+
+/* --- Realistic File Upload --- */
+.file-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.9rem 0.75rem;
+  border: 1px dashed #555;
+  border-radius: 4px;
+  background: #242424;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.3s ease, background 0.3s ease;
+}
+.file-dropzone:hover {
+  border-color: #c49a5b;
+  background: #2a2a2a;
+}
+.file-dropzone-icon {
+  font-size: 1.2rem;
+  color: #c49a5b;
+}
+.file-dropzone-text {
+  font-size: 0.75rem;
+  color: #f5f5f4;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.file-dropzone-hint {
+  font-size: 0.65rem;
+  color: #a3a3a3;
+}
+
+.file-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid #333;
+  border-radius: 4px;
+  background: #242424;
+}
+.file-preview-thumb {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 3px;
+  border: 1px solid #333;
+}
+.file-preview-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  background: #1c1c1c;
+  border: 1px solid #333;
+  border-radius: 3px;
+  color: #c49a5b;
+}
+.file-preview-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.file-preview-name {
+  font-size: 0.75rem;
+  color: #f5f5f4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.file-preview-size {
+  font-size: 0.65rem;
+  color: #a3a3a3;
+}
+.file-preview-remove {
+  border: 1px solid #333;
+  background: #1c1c1c;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  cursor: pointer;
+  color: #c49a5b;
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  line-height: 1;
+  transition: all 0.2s ease;
+}
+.file-preview-remove:hover {
+  background: #c49a5b;
+  color: #141414;
+  border-color: #c49a5b;
+}
+
+/* Stack columns on small screens; scrolling only kicks in here as a safety net */
+@media (max-width: 640px) {
+  .form-columns { grid-template-columns: 1fr; }
+  .reservation-form { max-height: 92vh; overflow-y: auto; }
+}
