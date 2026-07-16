@@ -460,7 +460,7 @@ export default function Rooms() {
                 </div>
               </div>
 
-              <div className="form-actions">
+              <div className="form-actions-row">
                 <button
                   type="button"
                   className="cancel-btn"
@@ -469,7 +469,7 @@ export default function Rooms() {
                 >
                   CANCEL
                 </button>
-                <button type="submit" className="submit-btn" disabled={submitting}>
+                <button type="submit" className="room-submit-btn" disabled={submitting}>
                   {submitting ? "SUBMITTING..." : "SUBMIT"}
                 </button>
               </div>

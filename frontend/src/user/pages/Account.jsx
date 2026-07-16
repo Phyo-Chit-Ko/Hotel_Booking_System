@@ -5,8 +5,11 @@ import "./Account.css";
 import { useAuth } from "../../context/AuthContext";
 import Swal from "sweetalert2";
 import {useLocation} from "react-router-dom";
-
+import Navbar from "../components/Navbar";
+ 
+ 
 export default function Account() {
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const handleGoogleLogin = () => {
     // This will redirect the browser to your Laravel backend
     window.location.href = "http://localhost:8000/api/auth/google/redirect";
@@ -21,17 +24,17 @@ const location = useLocation();
   password: "",
 });
 const [isLogin, setIsLogin] = useState(location.state?.forceLogin || true);
-
+ 
 const [email,setEmail]=useState(
 location.state?.email || ""
 );
   const navigate = useNavigate();
   const { login, setUser } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
-
+ 
   const validateRegister = () => {
   let newErrors = {};
-
+ 
   // Name
   if (!formData.name.trim()) {
     newErrors.name = "Full name is required.";
@@ -40,15 +43,15 @@ location.state?.email || ""
   } else if (!/^[A-Za-z ]+$/.test(formData.name)) {
     newErrors.name = "Name can contain only letters and spaces.";
   }
-
-
+ 
+ 
   // Add inside validateRegister()
 if (!formData.phone.trim()) {
   newErrors.phone = "Phone number is required.";
 } else if (!/^\+?[0-9]{7,15}$/.test(formData.phone)) {
   newErrors.phone = "Please enter a valid phone number.";
 }
-
+ 
   // Email
   if (!formData.email.trim()) {
     newErrors.email = "Email is required.";
@@ -57,7 +60,7 @@ if (!formData.phone.trim()) {
   ) {
     newErrors.email = "Please enter a valid email address.";
   }
-
+ 
   // Password
   if (!formData.password) {
     newErrors.password = "Password is required.";
@@ -73,30 +76,30 @@ if (!formData.phone.trim()) {
     newErrors.password =
       "Password must contain at least one special character.";
   }
-
+ 
   setErrors(newErrors);
-
+ 
   return Object.keys(newErrors).length === 0;
 };
 const handleSubmit = async (e) => {
   e.preventDefault();
-
+ 
   if (!isLogin && !validateRegister()) return;
-
+ 
   try {
     // 1. Get CSRF Cookie
     await axios.get("http://localhost:8000/sanctum/csrf-cookie");
-
+ 
     if (isLogin) {
       const response = await axios.post("http://localhost:8000/api/login", {
         email: formData.email,
         password: formData.password,
       });
-
+ 
       if (response.data.success) {
         // USE THE CONTEXT LOGIN - This is the ONLY thing you need to call
         login(response.data.user, response.data.token);
-
+ 
         await Swal.fire({
           icon: "success",
           title: "Login Successful!",
@@ -104,7 +107,7 @@ const handleSubmit = async (e) => {
           timer: 1800,
           showConfirmButton: false,
         });
-
+ 
         const { role } = response.data.user;
         console.log("LOGIN ROLE:", role);
         if (role === 'manager' || role === 'reception') navigate("/admin/dashboard");
@@ -118,21 +121,21 @@ const handleSubmit = async (e) => {
         email: formData.email,
         password: formData.password,
       });
-
+ 
       if (response.data.success) {
-
+ 
            login(response.data.user, response.data.token);
-
+ 
     console.log(
       "AFTER LOGIN TOKEN:",
       sessionStorage.getItem("auth_token")
     );
-
+ 
     console.log(
       "AFTER LOGIN USER:",
       sessionStorage.getItem("user")
     );
-
+ 
         Swal.fire({ icon: "success", title: "Registration Successful!", text: "Please verify your email." });
         navigate("/verify-email", { state: { email: formData.email } });
       }
@@ -146,12 +149,22 @@ const handleSubmit = async (e) => {
     });
   }
 };
-
-  return (
-    <div className="account-page">
+ 
+ return (
+  <>
+    <Navbar
+      sidebarOpen={sidebarOpen}
+      setSidebarOpen={setSidebarOpen}
+    />
+ 
+    <div
+      className={`account-page ${
+        sidebarOpen ? "with-sidebar" : "sidebar-collapsed"
+      }`}
+    >
       <div className="auth-card">
         <h2>{isLogin ? "Welcome Back" : "Create Account"}</h2>
-
+ 
         <form onSubmit={handleSubmit}>
           {!isLogin && (
             <div className="form-row">
@@ -161,19 +174,19 @@ const handleSubmit = async (e) => {
   value={formData.name}
   onChange={(e) => {
     setFormData({ ...formData, name: e.target.value });
-
+ 
     if (errors.name) {
       setErrors({ ...errors, name: "" });
     }
   }}
 />
-
+ 
 {errors.name && (
   <small className="error">{errors.name}</small>
 )}
             </div>
           )}
-
+ 
           {!isLogin && (
   <div className="form-row">
     <label>Phone Number</label>
@@ -190,7 +203,7 @@ const handleSubmit = async (e) => {
     {errors.phone && <small className="error">{errors.phone}</small>}
   </div>
 )}
-
+ 
           <div className="form-row">
             <label>Email</label>
             <input
@@ -198,34 +211,34 @@ const handleSubmit = async (e) => {
   value={formData.email}
   onChange={(e) => {
     setFormData({ ...formData, email: e.target.value });
-
+ 
     if (errors.email) {
       setErrors({ ...errors, email: "" });
     }
   }}
 />
-
+ 
 {errors.email && (
   <small className="error">{errors.email}</small>
 )}
           </div>
-
+ 
          <div className="form-row">
   <label>Password</label>
-
+ 
   <div className="password-wrapper">
     <input
       type={showPassword ? "text" : "password"}
       value={formData.password}
       onChange={(e) => {
         setFormData({ ...formData, password: e.target.value });
-
+ 
         if (errors.password) {
           setErrors({ ...errors, password: "" });
         }
       }}
     />
-
+ 
     <span
       className="toggle-password"
       onClick={() => setShowPassword(!showPassword)}
@@ -233,16 +246,16 @@ const handleSubmit = async (e) => {
       {showPassword ? "🙈" : "👁️"}
     </span>
   </div>
-
+ 
   {errors.password && (
     <small className="error">{errors.password}</small>
   )}
 </div>
-
+ 
            <button type="submit" className="submit-btn">
   {isLogin ? "Login" : "REGISTER"}
 </button>
-
+ 
 {isLogin && (
   <div className="forgot-password">
     <span onClick={() => navigate("/forgot-password")}>
@@ -254,13 +267,13 @@ const handleSubmit = async (e) => {
         <div className="divider">
           <span>OR</span>
         </div>
-
+ 
         {/* Google Login */}
-       <button 
-  className="google-btn" 
-  type="button" 
+       <button
+  className="google-btn"
+  type="button"
   onClick={() => {
-    // This forces the browser to leave your React app 
+    // This forces the browser to leave your React app
     // and go to your Laravel backend Google route
     window.location.href = "http://localhost:8000/api/auth/google/redirect";
   }}
@@ -290,7 +303,7 @@ const handleSubmit = async (e) => {
           </svg>
           Continue with Google
         </button>
-
+ 
         <p
           className="toggle-text"
           onClick={() => setIsLogin(!isLogin)}
@@ -299,7 +312,9 @@ const handleSubmit = async (e) => {
             ? "Don't have an account? Register"
             : "Already have an account? Login"}
         </p>
-      </div>
+     </div>
     </div>
-  );
+  </>
+);
 }
+ 

@@ -6,7 +6,6 @@ import {
   FaUtensils,
   FaChevronDown,
 } from "react-icons/fa";
-
  
 const initialFormState = {
   room_number: "",
@@ -31,7 +30,7 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
   // Fetch food items from API
   useEffect(() => {
     if (!isOpen) return;
-    
+   
     axios.get("/api/restaurant-items", { params: { category: activeCategory } })
       .then((res) => {
         const items = (res.data || [])
@@ -112,7 +111,7 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
     const { name, value } = e.target;
     setFormData((prev) => {
       const updated = { ...prev, [name]: value };
-      
+     
       if (name === "service_type") {
         if (value === "Food") {
           updated.quantity = 1;
@@ -137,7 +136,7 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
   // Add food item handler
   const handleAddFoodItem = (foodItem) => {
     const currentItem = selectedFoodItems[foodItem.id];
-    
+   
     const updatedItems = {
       ...selectedFoodItems,
       [foodItem.id]: currentItem
@@ -156,7 +155,7 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
     setSelectedFoodItems(updatedItems);
     setFormData((prev) => ({
       ...prev,
-      quantity: 1, 
+      quantity: 1,
       rate: Number(totalCost.toFixed(2)),
       food_items: descriptionLines.join(", "),
       description: prev.description || `Food Service Delivery`,
@@ -228,11 +227,12 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
     }
   };
  
+  // Updated focus state color here to use soft slate grey instead of amber
   const inp = (field) =>
     `px-4 py-2.5 bg-slate-50 border rounded-xl w-full text-sm focus:outline-none focus:ring-2 transition-all ${
       errors[field]
         ? "border-rose-300 focus:ring-rose-500/20 focus:border-rose-500 bg-rose-50/10"
-        : "border-slate-200 focus:ring-amber-500/20 focus:border-amber-500"
+        : "border-slate-200 focus:ring-slate-100 focus:border-slate-300"
     }`;
  
   return (
@@ -273,12 +273,9 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
               )}
             </div>
             {errors.room_number && <p className="text-xs text-rose-500 mt-1.5 ml-1">{errors.room_number}</p>}
-            {!errors.room_number && roomLookupStatus === "not-found" && (
-              <p className="text-xs text-rose-500 mt-1.5 ml-1">No in-house guest found for this room.</p>
-            )}
           </div>
-
-          {/* Guest name — auto-filled from the room's active reservation, read-only */}
+ 
+          {/* Guest name */}
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-2">Guest Full Name</label>
             <div className="relative">
@@ -293,7 +290,7 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
             </div>
           </div>
  
-          {/* Service type + Date */}
+          {/* Service type + Date - Updated focus states to slate style */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">Service Type</label>
@@ -301,7 +298,7 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
                 name="service_type"
                 value={formData.service_type}
                 onChange={handleChange}
-                className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl w-full text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 font-medium text-slate-700 cursor-pointer"
+                className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl w-full text-sm focus:outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-300 font-medium text-slate-700 cursor-pointer"
               >
                 <option value="Laundry">Laundry</option>
                 <option value="Car Rental">Car Rental</option>
@@ -315,7 +312,7 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
                 name="charge_date"
                 value={formData.charge_date}
                 onChange={handleChange}
-                className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl w-full text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 text-slate-700"
+                className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl w-full text-sm focus:outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-300 text-slate-700"
               />
             </div>
           </div>
@@ -324,7 +321,7 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
           {formData.service_type === "Food" && (
             <div className="relative" ref={dropdownRef}>
               <label className="block text-sm font-semibold text-slate-700 mb-2">Menu Selection</label>
-              
+             
               <div className="flex items-center gap-1.5 overflow-x-auto w-full mb-3 pb-1">
                 {["All", "Food", "Snack", "Drink", "Dessert"].map((cat) => (
                   <button
@@ -409,7 +406,7 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
             </div>
           )}
  
-          {/* Description */}
+          {/* Description - Updated focus state to slate style */}
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-2">Service Details / Description</label>
             <textarea
@@ -418,16 +415,16 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
               value={formData.description}
               onChange={handleChange}
               placeholder="Provide contextual invoice specifics..."
-              className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl w-full text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 text-slate-800 resize-none"
+              className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl w-full text-sm focus:outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-300 text-slate-800 resize-none"
             />
           </div>
  
-          {/* Cost accounting block */}
+          {/* Cost accounting block - Updated focus states to slate style */}
           <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3.5">
             {formData.service_type !== "Food" && (
               <>
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Cost Accounting Configurator</p>
-                
+               
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[11px] font-medium text-slate-500 mb-1">Quantity</label>
@@ -438,7 +435,7 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
                       value={formData.quantity}
                       onChange={handleChange}
                       className={`w-full px-3 py-1.5 text-sm bg-white border rounded-lg outline-none focus:ring-2 text-slate-800 font-semibold ${
-                        errors.quantity ? "border-rose-300 focus:ring-rose-500/20" : "border-slate-200 focus:ring-amber-500/20"
+                        errors.quantity ? "border-rose-300 focus:ring-rose-500/20" : "border-slate-200 focus:ring-slate-100 focus:border-slate-300"
                       }`}
                     />
                     {errors.quantity && <p className="text-[11px] text-rose-500 mt-1">{errors.quantity}</p>}
@@ -453,7 +450,7 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
                       value={formData.rate}
                       onChange={handleChange}
                       className={`w-full px-3 py-1.5 text-sm border rounded-lg outline-none focus:ring-2 text-slate-800 font-semibold transition-all ${
-                        errors.rate ? "border-rose-300 focus:ring-rose-500/20" : "border-slate-200 focus:ring-amber-500/20"
+                        errors.rate ? "border-rose-300 focus:ring-rose-500/20" : "border-slate-200 focus:ring-slate-100 focus:border-slate-300"
                       }`}
                     />
                     {errors.rate && <p className="text-[11px] text-rose-500 mt-1">{errors.rate}</p>}
@@ -470,7 +467,7 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
             </div>
           </div>
  
-          {/* Footer */}
+          {/* Footer - Removed FaCheckCircle icon from submit button */}
           <div className="flex gap-3 justify-end pt-4 border-t border-slate-100">
             <button
               type="button"
@@ -481,9 +478,9 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
             </button>
             <button
               type="submit"
-              className="px-6 py-2.5 bg-black hover:bg-slate-900 text-white text-sm font-semibold rounded-xl shadow-sm transition flex items-center gap-2"
+              className="px-6 py-2.5 bg-black hover:bg-slate-900 text-white text-sm font-semibold rounded-xl shadow-sm transition text-center"
             >
-              <FaCheckCircle /> {chargeToEdit ? "Update Charge" : "Log Extra Charge"}
+              {chargeToEdit ? "Update Charge" : "Log Extra Charge"}
             </button>
           </div>
         </form>

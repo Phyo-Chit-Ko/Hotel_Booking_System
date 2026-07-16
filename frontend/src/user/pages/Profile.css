@@ -271,3 +271,41 @@
   align-items: center;
   opacity: 0.9;
 }
+@media (max-width: 768px) {
+
+  .profile-wrapper {
+
+    flex-direction: column; /* Stack left and right panels vertically */
+
+    overflow-y: auto;       /* Allow scrolling if the content is too long */
+
+  }
+ 
+  .profile-left {
+
+    width: 100%;            /* Take full width */
+
+    padding: 30px;          /* Less padding on small screens */
+
+    text-align: center;
+
+  }
+ 
+  .profile-card {
+
+    width: 90%;             /* Use percentage instead of fixed pixels */
+
+    max-width: 400px;       /* Keeps it from getting too wide */
+
+    margin: 20px auto;      /* Center it */
+
+  }
+ 
+  .actions {
+
+    flex-direction: column; /* Stack buttons vertically on mobile */
+
+  }
+
+}
+ 

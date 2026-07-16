@@ -6,34 +6,38 @@ import { toast } from "react-hot-toast";
 import {
   FaPlus,
   FaSearch,
-  FaTrash,
-  FaEdit
+  FaTrash
 } from "react-icons/fa";
-
+ 
 const API_BASE_URL = "http://localhost:8000/api/users";
-
+ 
+const ROLE_PRIORITY = {
+  admin: 1,
+  manager: 2,
+  receptionist: 3,
+  reception: 3,
+  user: 4
+};
+ 
 export default function UserManagement() {
   const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRole, setSelectedRole] = useState("All Roles");
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [selectedUser, setSelectedUser] = useState(null);
-
+ 
   // States for Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10; // adjust as needed
-
+  const itemsPerPage = 10;
+ 
   useEffect(() => {
     fetchUsersFromDB();
   }, []);
-
-  // Reset to page 1 whenever the filtered result set changes,
-  // so we never get stuck on a page that no longer has any rows.
+ 
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, selectedRole]);
-
+ 
   const fetchUsersFromDB = async () => {
     try {
       setLoading(true);
@@ -46,24 +50,15 @@ export default function UserManagement() {
       setLoading(false);
     }
   };
-
+ 
   const handleSaveUser = async (formData) => {
     try {
-      const currentId = formData.user_id || formData.id;
-
-      if (currentId) {
-        const response = await axios.put(`${API_BASE_URL}/${currentId}`, formData);
-        if (response.status === 200) {
-          setUsers(users.map(u => (u.user_id === currentId || u.id === currentId) ? response.data.user : u));
-        }
-      } else {
-        const response = await axios.post(API_BASE_URL, formData);
-        if (response.status === 201) {
-          setUsers([...users, response.data.user]); 
-        }
+      const response = await axios.post(API_BASE_URL, formData);
+      if (response.status === 201) {
+        setUsers([...users, response.data.user]);
+        toast.success("User added successfully!");
       }
       setIsPanelOpen(false);
-      setSelectedUser(null);
     } catch (error) {
       console.error("API Error:", error);
       const serverMessage = error.response?.data?.message || error.message;
@@ -73,50 +68,54 @@ export default function UserManagement() {
       toast.error(`${serverMessage}${errorsDetail}`);
     }
   };
-
+ 
   const handleDeleteUser = async (userId) => {
     if (window.confirm("Are you sure you want to permanently delete this user account?")) {
       try {
         await axios.delete(`${API_BASE_URL}/${userId}`);
         setUsers(users.filter((user) => user.user_id !== userId && user.id !== userId));
+        toast.success("User deleted successfully.");
       } catch (error) {
         console.error("Error deleting database record:", error);
         toast.error(error.response?.data?.message || "Could not remove user from the database.");
       }
     }
   };
-
-  const filteredUsers = users.filter((user) => {
-    const matchesSearch =
-      user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.role?.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesRole =
-      selectedRole === "All Roles" ||
-      user.role?.toLowerCase() === selectedRole.toLowerCase();
-
-    return matchesSearch && matchesRole;
-  });
-
-  // Pagination derived state
+ 
+  const filteredUsers = users
+    .filter((user) => {
+      const matchesSearch =
+        user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.role?.toLowerCase().includes(searchTerm.toLowerCase());
+ 
+      const matchesRole =
+        selectedRole === "All Roles" ||
+        user.role?.toLowerCase() === selectedRole.toLowerCase();
+ 
+      return matchesSearch && matchesRole;
+    })
+    .sort((a, b) => {
+      const priorityA = ROLE_PRIORITY[a.role?.toLowerCase()] || 99;
+      const priorityB = ROLE_PRIORITY[b.role?.toLowerCase()] || 99;
+      return priorityA - priorityB;
+    });
+ 
   const totalPages = Math.max(1, Math.ceil(filteredUsers.length / itemsPerPage));
   const paginatedUsers = filteredUsers.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage,
   );
-
+ 
   return (
     <AdminLayout>
-      {/* Main Container Card Wrapper */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden p-5 space-y-5 mt-2">
-        
+       
         {/* Top Filter Controls Section */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-          
           <div className="flex flex-row items-center gap-3">
-            
-            {/* Compact Search Bar Layout */}
+           
+            {/* Search Bar */}
             <div className="relative flex items-center h-10 w-64 bg-white rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-slate-500/20 focus-within:border-slate-500 transition-all">
               <input
                 type="text"
@@ -129,8 +128,8 @@ export default function UserManagement() {
                 <FaSearch className="w-3.5 h-3.5" />
               </div>
             </div>
-
-            {/* Compact Roles Dropdown Menu */}
+ 
+            {/* Roles Dropdown */}
             <div className="relative h-10 w-40">
               <select
                 value={selectedRole}
@@ -148,37 +147,35 @@ export default function UserManagement() {
                 </svg>
               </div>
             </div>
-
           </div>
-
+ 
           {/* "+ Add New" Button */}
-          <button 
+          <button
             onClick={() => setIsPanelOpen(true)}
             className="flex items-center justify-center gap-1.5 h-10 px-4 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 active:scale-[0.98] transition rounded-xl shadow-sm"
           >
             <FaPlus className="w-2.5 h-2.5" /> Add New
           </button>
-
         </div>
-
-        {/* Clean Table Layout Section */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+ 
+        {/* Table Layout Section - Styled with rounded corners and distinct headers */}
+        <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <table className="w-full text-left border-collapse min-w-[800px]">
             <thead>
-              <tr className="bg-white border-b border-slate-100">
-                <th className="px-5 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">ID</th>
-                <th className="px-5 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Name</th>
-                <th className="px-5 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Email</th>
-                <th className="px-5 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Phone</th>
-                <th className="px-5 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Role</th>
-                <th className="px-5 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
-                <th className="px-5 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">Actions</th>
+              <tr className="bg-slate-50/80 border-b border-slate-200/60">
+                <th className="px-6 py-3.5 text-xs font-bold text-slate-400 uppercase tracking-wider">ID</th>
+                <th className="px-6 py-3.5 text-xs font-bold text-slate-400 uppercase tracking-wider">Name</th>
+                <th className="px-6 py-3.5 text-xs font-bold text-slate-400 uppercase tracking-wider">Email</th>
+                <th className="px-6 py-3.5 text-xs font-bold text-slate-400 uppercase tracking-wider">Phone</th>
+                <th className="ppx-6 py-3.5 text-xs font-bold text-slate-400 uppercase tracking-wider">Role</th>
+                <th className="px-6 py-3.5 text-xs font-bold text-slate-400 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3.5 text-xs font-bold text-slate-400 uppercase tracking-wider text-center w-24">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-200">
               {loading ? (
                 <tr>
-                  <td colSpan="7" className="text-center py-10 text-sm font-medium text-slate-400">
+                  <td colSpan="7" className="text-center py-10 text-sm font-medium text-slate-400 bg-white">
                     Syncing data grid metrics with database...
                   </td>
                 </tr>
@@ -186,38 +183,34 @@ export default function UserManagement() {
                 paginatedUsers.map((user, index) => {
                   const idToShow = user.user_id || user.id;
                   const rowNumber = (currentPage - 1) * itemsPerPage + index + 1;
+                  const userRole = user.role?.toLowerCase();
+                  const isDeleteDisabled = userRole === "admin" || userRole === "user";
+ 
                   return (
-                    <tr key={idToShow} className="hover:bg-slate-50/40 transition group">
-                      <td className="px-5 py-2 text-sm font-medium text-slate-400">{rowNumber}</td>
-                      <td className="px-5 py-2 text-sm font-bold text-slate-800">{user.name}</td>
-                      <td className="px-5 py-2 text-sm text-slate-500">{user.email}</td>
-                      <td className="px-5 py-2 text-sm text-slate-500">{user.phone || "—"}</td>
-                      <td className="px-5 py-2 text-sm">
+                    <tr key={idToShow} className="hover:bg-slate-50/50 transition bg-white">
+                      <td className="px-5 py-3 text-sm font-medium text-slate-400">{rowNumber}</td>
+                      <td className="px-5 py-3 text-sm font-bold text-slate-800">{user.name}</td>
+                      <td className="px-5 py-3 text-sm text-slate-500">{user.email}</td>
+                      <td className="px-5 py-3 text-sm text-slate-500">{user.phone || "—"}</td>
+                      <td className="px-5 py-3 text-sm">
                         <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-slate-100 text-slate-700 capitalize">
                           {user.role}
                         </span>
                       </td>
-                      <td className="px-5 py-2 text-sm">
+                      <td className="px-5 py-3 text-sm">
                         <span
                           className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-semibold capitalize ${
-                            user.status?.toLowerCase() === "active" 
-                              ? "bg-emerald-50 text-emerald-700 border border-emerald-100" 
+                            user.status?.toLowerCase() === "active"
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
                               : "bg-rose-50 text-rose-600 border border-rose-100"
                           }`}
                         >
                           {user.status}
                         </span>
                       </td>
-                      <td className="px-5 py-2 text-sm">
+                      <td className="px-5 py-3 text-sm">
                         <div className="flex items-center justify-center gap-1">
-                          <button 
-                            type="button" 
-                            onClick={() => { setSelectedUser(user); setIsPanelOpen(true); }}
-                            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md transition"
-                          >
-                            <FaEdit className="w-3.5 h-3.5" />
-                          </button>
-                          {user.role?.toLowerCase() !== "admin" ? (
+                          {!isDeleteDisabled ? (
                             <button
                               type="button"
                               onClick={() => handleDeleteUser(idToShow)}
@@ -227,7 +220,7 @@ export default function UserManagement() {
                             </button>
                           ) : (
                             <span
-                              title="Admin accounts cannot be deleted."
+                              title={`${user.role} accounts cannot be deleted.`}
                               className="p-1.5 text-slate-200 cursor-not-allowed"
                             >
                               <FaTrash className="w-3.5 h-3.5" />
@@ -240,7 +233,7 @@ export default function UserManagement() {
                 })
               ) : (
                 <tr>
-                  <td colSpan="7" className="text-center py-10 text-sm font-medium text-slate-400">
+                  <td colSpan="7" className="text-center py-10 text-sm font-medium text-slate-400 bg-white">
                     No users found matching your search criteria.
                   </td>
                 </tr>
@@ -248,7 +241,7 @@ export default function UserManagement() {
             </tbody>
           </table>
         </div>
-
+ 
         {/* Pagination Controls */}
         {!loading && filteredUsers.length > 0 && (
           <div className="flex items-center justify-between px-1 pt-2">
@@ -287,16 +280,16 @@ export default function UserManagement() {
             </div>
           </div>
         )}
-
+ 
       </div>
-
-      {/* User Entry Form Panel composition */}
-      <AddUser 
-        isOpen={isPanelOpen} 
-        onClose={() => { setIsPanelOpen(false); setSelectedUser(null); }} 
-        onSave={handleSaveUser} 
-        editingUser={selectedUser}
+ 
+      {/* Add User Entry Form Panel */}
+      <AddUser
+        isOpen={isPanelOpen}
+        onClose={() => setIsPanelOpen(false)}
+        onSave={handleSaveUser}
       />
     </AdminLayout>
   );
 }
+ 

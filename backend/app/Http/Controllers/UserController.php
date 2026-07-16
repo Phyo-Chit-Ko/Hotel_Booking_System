@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User; // User Model ကို သုံးနိုင်ဖို့ import လုပ်ထားတာပါ
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
+use Illuminate\Http\Request;
 
 class UserController extends Controller
 {
@@ -19,35 +20,32 @@ class UserController extends Controller
     }
 
     /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        // API အတွက်မို့လို့ ဒါက သုံးစရာမလိုပါဘူး (React ဘက်က component က ကိုင်တွယ်တာမို့လို့ပါ)
-    }
-
-    /**
      * Store a newly created resource in storage.
-     * (React UI ကနေ Save User နှိပ်လိုက်ရင် ဒီနေရာကို ရောက်လာမှာပါ)
+     * (Create Mode: အကောင့်အသစ်ဆောက်ချိန်)
      */
-    public function store(StoreUserRequest $request)
+    public function store(Request $request)
     {
-        // Assign the real password chosen by the admin/manager — the User
-        // model's 'password' => 'hashed' cast hashes it automatically on
-        // save, so no manual bcrypt()/Hash::make() call is needed.
+        // ဖိုင်တစ်ခုတည်းနဲ့ ပြီးအောင် Validation ကို ဒီမှာပဲ တန်းစစ်လိုက်ပါတယ်
+        // password_confirmation စစ်တဲ့ 'confirmed' ကို ဖြုတ်ထားပြီးသားဖြစ်လို့ password တစ်ခုပဲ လိုပါတော့တယ်
+        $request->validate([
+            'name'     => 'required|string|max:255',
+            'email'    => 'required|string|email|max:255|unique:users',
+            'phone'    => 'nullable|string|max:20',
+            'role'     => 'required|string',
+            'status'   => 'required|string',
+            'password' => 'required|string|min:8', 
+        ]);
+
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'phone' => $request->phone,
             'role' => $request->role,
             'status' => $request->status,
-            'password' => $request->password,
-            // The admin/manager chose this password on the new user's
-            // behalf — force them to set their own on first login.
+            'password' => $request->password, // Model Cast ကနေ auto hash လုပ်ပေးမှာပါ
             'must_change_password' => true,
         ]);
 
-        // ၃။ အောင်မြင်ကြောင်း React ဘက်ကို json ပြန်ပို့ပေးပါမယ်
         return response()->json([
             'message' => 'User created successfully',
             'user' => $user
@@ -69,27 +67,28 @@ class UserController extends Controller
     }
 
     /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
-    {
-        // API အတွက်မို့လို့ ဒါလည်း သုံးစရာမလိုပါဘူး
-    }
-
-    /**
      * Update the specified resource in storage.
-     * (User Data ကို ပြန်ပြင်ချင်တဲ့အခါ သုံးဖို့ပါ)
+     * (Edit Mode: အကောင့်အချက်အလက် ပြင်ချိန်)
      */
-    public function update(UpdateUserRequest $request, string $id)
+    public function update(Request $request, string $id)
     {
-        // 1. ဒေတာဘေ့စ်ထဲမှာ အသုံးပြုသူ ရှိမရှိ အရင်ရှာမယ်
         $user = User::find($id);
 
         if (!$user) {
             return response()->json(['message' => 'User not found'], 404);
         }
 
-        // 2. Database မှာ Update လုပ်ခြင်း
+        // Edit Mode အတွက် Validation ကိုလည်း ဒီမှာပဲ တစ်ခါတည်း စစ်ပါတယ်
+        // password ကို 'nullable' ပေးထားလို့ အလွတ်ထားခဲ့ရင် error မတက်ပါဘူး (ထည့်ရင်တော့ ၈ လုံးပြည့်ရပါမယ်)
+        $request->validate([
+            'name'     => 'required|string|max:255',
+            'email'    => 'required|string|email|max:255|unique:users,email,' . $id,
+            'phone'    => 'nullable|string|max:20',
+            'role'     => 'required|string',
+            'status'   => 'required|string',
+            'password' => 'nullable|string|min:8', 
+        ]);
+
         $updateData = [
             'name' => $request->name,
             'email' => $request->email,
@@ -98,10 +97,9 @@ class UserController extends Controller
             'status' => $request->status,
         ];
 
+        // Frontend ကနေ Password အသစ် အမှန်တကယ် ရိုက်ထည့်ပြီး ပို့လာမှသာ Update လုပ်ပေးမှာပါ
         if ($request->filled('password')) {
-            $updateData['password'] = $request->password; // hashed automatically by the model cast
-            // Admin/manager set this password on the user's behalf, not the
-            // user themselves — force a change again.
+            $updateData['password'] = $request->password; 
             $updateData['must_change_password'] = true;
         }
 
@@ -112,9 +110,9 @@ class UserController extends Controller
             'user' => $user
         ], 200);
     }
+
     /**
      * Remove the specified resource from storage.
-     * (User ကို ဖျက်ချင်တဲ့အခါ သုံးဖို့ပါ)
      */
     public function destroy(string $id)
     {

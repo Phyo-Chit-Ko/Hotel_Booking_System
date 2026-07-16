@@ -56,8 +56,6 @@ class AuthController extends Controller
         return response()->json(['success' => true, 'message' => 'Logged out.']);
     }
 
-    
-
     // Handle Registration
     public function register(Request $request)
     {
