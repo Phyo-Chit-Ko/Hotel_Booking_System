@@ -303,6 +303,10 @@ export default function ReservationManagement() {
 
   return (
     <AdminLayout>
+      <div className="w-full space-y-6 p-1">
+
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-5">
+          <button
             type="button"
             onClick={() => toggleFilter("checkin")}
             className={statCardClass("checkin")}
