@@ -73,22 +73,22 @@ export default function GuestManagement() {
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-5">
           <div className="flex items-center gap-3">
             <div className="relative w-[355px] h-11">
-              
+              {/* 🟢 Search Input - Ring & Active color effect completely removed */}
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search Guest Name.."
-                className="w-full h-full border border-slate-300 rounded-xl pl-11 pr-4 text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 box-border"
+                className="w-full h-full border border-slate-300 rounded-xl pl-11 pr-4 text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-0 focus:border-slate-300 box-border"
               />
-              
             </div>
 
             <div className="h-11">
+              {/* 🟢 Nationality Select - Ring & Active color effect completely removed */}
               <select
                 value={nationality}
                 onChange={(e) => setNationality(e.target.value)}
-                className="h-full px-4 border border-slate-300 rounded-xl text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 box-border [color-scheme:light]"
+                className="h-full px-4 border border-slate-300 rounded-xl text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-0 focus:border-slate-300 box-border [color-scheme:light]"
               >
                 <option value="">All Nationality</option>
                 {[...new Set(guests.map((g) => g.nationality))].map((n) => (
@@ -98,10 +98,11 @@ export default function GuestManagement() {
             </div>
 
             <div className="h-11">
+              {/* 🟢 ID Type Select - Ring & Active color effect completely removed */}
               <select
                 value={idType}
                 onChange={(e) => setIdType(e.target.value)}
-                className="h-full px-4 border border-slate-300 rounded-xl text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 box-border [color-scheme:light]"
+                className="h-full px-4 border border-slate-300 rounded-xl text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-0 focus:border-slate-300 box-border [color-scheme:light]"
               >
                 <option value="">All IDType</option>
                 {[...new Set(guests.map((g) => g.idType))].map((t) => (
@@ -111,10 +112,11 @@ export default function GuestManagement() {
             </div>
 
             <div className="h-11">
+              {/* 🟢 VIP Select - Ring & Active color effect completely removed */}
               <select
                 value={vip}
                 onChange={(e) => setVip(e.target.value)}
-                className="h-full px-4 border border-slate-300 rounded-xl text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 box-border [color-scheme:light]"
+                className="h-full px-4 border border-slate-300 rounded-xl text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-0 focus:border-slate-300 box-border [color-scheme:light]"
               >
                 <option value="">All VIP</option>
                 <option value="true">VIP Only</option>
@@ -123,8 +125,6 @@ export default function GuestManagement() {
             </div>
 
             <div className="flex-1" />
-
-            
           </div>
 
           <div className="overflow-x-auto border border-slate-100 rounded-xl">

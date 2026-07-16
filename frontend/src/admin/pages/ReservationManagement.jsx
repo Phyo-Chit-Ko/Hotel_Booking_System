@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import AdminLayout from "../layouts/AdminLayout";
-import AddReservation from "../components/AddReservation";
+import AddReservation from "../components/addReservation";
 import RecordPayment from "../components/RecordPayment";
 import MoveRoomModal from "../components/MoveRoomModal";
 import ChargesLedgerModal from "../components/ChargesLedgerModal";
@@ -37,9 +37,7 @@ export default function ReservationManagement() {
   const [minimizedStep, setMinimizedStep] = useState(null);
   const [selectedDate, setSelectedDate] = useState(getTodayDateString());
 
-  // Which of the 3 stat cards is currently driving the table below it.
-  // null = no filter, show everything (still subject to search).
-  const [activeFilter, setActiveFilter] = useState(null); // "checkin" | "checkout" | "inhouse" | null
+  const [activeFilter, setActiveFilter] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [roomTypes, setRoomTypes] = useState([]);
   const [roomTypeFilter, setRoomTypeFilter] = useState("All Room Types");
@@ -47,42 +45,17 @@ export default function ReservationManagement() {
   const PAGE_SIZE = 10;
   const [page, setPage] = useState(1);
 
-  // Which reservation is being checked in, if any. Presence of this id
-  // switches AddReservation into "checkin" mode with prefilled data.
   const [checkinReservationId, setCheckinReservationId] = useState(null);
-
-  // Booking row currently open in the standalone Record Payment modal.
-  // Independent of check-in — can be opened from any row, any status.
   const [paymentBooking, setPaymentBooking] = useState(null);
-
-  // Booking row currently being confirmed for check-out. We route
-  // check-out through a confirm modal (instead of window.confirm) so we
-  // can surface an outstanding balance warning and offer to collect
-  // payment before the guest actually leaves.
   const [checkoutBooking, setCheckoutBooking] = useState(null);
   const [checkoutSaving, setCheckoutSaving] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
-
-  // Booking row currently open in the Move Room modal, plus an optional
-  // prefill ({ reason, targetCheckOut }) when it was opened as a fallback
-  // from an Extend Stay that found the current room unavailable.
   const [moveRoomBooking, setMoveRoomBooking] = useState(null);
   const [moveRoomPrefill, setMoveRoomPrefill] = useState(null);
-
-  // Booking row currently open in the Extend Stay modal.
   const [extendBooking, setExtendBooking] = useState(null);
-
-  // Booking row currently open in the Check Balance (charges ledger) modal.
-  // ledgerMode "checkout" additionally shows the "Check Out Anyway" control
-  // — used when Check-Out is clicked with an outstanding balance instead of
-  // the plain confirm dialog below. ledgerRefreshKey is bumped to force a
-  // refetch after a payment is recorded from inside the modal.
   const [ledgerBooking, setLedgerBooking] = useState(null);
   const [ledgerMode, setLedgerMode] = useState("view");
   const [ledgerRefreshKey, setLedgerRefreshKey] = useState(0);
-
-  // Booking row currently open in the Edit modal (name/phone/special
-  // requests only — deliberately separate from Extend Stay / Move Room).
   const [editBooking, setEditBooking] = useState(null);
 
   const loadBookings = async () => {
@@ -111,7 +84,6 @@ export default function ReservationManagement() {
       .catch(() => setRoomTypes([]));
   }, []);
 
-  // Reset to page 1 whenever the visible set of rows would change shape.
   useEffect(() => {
     setPage(1);
   }, [activeFilter, selectedDate, searchTerm, roomTypeFilter]);
@@ -137,10 +109,6 @@ export default function ReservationManagement() {
 
   const stepLabels = { 1: "Guest Info", 2: "Room & Stay", 3: "Payment" };
 
-  // ── Derived data: stats + filtering ──────────────────────────────────
-  // Each reservation can produce multiple rows (primary + additional
-  // guests) but they all share the same checkIn/checkOut/rawStatus, so
-  // for counting *reservations* we only look at the "Primary" row.
   const primaryBookings = useMemo(
     () => bookings.filter((b) => b.guestType === "Primary"),
     [bookings]
@@ -149,14 +117,8 @@ export default function ReservationManagement() {
   const isInHouseOn = (b, date) =>
     b.rawStatus === "Checked-In" && b.checkIn <= date && date <= b.checkOut;
 
-  // A reservation that got moved to a different room shows check_out_date
-  // shortened to the move date, but the guest didn't actually leave — it
-  // just continues under the new reservation. Exclude "Moved" here so it
-  // doesn't inflate Daily Check-Outs.
   const isRealCheckOut = (b, date) => b.checkOut === date && b.rawStatus !== "Moved";
 
-  // A reservation "has checked in" once its status is Checked-In or beyond
-  // (Checked-Out/Moved both imply the guest did check in at some point).
   const hasCheckedIn = (b) => ["Checked-In", "Checked-Out", "Moved"].includes(b.rawStatus);
 
   const stats = useMemo(() => {
@@ -178,8 +140,6 @@ export default function ReservationManagement() {
     } else if (activeFilter === "inhouse") {
       rows = rows.filter((b) => isInHouseOn(b, selectedDate));
     } else if (selectedDate) {
-      // No stat card active — the date picker still filters the table on its
-      // own, to any reservation whose check-in OR check-out falls on this date.
       rows = rows.filter((b) => b.checkIn === selectedDate || b.checkOut === selectedDate);
     }
 
@@ -204,9 +164,6 @@ export default function ReservationManagement() {
     [filteredBookings, page]
   );
 
-  // Print all rows matching the current filters (search/date/room type),
-  // ignoring on-screen pagination — same convention as InvoiceView.jsx's
-  // window.print()-based export, no PDF/Excel library involved.
   const handleExport = () => {
     window.print();
   };
@@ -216,22 +173,18 @@ export default function ReservationManagement() {
   };
 
   const statCardClass = (key) =>
-    `bg-white rounded-xl border p-5 shadow-sm flex items-center justify-between text-left transition active:scale-98 ${
+    `bg-white rounded-xl border p-5 shadow-sm flex items-center justify-between text-left transition focus:outline-none focus:ring-0 ${
       activeFilter === key
-        ? "border-amber-400 ring-2 ring-amber-200"
+        ? "border-slate-400"
         : "border-slate-200 hover:border-slate-300"
     }`;
 
-  // ── Reservation modal handlers ───────────────────────────────────────
-
   const handleOpenNew = () => {
-    // If there's already an in-progress (minimized) session, just restore it
-    // instead of clobbering its state with a fresh form.
     if (isMinimized) {
       setIsMinimized(false);
       return;
     }
-    setCheckinReservationId(null); // ensure this is a fresh "new" reservation, not check-in mode
+    setCheckinReservationId(null);
     setIsModalOpen(true);
   };
 
@@ -241,11 +194,6 @@ export default function ReservationManagement() {
     setIsMinimized(false);
   };
 
-  // Opens the checkout confirm modal instead of checking out immediately,
-  // so we get a chance to show the outstanding balance first. If there IS
-  // a balance, route through the Check Balance modal instead (so staff can
-  // pay it down or explicitly override with a reason) rather than the
-  // plain confirm dialog, which stays for the already-settled case.
   const handleCheckOutClick = (booking) => {
     setCheckoutError("");
     if (booking.remainingAmount > 0) {
@@ -282,9 +230,6 @@ export default function ReservationManagement() {
     await loadBookings();
   };
 
-  // Extend Stay found the current room unavailable for the extra nights —
-  // hand off to Move Room, prefilled so completing it delivers the
-  // extension in the new room instead of dead-ending on an error.
   const handleExtendRequiresMove = ({ reason, targetCheckOut }) => {
     const booking = extendBooking;
     setExtendBooking(null);
@@ -311,9 +256,6 @@ export default function ReservationManagement() {
     }
   };
 
-  // After a payment is recorded from the checkout confirm modal or the
-  // Check Balance modal, refresh the balance shown there instead of closing
-  // it, so staff can see it hit $0 and then check out in the same flow.
   const handlePaymentSaved = async (updatedBooking) => {
     setPaymentBooking(null);
     await loadBookings();
@@ -342,10 +284,6 @@ export default function ReservationManagement() {
   };
 
   const handleSaveReservation = async () => {
-    // A reservation can now render as multiple rows (primary + additional
-    // guests), and check-in/check-out change status server-side, so a
-    // simple local prepend/patch won't reliably cover every case — just
-    // refetch the full list.
     setIsModalOpen(false);
     setIsMinimized(false);
     setMinimizedStep(null);
@@ -353,8 +291,6 @@ export default function ReservationManagement() {
     await loadBookings();
   };
 
-  // After a room move succeeds, close the modal and refresh the table
-  // so room/roomType/charges reflect the new assignment everywhere.
   const handleRoomMoved = async () => {
     setMoveRoomBooking(null);
     setMoveRoomPrefill(null);
@@ -362,7 +298,6 @@ export default function ReservationManagement() {
   };
 
   return (
-    //form design//
     <AdminLayout>
       <div className="w-full space-y-6 p-1">
 
@@ -416,7 +351,7 @@ export default function ReservationManagement() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search visible columns..."
-                className="w-full h-full border border-slate-300 rounded-xl pl-4 pr-11 text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 box-border"
+                className="w-full h-full border border-slate-300 rounded-xl pl-4 pr-11 text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-0 focus:border-slate-300 box-border"
               />
               <FaSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none" />
             </div>
@@ -425,7 +360,7 @@ export default function ReservationManagement() {
               <select
                 value={roomTypeFilter}
                 onChange={(e) => setRoomTypeFilter(e.target.value)}
-                className="h-full w-34 px-4 border border-slate-300 rounded-xl text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 box-border [color-scheme:light]"
+                className="h-full w-34 px-4 border border-slate-300 rounded-xl text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-0 focus:border-slate-300 box-border [color-scheme:light]"
               >
                 <option>All Room Types</option>
                 {roomTypes.map((rt) => (
@@ -438,7 +373,7 @@ export default function ReservationManagement() {
               <input
                 type="date"
                 value={selectedDate}
-                className="h-full px-4 border border-slate-300 rounded-xl text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 box-border [color-scheme:light]"
+                className="h-full px-4 border border-slate-300 rounded-xl text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-0 focus:border-slate-300 box-border [color-scheme:light]"
                 onChange={(e) => setSelectedDate(e.target.value)}
               />
             </div>
@@ -447,7 +382,7 @@ export default function ReservationManagement() {
               <button
                 type="button"
                 onClick={() => setActiveFilter(null)}
-                className="h-11 px-3 flex items-center gap-1.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-xl hover:bg-amber-100 transition"
+                className="h-11 px-3 flex items-center gap-1.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-xl hover:bg-amber-100 transition focus:outline-none focus:ring-0"
               >
                 <FaTimes className="text-[10px]" />
                 Clear filter
@@ -460,7 +395,7 @@ export default function ReservationManagement() {
               <div className="h-11">
                 <button
                   onClick={handleContinue}
-                  className="h-full px-4 bg-amber-50 hover:bg-amber-100 border border-amber-300 rounded-xl text-sm font-semibold text-amber-700 flex items-center justify-center gap-2 shadow-sm transition active:scale-95"
+                  className="h-full px-4 bg-amber-50 hover:bg-amber-100 border border-amber-300 rounded-xl text-sm font-semibold text-amber-700 flex items-center justify-center gap-2 shadow-sm transition active:scale-95 focus:outline-none focus:ring-0"
                 >
                   <FaWindowRestore className="text-amber-600 text-sm" />
                   <span>
@@ -475,7 +410,7 @@ export default function ReservationManagement() {
               <button
                 type="button"
                 onClick={handleExport}
-                className="h-full px-4 border border-slate-300 bg-white hover:bg-slate-50 rounded-xl text-sm font-medium text-slate-700 flex items-center justify-center gap-2 shadow-sm transition active:scale-95"
+                className="h-full px-4 border border-slate-300 bg-white hover:bg-slate-50 rounded-xl text-sm font-medium text-slate-700 flex items-center justify-center gap-2 shadow-sm transition active:scale-95 focus:outline-none focus:ring-0"
               >
                 <FaFileExport className="text-slate-400 text-sm" />
                 <span>Export</span>
@@ -485,7 +420,7 @@ export default function ReservationManagement() {
             <div className="h-11">
               <button
                 onClick={handleOpenNew}
-                className="h-full px-5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-xl flex items-center justify-center gap-2 shadow-sm transition active:scale-95"
+                className="h-full px-5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-xl flex items-center justify-center gap-2 shadow-sm transition active:scale-95 focus:outline-none focus:ring-0"
               >
                 <FaPlus className="text-sm" />
                 <span>Add New</span>
@@ -568,7 +503,7 @@ export default function ReservationManagement() {
                             type="button"
                             title="Check Balance"
                             onClick={() => handleOpenLedger(booking)}
-                            className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-100 transition no-print"
+                            className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-100 transition no-print focus:outline-none focus:ring-0"
                           >
                             <FaWallet size={12} />
                           </button>
@@ -582,14 +517,14 @@ export default function ReservationManagement() {
                       <div className="flex flex-col items-center gap-1.5">
                         {booking.guestType === "Primary" && (booking.status === "Check-In" || booking.status === "No-Show") && (
                           <button onClick={() => handleOpenCheckIn(booking.id)}
-                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition w-full">
+                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition w-full focus:outline-none focus:ring-0">
                             Check-In
                           </button>
                         )}
 
                         {booking.guestType === "Primary" && booking.status === "Occupied" && (
                           <button onClick={() => handleCheckOutClick(booking)}
-                            className="px-3 py-1.5 bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg transition w-full">
+                            className="px-3 py-1.5 bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg transition w-full focus:outline-none focus:ring-0">
                             Check-Out
                           </button>
                         )}
@@ -606,20 +541,20 @@ export default function ReservationManagement() {
                           <div className="flex gap-1 w-full">
                             {booking.remainingAmount > 0 && (
                               <button title="Record Payment" onClick={() => setPaymentBooking(booking)}
-                                className="flex-1 px-2 py-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-700 text-[11px] font-semibold rounded-lg transition">
+                                className="flex-1 px-2 py-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-700 text-[11px] font-semibold rounded-lg transition focus:outline-none focus:ring-0">
                                 <FaMoneyBillWave className="mx-auto" />
                               </button>
                             )}
                             <button title="Edit" onClick={() => setEditBooking(booking)}
-                              className="flex-1 px-2 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 text-[11px] font-semibold rounded-lg transition">
+                              className="flex-1 px-2 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 text-[11px] font-semibold rounded-lg transition focus:outline-none focus:ring-0">
                               <FaEdit className="mx-auto" />
                             </button>
                             <button title="Extend Stay" onClick={() => setExtendBooking(booking)}
-                              className="flex-1 px-2 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 text-[11px] font-semibold rounded-lg transition">
+                              className="flex-1 px-2 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 text-[11px] font-semibold rounded-lg transition focus:outline-none focus:ring-0">
                               <FaCalendarPlus className="mx-auto" />
                             </button>
                             <button title="Move Room" onClick={() => { setMoveRoomPrefill(null); setMoveRoomBooking(booking); }}
-                              className="flex-1 px-2 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 text-[11px] font-semibold rounded-lg transition">
+                              className="flex-1 px-2 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 text-[11px] font-semibold rounded-lg transition focus:outline-none focus:ring-0">
                               <FaExchangeAlt className="mx-auto" />
                             </button>
                           </div>
@@ -642,7 +577,7 @@ export default function ReservationManagement() {
                   type="button"
                   disabled={page <= 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 hover:bg-slate-50 transition"
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 hover:bg-slate-50 transition focus:outline-none focus:ring-0"
                 >
                   Prev
                 </button>
@@ -651,7 +586,7 @@ export default function ReservationManagement() {
                   type="button"
                   disabled={page >= totalPages}
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 hover:bg-slate-50 transition"
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 hover:bg-slate-50 transition focus:outline-none focus:ring-0"
                 >
                   Next
                 </button>
@@ -662,8 +597,6 @@ export default function ReservationManagement() {
         </div>
       </div>
 
-      {/* Print-only: the FULL filtered set (ignores on-screen pagination), hidden
-          on screen and forced visible via @media print below. */}
       <div id="printable-reservations" className="hidden" style={{ WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }}>
         <div style={{ borderBottom: "2px solid #0f172a", paddingBottom: "10px", marginBottom: "14px" }}>
           <h1 style={{ fontSize: "20px", fontWeight: 700, margin: 0, color: "#0f172a" }}>Reservation Report</h1>
@@ -834,7 +767,7 @@ export default function ReservationManagement() {
                   <button
                     type="button"
                     onClick={() => setPaymentBooking(checkoutBooking)}
-                    className="w-full bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-700 font-bold py-3 rounded-xl text-sm transition-all flex items-center justify-center gap-2"
+                    className="w-full bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-700 font-bold py-3 rounded-xl text-sm transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-0"
                   >
                     <FaMoneyBillWave size={12} /> Record Payment First
                   </button>
@@ -844,7 +777,7 @@ export default function ReservationManagement() {
                     type="button"
                     onClick={() => setCheckoutBooking(null)}
                     disabled={checkoutSaving}
-                    className="flex-1 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold py-3 rounded-xl text-sm transition-all disabled:opacity-60"
+                    className="flex-1 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold py-3 rounded-xl text-sm transition-all disabled:opacity-60 focus:outline-none focus:ring-0"
                   >
                     Cancel
                   </button>
@@ -852,7 +785,7 @@ export default function ReservationManagement() {
                     type="button"
                     onClick={performCheckOut}
                     disabled={checkoutSaving}
-                    className="flex-1 bg-slate-900 hover:bg-slate-800 disabled:opacity-60 text-white font-bold py-3 rounded-xl text-sm transition-all"
+                    className="flex-1 bg-slate-900 hover:bg-slate-800 disabled:opacity-60 text-white font-bold py-3 rounded-xl text-sm transition-all focus:outline-none focus:ring-0"
                   >
                     {checkoutSaving
                       ? "Checking out…"

@@ -7,7 +7,6 @@ import {
   FaTrash,
   FaCreditCard,
   FaWallet,
-  FaPlus,
 } from "react-icons/fa";
 
 const BACKEND_URL = "http://localhost:8000";
@@ -132,7 +131,7 @@ const PaymentManagement = () => {
             type="month"
             value={selectedMonth}
             onChange={(e) => setSelectedMonth(e.target.value)}
-            className="h-9 px-3 border border-slate-200 rounded-lg text-xs text-slate-600 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 [color-scheme:light]"
+            className="h-9 px-3 border border-slate-200 rounded-lg text-xs text-slate-600 bg-white shadow-sm focus:outline-none focus:ring-0 focus:border-slate-200 [color-scheme:light]"
           />
         </div>
 
@@ -144,7 +143,7 @@ const PaymentManagement = () => {
                 placeholder="Search booking #, ref #, or context..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full h-full border border-slate-300 rounded-xl pl-4 pr-11 text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 box-border"
+                className="w-full h-full border border-slate-300 rounded-xl pl-4 pr-11 text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-0 focus:border-slate-300 box-border"
               />
               <FaSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none" />
             </div>
@@ -153,7 +152,7 @@ const PaymentManagement = () => {
               <select
                 value={selectedMethod}
                 onChange={(e) => setSelectedMethod(e.target.value)}
-                className="h-full px-4 border border-slate-300 rounded-xl text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 box-border [color-scheme:light]"
+                className="h-full px-4 border border-slate-300 rounded-xl text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-0 focus:border-slate-300 box-border [color-scheme:light]"
               >
                 <option value="All">All Methods</option>
                 <option value="cash">Cash</option>
@@ -163,13 +162,7 @@ const PaymentManagement = () => {
               </select>
             </div>
 
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="h-11 px-5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-xl flex items-center justify-center gap-2 shadow-sm transition active:scale-95 ml-auto"
-            >
-              <FaPlus className="text-sm" />
-              <span>Add New</span>
-            </button>
+            {/* 🔴 "Add New" Button has been successfully deleted from here */}
           </div>
 
           <div className="overflow-x-auto border border-slate-100 rounded-xl">
@@ -200,7 +193,7 @@ const PaymentManagement = () => {
                     return (
                     <tr key={payment.id} className="hover:bg-slate-50/70 transition-colors">
                       <td className="px-5 py-4 font-mono font-medium text-slate-900">
-                        #{rowNumber}
+                        {rowNumber}
                       </td>
 
                       <td className="px-5 py-4 font-mono font-medium text-slate-900">

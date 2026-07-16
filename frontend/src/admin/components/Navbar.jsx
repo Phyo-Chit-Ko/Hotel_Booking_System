@@ -17,6 +17,7 @@ const PAGE_TITLES = {
   "/admin/user_management": { name: "User Management", sub: "Staff accounts & permissions" },
   "/admin/restaurant": { name: "Restaurant", sub: "Restaurant orders & menu" },
   "/admin/settings": { name: "Settings", sub: "System configuration" },
+  "/admin/reports":         { name: "Reports",                sub: "Daily Night Audit Reports" },
 };
 
 export default function Navbar({ onMenuClick }) {

@@ -15,7 +15,7 @@ import {
 } from "react-icons/fa";
 import { STATUS_META, STATUS_ORDER, FALLBACK_STATUS_META } from "../constants/roomStatus";
 import { useAuth } from "../../context/AuthContext";
-
+ 
 export default function RoomManagement() {
   const { user } = useAuth();
   const canWrite = (user?.role || "").toLowerCase() === "manager";
@@ -26,16 +26,16 @@ export default function RoomManagement() {
   const [editingRoom, setEditingRoom] = useState(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [viewingRoomNumber, setViewingRoomNumber] = useState(null);
-
+ 
   // States for Searching & Filtering
   const [typedQuery, setTypedQuery] = useState("");
   const [activeSearch, setActiveSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
-
+ 
   // States for Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10; // adjust as needed
-
+ 
   const fetchData = async () => {
     try {
       setIsLoading(true);
@@ -52,48 +52,48 @@ export default function RoomManagement() {
       setIsLoading(false);
     }
   };
-
+ 
   useEffect(() => {
     fetchData();
   }, []);
-
+ 
   // Reset to page 1 whenever the filtered result set changes,
   // so we never get stuck on a page that no longer has any rows.
   useEffect(() => {
     setCurrentPage(1);
   }, [activeSearch, statusFilter]);
-
+ 
   const handleSearchSubmit = (e) => {
     if (e) e.preventDefault();
     setActiveSearch(typedQuery);
   };
-
+ 
   const handleClearSearch = () => {
     setTypedQuery("");
     setActiveSearch("");
   };
-
+ 
   const handleKeyDown = (e) => {
     if (e.key === "Enter") {
       handleSearchSubmit();
     }
   };
-
+ 
   const handleOpenAddModal = () => {
     setEditingRoom(null);
     setIsModalOpen(true);
   };
-
+ 
   const handleOpenEditModal = (room) => {
     setEditingRoom(room);
     setIsModalOpen(true);
   };
-
+ 
   const handleOpenDetail = (room) => {
     setViewingRoomNumber(room.room_number);
     setIsDetailOpen(true);
   };
-
+ 
   const handleSaveRoom = async (formData, isEditing) => {
     try {
       if (isEditing) {
@@ -120,7 +120,7 @@ export default function RoomManagement() {
       );
     }
   };
-
+ 
   const handleDeleteRoom = async (roomNumber) => {
     if (
       window.confirm(
@@ -136,11 +136,11 @@ export default function RoomManagement() {
       }
     }
   };
-
+ 
   const handleChangeStatus = async (roomNumber, nextStatus) => {
     const previousStatus = rooms.find((r) => r.room_number === roomNumber)?.status;
     if (nextStatus === previousStatus) return;
-
+ 
     try {
       setRooms((prev) =>
         prev.map((room) =>
@@ -149,7 +149,7 @@ export default function RoomManagement() {
             : room,
         ),
       );
-
+ 
       await axios.patch(
         `http://127.0.0.1:8000/api/rooms/${roomNumber}/toggle-status`,
         {
@@ -163,7 +163,7 @@ export default function RoomManagement() {
       fetchData();
     }
   };
-
+ 
   const filteredRooms = rooms.filter((room) => {
     const matchesSearch = room.room_number
       .toLowerCase()
@@ -171,23 +171,23 @@ export default function RoomManagement() {
     const matchesStatus = statusFilter === "All" || room.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
-
+ 
   // Pagination derived state
   const totalPages = Math.max(1, Math.ceil(filteredRooms.length / itemsPerPage));
   const paginatedRooms = filteredRooms.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage,
   );
-
+ 
   const getRoomTypeName = (typeId) => {
     const typeObj = roomTypes.find((t) => t.room_type_id === typeId);
     return typeObj ? typeObj.name : `Type ID: ${typeId}`;
   };
-
+ 
   // Sourced from the rooms that actually exist, instead of a hardcoded list —
   // so the Add Room form's floor suggestions always reflect real data.
   const floorOptions = [...new Set(rooms.map((r) => r.floor).filter(Boolean))].sort();
-
+ 
   const statTiles = [
     { key: "Total", filterValue: "All", label: "Total Rooms", value: rooms.length, icon: FaBed, chip: "bg-slate-100 text-slate-600" },
     ...STATUS_ORDER.map((status) => ({
@@ -199,7 +199,7 @@ export default function RoomManagement() {
       chip: STATUS_META[status].chip,
     })),
   ];
-
+ 
   return (
     <AdminLayout>
       {/* KPI Stat Tiles — click to filter the table below */}
@@ -227,15 +227,15 @@ export default function RoomManagement() {
           );
         })}
       </div>
-
+ 
       {/* Main Container Card Wrapper */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden p-5 space-y-5">
-
+ 
         {/* Top Control Section */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-          
+         
           <div className="flex flex-row items-center gap-3">
-            
+           
             {/* Compact Search Bar Layout */}
             <div className="relative flex items-center h-10 w-64 bg-white rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-slate-500/20 focus-within:border-slate-500 transition-all">
               <input
@@ -246,7 +246,7 @@ export default function RoomManagement() {
                 onKeyDown={handleKeyDown}
                 className="w-full bg-transparent h-full pl-3.5 pr-9 text-sm text-slate-800 outline-none"
               />
-              
+             
               <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
                 {typedQuery ? (
                   <button
@@ -268,7 +268,7 @@ export default function RoomManagement() {
                 }
               </div>
             </div>
-
+ 
             {/* Compact Status Selector Dropdown */}
             <div className="relative h-10 w-44">
               <select
@@ -287,9 +287,9 @@ export default function RoomManagement() {
                 </svg>
               </div>
             </div>
-
+ 
           </div>
-
+ 
           {/* Add Room Black Button */}
           {canWrite && (
             <button
@@ -299,24 +299,24 @@ export default function RoomManagement() {
               <FaPlus className="w-2.5 h-2.5" /> Add Room
             </button>
           )}
-
+ 
         </div>
-
-        {/* Clean Table Layout Section */}
-        <div className="overflow-x-auto">
+ 
+        {/* Clean Table Layout Section (Borders and rounded corners added here) */}
+        <div className="overflow-x-auto border border-slate-200/80 rounded-xl overflow-hidden">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-white border-b border-slate-100">
-                <th className="px-5 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">#</th>
-                <th className="px-5 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Room Number</th>
-                <th className="px-5 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Room Type</th>
-                <th className="px-5 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Floor Location</th>
-                <th className="px-5 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
-                <th className="px-5 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Change Status</th>
-                <th className="px-5 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">Actions</th>
+              <tr className="bg-slate-50/80 border-b border-slate-200/60">
+                <th className="px-6 py-3.5 text-xs font-bold text-slate-400 uppercase tracking-wider">ID</th>
+                <th className="px-6 py-3.5 text-xs font-bold text-slate-400 uppercase tracking-wider">Room Number</th>
+                <th className="px-6 py-3.5 text-xs font-bold text-slate-400 uppercase tracking-wider">Room Type</th>
+                <th className="px-6 py-3.5 text-xs font-bold text-slate-400 uppercase tracking-wider">Floor Location</th>
+                <th className="px-6 py-3.5 text-xs font-bold text-slate-400 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3.5 text-xs font-bold text-slate-400 uppercase tracking-wider">Change Status</th>
+                <th className="px-6 py-3.5 text-xs font-bold text-slate-400 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
-
+ 
             <tbody className="divide-y divide-slate-100">
               {isLoading ? (
                 <tr>
@@ -419,7 +419,7 @@ export default function RoomManagement() {
             </tbody>
           </table>
         </div>
-
+ 
         {/* Pagination Controls */}
         {!isLoading && filteredRooms.length > 0 && (
           <div className="flex items-center justify-between px-1 pt-2">
@@ -458,9 +458,9 @@ export default function RoomManagement() {
             </div>
           </div>
         )}
-
+ 
       </div>
-
+ 
       {/* MODAL WINDOW */}
       <AddRoomModal
         isOpen={isModalOpen}
@@ -470,7 +470,7 @@ export default function RoomManagement() {
         roomTypes={roomTypes}
         floors={floorOptions}
       />
-
+ 
       <RoomDetailModal
         isOpen={isDetailOpen}
         onClose={() => setIsDetailOpen(false)}
@@ -479,3 +479,4 @@ export default function RoomManagement() {
     </AdminLayout>
   );
 }
+ 

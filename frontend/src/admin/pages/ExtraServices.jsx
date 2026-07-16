@@ -3,20 +3,16 @@ import AdminLayout from "../layouts/AdminLayout";
 import { FaPlus, FaSearch, FaTrash, FaEdit, FaTshirt, FaUtensils, FaCar } from "react-icons/fa";
 import AddExtraChargeModal from "../../admin/components/AddExtraChargeModal";
 import axios from "axios";
-// Base URL is already set globally in main.jsx — use relative paths here.
 
 const ExtraServices = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [chargeToEdit, setChargeToEdit] = useState(null);
-  const [services, setServices] = useState([]); // Initialized to empty array for database sync
+  const [services, setServices] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [metrics, setMetrics] = useState({ laundry_count: 0, car_rental_count: 0, food_count: 0 });
-
-  // States for Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10; // adjust as needed
+  const itemsPerPage = 10;
 
-  // 1. Fetch live records from XAMPP on component load
   const fetchServices = async () => {
     try {
       const response = await axios.get("/api/services");
@@ -33,8 +29,6 @@ const ExtraServices = () => {
     fetchServices();
   }, []);
 
-  // Reset to page 1 whenever the search term changes,
-  // so we never get stuck on a page that no longer has any rows.
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm]);
@@ -48,18 +42,17 @@ const ExtraServices = () => {
     }
   };
 
-  const filteredServices = services.filter((item) => {
-    const term = searchTerm.toLowerCase();
-    // Safely check fields in case database fields return numbers or null values
-    const room = item.room_number ? String(item.room_number).toLowerCase() : "";
-    const resId = item.reservation_id ? String(item.reservation_id).toLowerCase() : "";
-    const name = item.guest_name ? item.guest_name.toLowerCase() : "";
-    const type = item.service_type ? item.service_type.toLowerCase() : "";
+  const filteredServices = [...services]
+    .sort((a, b) => Number(b.id) - Number(a.id))
+    .filter((item) => {
+      const term = searchTerm.toLowerCase();
+      const room = item.room_number ? String(item.room_number).toLowerCase() : "";
+      const resId = item.reservation_id ? String(item.reservation_id).toLowerCase() : "";
+      const name = item.guest_name ? item.guest_name.toLowerCase() : "";
+      const type = item.service_type ? item.service_type.toLowerCase() : "";
+      return room.includes(term) || resId.includes(term) || name.includes(term) || type.includes(term);
+    });
 
-    return room.includes(term) || resId.includes(term) || name.includes(term) || type.includes(term);
-  });
-
-  // Pagination derived state
   const totalPages = Math.max(1, Math.ceil(filteredServices.length / itemsPerPage));
   const paginatedServices = filteredServices.slice(
     (currentPage - 1) * itemsPerPage,
@@ -70,14 +63,12 @@ const ExtraServices = () => {
   const openEditModal = (item) => { setChargeToEdit(item); setIsModalOpen(true); };
   const closeModal = () => { setIsModalOpen(false); setChargeToEdit(null); };
 
-  // 2. Fire an HTTP DELETE request to remove records from XAMPP
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this charge?")) {
       try {
         await axios.delete(`/api/services/${id}`);
-
         alert("Deleted successfully!");
-        fetchServices(); // Refresh the table list data automatically
+        fetchServices();
       } catch (error) {
         console.error("Delete Error:", error);
         alert("Failed to delete record: " + (error.response?.data?.message || error.message));
@@ -85,7 +76,6 @@ const ExtraServices = () => {
     }
   };
 
-  // 3. Fire real API requests into your Laravel controller
   async function handleSaveCharge(data, editingId) {
     try {
       if (editingId) {
@@ -104,7 +94,6 @@ const ExtraServices = () => {
   return (
     <AdminLayout>
       <div className="space-y-6 relative overflow-hidden">
-        {/* Statistics Panels using synced server-calculated metrics */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex items-center gap-4">
             <div className="p-3.5 bg-blue-50 rounded-xl border border-blue-100 text-xl text-blue-600"><FaTshirt /></div>
@@ -129,12 +118,17 @@ const ExtraServices = () => {
           </div>
         </div>
 
-        {/* Master Table Container */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-5">
           <div className="flex items-center gap-3">
             <div className="relative w-[355px] h-11">
               <FaSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none" />
-              <input type="text" placeholder="Search room number, guest name..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full h-full border border-slate-300 rounded-xl pl-4 pr-11 text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 box-border" />
+              <input 
+                type="text" 
+                placeholder="Search room number, guest name..." 
+                value={searchTerm} 
+                onChange={(e) => setSearchTerm(e.target.value)} 
+                className="w-full h-full border border-slate-300 rounded-xl pl-4 pr-11 text-sm text-slate-700 bg-white shadow-sm focus:outline-none box-border" 
+              />
             </div>
             <button onClick={openAddModal} className="h-11 px-5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-xl flex items-center gap-2 shadow-sm ml-auto">
               <FaPlus /> <span>Add Extra Charge</span>
@@ -150,8 +144,7 @@ const ExtraServices = () => {
                   <th className="px-5 py-3.5">Guest Name</th>
                   <th className="px-5 py-3.5">Service Type</th>
                   <th className="px-5 py-3.5">Charge Date</th>
-                  
-                  <th className="px-5 py-3.5">Description</th> 
+                  <th className="px-5 py-3.5">Description</th>
                   <th className="px-5 py-3.5">Food Items</th>
                   <th className="px-5 py-3.5 text-center">QTY</th>
                   <th className="px-5 py-3.5">Rate</th>
@@ -165,50 +158,72 @@ const ExtraServices = () => {
                   paginatedServices.map((item, index) => {
                     const rowNumber = (currentPage - 1) * itemsPerPage + index + 1;
                     return (
-                    <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
-                      <td className="px-5 py-4 font-mono font-medium text-slate-900">#{rowNumber}</td>
-                      <td className="px-5 py-4 font-semibold text-slate-900">
-                        {item.room_number ? `Room ${item.room_number}` : <span className="text-slate-300">—</span>}
-                        <span className="block text-[10px] font-normal text-slate-400">Res #{item.reservation_id}</span>
-                      </td>
-                      <td className="px-5 py-4 text-slate-700">{item.guest_name}</td>
-                      <td className="px-5 py-4">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium inline-block ${getServiceTypeStyle(item.service_type)}`}>
-                          {item.service_type}
-                        </span>
-                      </td>
-                      <td className="px-5 py-4 font-mono text-xs text-slate-500">{item.charge_date}</td>
-
-
-<td className="px-5 py-4 text-slate-600 max-w-[150px] truncate">
-  {item.description || <span className="text-slate-300">-</span>}
-</td>
-
-{/* Column 2: Food Items (Only renders text if the service type is Food) */}
-<td className="px-5 py-4 text-slate-600 max-w-[150px] truncate">
-  {item.service_type === "Food" && item.food_items ? (
-    item.food_items
-  ) : (
-    <span className="text-slate-300">-</span>
-  )}
-</td>
-
-<td className="px-5 py-4 text-center font-mono text-slate-700">{item.quantity}</td>
-                      <td className="px-5 py-4 font-mono text-slate-600">${Number(item.rate).toFixed(2)}</td>
-                      <td className="px-5 py-4 font-mono font-bold text-slate-900">${Number(item.total).toFixed(2)}</td>
-                      <td className="px-5 py-4 text-slate-500">{item.handled_by || "—"}</td>
-                      <td className="px-5 py-4 text-center">
-                        <div className="flex justify-center gap-1.5">
-                          <button onClick={() => openEditModal(item)} className="p-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-400 hover:text-slate-600">
-                            <FaEdit className="w-3.5 h-3.5" />
-                          </button>
-                          {/* Fixed variables and replaced the missing icon placeholder with FaTrash */}
-                          <button onClick={() => handleDelete(item.id)} className="p-2 rounded-lg bg-slate-50 border border-slate-200 text-red-500 hover:bg-red-50 hover:text-red-700 transition-colors">
-                            <FaTrash className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+                      <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
+                        <td className="px-5 py-4 font-mono font-medium text-slate-900">{rowNumber}</td>
+                        <td className="px-5 py-4 font-semibold text-slate-900">
+                          {item.room_number ? `Room ${item.room_number}` : <span className="text-slate-300">—</span>}
+                          <span className="block text-[10px] font-normal text-slate-400">Res #{item.reservation_id}</span>
+                        </td>
+                        <td className="px-5 py-4 text-slate-700">{item.guest_name}</td>
+                        <td className="px-5 py-4">
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-medium inline-block ${getServiceTypeStyle(item.service_type)}`}>
+                            {item.service_type}
+                          </span>
+                        </td>
+                        <td className="px-5 py-4 font-mono text-xs text-slate-500">{item.charge_date}</td>
+                        <td className="px-5 py-4 text-slate-600 max-w-[150px]">
+                          <div className="relative group cursor-help">
+                            <div className="truncate">{item.description || <span className="text-slate-300">-</span>}</div>
+                            {item.description && (
+                              <div className="absolute hidden group-hover:block bg-slate-900 text-white text-xs rounded-xl p-3 bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 shadow-xl z-50 whitespace-normal break-words border border-slate-700/50">
+                                <div className="font-bold text-amber-400 mb-1 flex items-center gap-1.5">Service Details:</div>
+                                <p className="text-slate-200 leading-relaxed">{item.description}</p>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-5 py-4 text-slate-600 max-w-[150px]">
+                          <div className="relative group cursor-help">
+                            <div className="truncate">
+                              {item.service_type === "Food" && item.food_items ? (
+                                item.food_items
+                              ) : (
+                                <span className="text-slate-300">-</span>
+                              )}
+                            </div>
+                            {item.service_type === "Food" && item.food_items && (
+                              <div className="absolute hidden group-hover:block bg-slate-900 text-white text-xs rounded-xl p-3 bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 shadow-xl z-50 whitespace-normal break-words border border-slate-700/50">
+                                <div className="font-bold text-amber-400 mb-1 flex items-center gap-1.5">
+                                  <FaUtensils className="text-xs" /> Ordered Items:
+                                </div>
+                                <p className="text-slate-200 leading-relaxed">{item.food_items}</p>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-5 py-4 text-center font-mono text-slate-700">{item.quantity}</td>
+                        <td className="px-5 py-4 font-mono text-slate-600">${Number(item.rate).toFixed(2)}</td>
+                        <td className="px-5 py-4 font-mono font-bold text-slate-900">${Number(item.total).toFixed(2)}</td>
+                        <td className="px-5 py-4 text-slate-500">{item.handled_by || "—"}</td>
+                        <td className="px-5 py-4 text-center">
+                          <div className="flex justify-center items-center gap-1">
+                            <button 
+                              onClick={() => openEditModal(item)} 
+                              className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100/80 active:scale-95 transition-all"
+                              title="Edit Service"
+                            >
+                              <FaEdit className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={() => handleDelete(item.id)} 
+                              className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 active:scale-95 transition-all"
+                              title="Delete Service"
+                            >
+                              <FaTrash className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
                     );
                   })
                 ) : (
@@ -218,7 +233,6 @@ const ExtraServices = () => {
             </table>
           </div>
 
-          {/* Pagination Controls */}
           {filteredServices.length > 0 && (
             <div className="flex items-center justify-between px-1 pt-2">
               <p className="text-xs text-slate-400">
@@ -257,7 +271,6 @@ const ExtraServices = () => {
             </div>
           )}
         </div>
-
         <AddExtraChargeModal isOpen={isModalOpen} onClose={closeModal} onSave={handleSaveCharge} chargeToEdit={chargeToEdit} />
       </div>
     </AdminLayout>
