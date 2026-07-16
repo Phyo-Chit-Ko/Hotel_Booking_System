@@ -13,7 +13,7 @@ return [
     | a conventional file to locate the various service credentials.
     |
     */
-
+    'night_audit_bin' => env('NIGHT_AUDIT_BIN', 'C:\\hotel\\bin\\night_audit.exe'),
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
     ],

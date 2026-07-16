@@ -157,6 +157,8 @@ class ExtraServiceController extends Controller
             $extraCharge = DB::transaction(function () use ($validatedData, $reservation) {
                 $extraCharge = Service::create($validatedData);
                 $this->syncLedgerCharge($extraCharge, $reservation);
+                $reservation->increment('total_amount', $validatedData['total']);
+                $reservation->refresh();
                 return $extraCharge;
             });
 

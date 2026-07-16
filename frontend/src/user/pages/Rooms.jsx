@@ -469,7 +469,7 @@ export default function Rooms() {
                 >
                   CANCEL
                 </button>
-                <button type="submit" className="submit-btn" disabled={submitting}>
+                <button type="submit" className="room-submit-btn" disabled={submitting}>
                   {submitting ? "SUBMITTING..." : "SUBMIT"}
                 </button>
               </div>

@@ -61,6 +61,9 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Track which donut segment is hovered in the channel mix component
+  const [activeSegmentIndex, setActiveSegmentIndex] = useState(null);
+
   useEffect(() => {
     let active = true;
     setLoading(true);
@@ -135,7 +138,7 @@ export default function Dashboard() {
   // so the first segment starts at 12 o'clock.
   const DONUT_SIZE = 160;
   const DONUT_RADIUS = 62;
-  const DONUT_STROKE = 20;
+  const DONUT_STROKE = 18;
   const DONUT_CIRCUMFERENCE = 2 * Math.PI * DONUT_RADIUS;
   const donutSegments = channels.map((chan, i) => {
     const percentBefore = channels.slice(0, i).reduce((sum, c) => sum + c.percentValue, 0);
@@ -176,8 +179,6 @@ export default function Dashboard() {
             </div>
 
             <div className="flex items-stretch gap-3">
-              
-
               <button
                 onClick={() => setIsModalOpen(true)}
                 className="h-11 px-6 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-xl flex items-center justify-center gap-2 shadow-sm transition active:scale-95"
@@ -227,7 +228,6 @@ export default function Dashboard() {
                 </div>
 
                 <div className="flex items-center gap-4 bg-slate-50 border border-slate-100 rounded-lg px-3 py-1.5">
-                  
                   <span className="flex items-center gap-2 text-xs font-medium text-slate-700">
                     <span className="w-3 h-1 bg-amber-500 rounded-full inline-block" /> Occupancy Rate (%)
                   </span>
@@ -269,28 +269,35 @@ export default function Dashboard() {
             {/* Right Hand Column */}
             <div className="grid grid-rows-2 gap-5 min-h-0">
 
-              {/* Channel Yield Configuration Block */}
+              {/* Channel Yield Configuration Block (Refined Interactive Donut Chart) */}
               <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between min-h-0">
                 <div className="shrink-0">
-                  <h3 className="text-base font-semibold text-slate-900">Distribution Channels</h3>
+                  <h3 className="text-base font-semibold text-slate-900 tracking-tight">Distribution</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">Channel Mix</p>
                 </div>
 
-                <div className="flex-1 flex items-center gap-4 min-h-0 overflow-y-auto">
+                <div className="flex-1 flex items-center justify-center min-h-0 mt-4">
                   {channels.length === 0 && !loading ? (
-                    <p className="text-xs text-slate-400 text-center w-full">No bookings in this period.</p>
+                    <p className="text-xs text-slate-400 text-center py-8">No bookings in this period.</p>
                   ) : (
-                    <>
-                      <div className="relative shrink-0" style={{ width: DONUT_SIZE * 0.8, height: DONUT_SIZE * 0.8 }}>
-                        <svg viewBox={`0 0 ${DONUT_SIZE} ${DONUT_SIZE}`} className="-rotate-90 w-full h-full">
-                          <circle
-                            cx={DONUT_SIZE / 2}
-                            cy={DONUT_SIZE / 2}
-                            r={DONUT_RADIUS}
-                            fill="none"
-                            stroke="#f1f5f9"
-                            strokeWidth={DONUT_STROKE}
-                          />
-                          {donutSegments.map((seg, i) => (
+                    <div className="relative flex items-center justify-center" style={{ width: DONUT_SIZE * 0.9, height: DONUT_SIZE * 0.9 }}>
+                      
+                      {/* SVG Circle */}
+                      <svg viewBox={`0 0 ${DONUT_SIZE} ${DONUT_SIZE}`} className="-rotate-90 w-full h-full">
+                        {/* Background Track */}
+                        <circle
+                          cx={DONUT_SIZE / 2}
+                          cy={DONUT_SIZE / 2}
+                          r={DONUT_RADIUS}
+                          fill="none"
+                          stroke="#f8fafc"
+                          strokeWidth={DONUT_STROKE + 2}
+                        />
+                        
+                        {/* Interactive Segments */}
+                        {donutSegments.map((seg, i) => {
+                          const isHovered = activeSegmentIndex === i;
+                          return (
                             <circle
                               key={i}
                               cx={DONUT_SIZE / 2}
@@ -298,30 +305,52 @@ export default function Dashboard() {
                               r={DONUT_RADIUS}
                               fill="none"
                               stroke={seg.hex}
-                              strokeWidth={DONUT_STROKE}
+                              strokeWidth={isHovered ? DONUT_STROKE + 4 : DONUT_STROKE}
                               strokeDasharray={`${seg.dash} ${DONUT_CIRCUMFERENCE - seg.dash}`}
                               strokeDashoffset={seg.offset}
+                              className="cursor-pointer transition-all duration-200 ease-out origin-center"
+                              style={{
+                                transform: isHovered ? 'scale(1.02)' : 'scale(1)',
+                              }}
+                              onMouseEnter={() => setActiveSegmentIndex(i)}
+                              onMouseLeave={() => setActiveSegmentIndex(null)}
                             />
-                          ))}
-                        </svg>
-                        <div className="absolute inset-0 flex flex-col items-center justify-center">
-                          <span className="text-lg font-semibold text-slate-900 leading-none">{totalChannelBookings}</span>
-                          <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider mt-0.5">Bookings</span>
-                        </div>
+                          );
+                        })}
+                      </svg>
+
+                      {/* Dynamic Center Tooltip Panel */}
+                      <div className="absolute inset-5 bg-white rounded-full shadow-[inset_0_2px_8px_rgba(0,0,0,0.02)] flex flex-col items-center justify-center text-center p-3 pointer-events-none transition-all duration-200">
+                        {activeSegmentIndex !== null ? (
+                          (() => {
+                            const activeChan = channels[activeSegmentIndex];
+                            return (
+                              <div className="animate-fade-in space-y-0.5">
+                                <span className="text-2xl font-extrabold text-slate-800 tracking-tight leading-none block">
+                                  {activeChan.value}
+                                </span>
+                                <span className="text-[10px] font-bold uppercase tracking-wider block truncate max-w-[90px] text-slate-500">
+                                  {activeChan.name}
+                                </span>
+                                <span className="text-[9px] font-mono text-slate-400 block">
+                                  {activeChan.countValue} bkgs
+                                </span>
+                              </div>
+                            );
+                          })()
+                        ) : (
+                          <div className="space-y-0.5">
+                            <span className="text-2xl font-extrabold text-slate-800 tracking-tight leading-none block">
+                              {totalChannelBookings.toLocaleString()}
+                            </span>
+                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">
+                              Bookings
+                            </span>
+                          </div>
+                        )}
                       </div>
 
-                      <div className="flex-1 space-y-2 min-w-0">
-                        {channels.map((chan, index) => (
-                          <div key={index} className="flex justify-between items-center text-xs font-medium text-slate-700 gap-2">
-                            <span className="flex items-center gap-2 truncate">
-                              <span className={`w-2 h-2 rounded-full shrink-0 ${chan.color}`} />
-                              <span className="truncate">{chan.name}</span>
-                            </span>
-                            <span className="font-mono text-slate-500 shrink-0">{chan.value}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </>
+                    </div>
                   )}
                 </div>
               </div>

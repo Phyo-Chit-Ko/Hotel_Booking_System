@@ -1,9 +1,11 @@
 <?php
+
 namespace App\Console\Commands;
 
 use App\Models\NightAuditReport;
 use App\Models\Reservation;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\Process\Process;
 use Carbon\Carbon;
 
@@ -21,11 +23,19 @@ class RunNightAudit extends Command
         @mkdir(dirname($staysPath), 0755, true);
         $this->exportStays($date, $staysPath);
 
-        $process = new Process(['C:\\hotel\\bin\\night_audit.exe', $staysPath, $outputPath, $date]);
-        $process->setTimeout(300);
-        $process->run();
+        $process = new Process([config('services.night_audit_bin'), $staysPath, $outputPath, $date]);
+$process->setTimeout(300);
+$process->run();
 
-        if (!$process->isSuccessful()) {
+\Log::info('Night audit process debug', [
+    'command'   => $process->getCommandLine(),
+    'exit_code' => $process->getExitCode(),
+    'stdout'    => $process->getOutput(),
+    'stderr'    => $process->getErrorOutput(),
+    'working_dir' => getcwd(),
+]);
+
+if (!$process->isSuccessful()) {
             NightAuditReport::updateOrCreate(
                 ['audit_date' => $date],
                 ['status' => 'failed', 'total_check_in' => 0, 'total_check_out' => 0, 'total_inhouse' => 0, 'total_no_show_rooms' => 0, 'total_revenue' => 0]

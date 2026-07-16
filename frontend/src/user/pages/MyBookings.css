@@ -217,7 +217,7 @@
 }
 
 
-.cancel-btn{
+.booking-cancel-btn{
     background:#dc3545;
     color:white;
     border:none;
@@ -228,7 +228,7 @@
 }
 
 
-.cancel-btn:hover{
+.booking-cancel-btn:hover{
     background:#b02a37;
 }
 
@@ -634,3 +634,29 @@
     }
 
 }
+/* Back Button */
+.back-btn{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    background:#1e293b;
+    color:#fff;
+    border:none;
+    border-radius:8px;
+    padding:10px 18px;
+    font-size:15px;
+    font-weight:600;
+    cursor:pointer;
+    /* margin-bottom:20px; */
+    transition:0.3s;
+}
+ 
+.back-btn:hover{
+    background:#334155;
+    transform:translateX(-3px);
+}
+ 
+.back-btn:active{
+    transform:scale(0.98);
+}
+ 

@@ -20,6 +20,37 @@ import {
   FaEdit,
 } from "react-icons/fa";
 
+// Shared cell style for the print-only table. table-layout: fixed on the
+// table (below) + explicit % widths on the <th>s means every column keeps a
+// guaranteed minimum width, so data cells can't get squeezed down to
+// nothing when the table is wider than one page's worth of auto-sized
+// columns would otherwise allow.
+const printCellStyle = {
+  border: "1px solid #cbd5e1",
+  padding: "4px 6px",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+  color: "#000000",
+};
+
+const PRINT_COLUMNS = [
+  { label: "#", width: "3%" },
+  { label: "Guest Name", width: "12%" },
+  { label: "Room", width: "6%" },
+  { label: "Room Type", width: "9%" },
+  { label: "Check-In", width: "8%" },
+  { label: "Check-Out", width: "8%" },
+  { label: "Nights", width: "5%" },
+  { label: "Guests", width: "5%" },
+  { label: "Source", width: "8%" },
+  { label: "Status", width: "8%" },
+  { label: "Total Amount", width: "8%" },
+  { label: "Balance", width: "8%" },
+  { label: "Comments", width: "10%" },
+  { label: "Handled By", width: "8%" },
+];
+
 export default function ReservationManagement() {
   const getTodayDateString = () => {
     const today = new Date();
@@ -663,7 +694,12 @@ export default function ReservationManagement() {
       </div>
 
       {/* Print-only: the FULL filtered set (ignores on-screen pagination), hidden
-          on screen and forced visible via @media print below. */}
+          on screen and forced visible via @media print below. table-layout:
+          fixed + explicit column widths keep every column at a guaranteed
+          minimum size so data can't collapse to nothing on a wide table;
+          @page { size: landscape } (in the <style> block) gives the extra
+          horizontal room the 14 columns need, regardless of what the user
+          has selected in their print dialog. */}
       <div id="printable-reservations" className="hidden" style={{ WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }}>
         <div style={{ borderBottom: "2px solid #0f172a", paddingBottom: "10px", marginBottom: "14px" }}>
           <h1 style={{ fontSize: "20px", fontWeight: 700, margin: 0, color: "#0f172a" }}>Reservation Report</h1>
@@ -674,11 +710,33 @@ export default function ReservationManagement() {
           </p>
         </div>
 
-        <table className="w-full text-left" style={{ borderCollapse: "collapse", border: "1px solid #94a3b8", fontSize: "11px" }}>
-          <thead>
-            <tr style={{ backgroundColor: "#0f172a" }}>
-              {["#", "Guest Name", "Room", "Room Type", "Check-In", "Check-Out", "Nights", "Guests", "Source", "Status", "Total Amount", "Balance", "Comments", "Handled By"].map((label) => (
-                <th key={label} style={{ border: "1px solid #94a3b8", padding: "6px 8px", fontWeight: 700, color: "#fff" }}>
+        <table
+          className="w-full text-left"
+          style={{
+            borderCollapse: "collapse",
+            border: "1px solid #94a3b8",
+            fontSize: "9px",
+            tableLayout: "fixed",
+            width: "100%",
+          }}
+        >
+          <thead style={{ display: "table-header-group" }}>
+            <tr style={{ backgroundColor: "#94a3b8" }}>
+              {PRINT_COLUMNS.map(({ label, width }) => (
+                <th
+                  key={label}
+                  style={{
+                    border: "1px solid #94a3b8",
+                    padding: "5px 6px",
+                    fontWeight: 700,
+                    fontSize: "11px",
+                    color: "#fff",
+                    width,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
                   {label}
                 </th>
               ))}
@@ -686,28 +744,34 @@ export default function ReservationManagement() {
           </thead>
           <tbody>
             {filteredBookings.map((booking, index) => (
-              <tr key={booking.rowId} style={{ backgroundColor: index % 2 === 0 ? "#ffffff" : "#f1f5f9" }}>
-                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px", fontWeight: 600 }}>{index + 1}</td>
-                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px", fontWeight: 600 }}>{booking.guestName}</td>
-                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px" }}>{booking.roomNumber}</td>
-                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px" }}>{booking.roomType}</td>
-                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px" }}>{booking.checkIn}</td>
-                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px" }}>{booking.checkOut}</td>
-                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px", textAlign: "center" }}>{booking.nights}</td>
-                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px", textAlign: "center" }}>{booking.totalGuests}</td>
-                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px" }}>{booking.source}</td>
-                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px" }}>{booking.status}</td>
-                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px", fontWeight: 600 }}>{booking.totalAmount}</td>
-                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px", fontWeight: 600 }}>
+              <tr
+                key={booking.rowId}
+                style={{
+                  backgroundColor: index % 2 === 0 ? "#ffffff" : "#f1f5f9",
+                  pageBreakInside: "avoid",
+                }}
+              >
+                <td style={printCellStyle}>{index + 1}</td>
+                <td style={{ ...printCellStyle, fontWeight: 600 }}>{booking.guestName}</td>
+                <td style={printCellStyle}>{booking.roomNumber}</td>
+                <td style={printCellStyle}>{booking.roomType}</td>
+                <td style={printCellStyle}>{booking.checkIn}</td>
+                <td style={printCellStyle}>{booking.checkOut}</td>
+                <td style={{ ...printCellStyle, textAlign: "center" }}>{booking.nights}</td>
+                <td style={{ ...printCellStyle, textAlign: "center" }}>{booking.totalGuests}</td>
+                <td style={printCellStyle}>{booking.source}</td>
+                <td style={printCellStyle}>{booking.status}</td>
+                <td style={{ ...printCellStyle, fontWeight: 600 }}>{booking.totalAmount}</td>
+                <td style={{ ...printCellStyle, fontWeight: 600 }}>
                   {booking.guestType === "Primary" ? `$${(booking.remainingAmount || 0).toFixed(2)}` : "—"}
                 </td>
-                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px" }}>{booking.comments || "—"}</td>
-                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px" }}>{booking.handledBy || "—"}</td>
+                <td style={printCellStyle}>{booking.comments || "—"}</td>
+                <td style={printCellStyle}>{booking.handledBy || "—"}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
-            <tr style={{ backgroundColor: "#e2e8f0", fontWeight: 700 }}>
+            <tr style={{ backgroundColor: "#e2e8f0", fontWeight: 700, color: "#000000" }}>
               <td colSpan={6} style={{ border: "1px solid #94a3b8", padding: "6px 8px", textAlign: "right" }}>
                 Totals — {filteredBookings.filter((b) => b.guestType === "Primary").length} reservation(s)
               </td>
@@ -730,9 +794,19 @@ export default function ReservationManagement() {
 
       <style>{`
         @media print {
+          @page {
+            size: landscape;
+            margin: 12mm;
+          }
           body * { visibility: hidden; }
           #printable-reservations, #printable-reservations * { visibility: visible; }
-          #printable-reservations { display: block !important; position: fixed; inset: 0; margin: 0; padding: 24px; }
+          #printable-reservations {
+            display: block !important;
+            position: fixed;
+            inset: 0;
+            margin: 0;
+            padding: 0;
+          }
           .no-print { display: none !important; }
         }
       `}</style>
