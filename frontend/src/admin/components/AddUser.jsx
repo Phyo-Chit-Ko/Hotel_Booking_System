@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { FaTimes } from "react-icons/fa";
 import { NAME_RE, PHONE_RE, EMAIL_RE } from "../../utils/validators";
 
@@ -10,7 +10,6 @@ export default function AddUser({ isOpen, onClose, onSave, editingUser = null })
     role: "receptionist",
     status: "Active",
     password: "",
-    password_confirmation: "",
   };
 
   const [formData, setFormData] = useState(initialFormState);
@@ -26,13 +25,9 @@ export default function AddUser({ isOpen, onClose, onSave, editingUser = null })
         name: editingUser.name || "",
         email: editingUser.email || "",
         phone: editingUser.phone || "",
-        // Role is stored/compared lowercase everywhere (backend, ProtectedRoute,
-        // Sidebar) — keep it lowercase here too instead of re-capitalizing.
         role: editingUser.role ? editingUser.role.toLowerCase() : "receptionist",
         status: editingUser.status ? editingUser.status.charAt(0).toUpperCase() + editingUser.status.slice(1).toLowerCase() : "Active",
-        // Never prefilled — the backend never returns the password hash.
         password: "",
-        password_confirmation: "",
       });
     } else {
       setFormData(initialFormState);
@@ -42,6 +37,9 @@ export default function AddUser({ isOpen, onClose, onSave, editingUser = null })
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    
+    if (formError) setFormError("");
+    if (passwordError) setPasswordError("");
   };
 
   const handleSubmit = (e) => {
@@ -62,26 +60,17 @@ export default function AddUser({ isOpen, onClose, onSave, editingUser = null })
       return;
     }
 
-    // Client-side nicety — the server enforces `confirmed` either way.
-    if (formData.password && formData.password !== formData.password_confirmation) {
-      setPasswordError("Passwords do not match.");
-      return;
-    }
     if (!editingUser && !formData.password) {
       setPasswordError("Password is required.");
       return;
     }
 
     const payload = { ...formData };
-    // Editing + left blank = keep the current password; don't send empty
-    // password keys at all, sidestepping nullable-vs-sometimes ambiguity.
     if (editingUser && !formData.password) {
       delete payload.password;
-      delete payload.password_confirmation;
     }
 
     if (editingUser) {
-      // Pass back updated values along with the original user_id
       onSave({ ...payload, user_id: editingUser.user_id });
     } else {
       onSave(payload);
@@ -93,172 +82,170 @@ export default function AddUser({ isOpen, onClose, onSave, editingUser = null })
 
   if (!isOpen) return null;
 
+  const hasNameError = formError && formError.toLowerCase().includes("name");
+  const hasEmailError = formError && formError.toLowerCase().includes("email");
+  const hasPhoneError = formError && formError.toLowerCase().includes("phone");
+
   return (
-    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex justify-center items-center z-50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl border border-slate-100 overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
+      <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden border border-slate-100 m-4 flex flex-col max-h-[90vh]">
         
-        {/* Header */}
-        <div className="flex justify-between items-center px-8 py-6 bg-slate-50 border-b border-slate-100">
+        {/* Modal Header */}
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 p-6 flex justify-between items-center border-b border-slate-100 shrink-0">
           <div>
-            <h2 className="text-xl font-bold text-slate-800">
+            <h2 className="text-2xl font-bold text-slate-800 tracking-tight">
               {editingUser ? "Edit Staff Account" : "Create Staff Account"}
             </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-slate-500 text-sm mt-1">
               {editingUser ? "Modify user privileges and account metadata parameters." : "Register a new user identity and set access credentials."}
             </p>
           </div>
-          <button onClick={onClose} className="p-2 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-200/60">
-            <FaTimes size={16} />
+          <button 
+            onClick={onClose} 
+            className="text-slate-400 hover:text-slate-600 bg-white shadow-sm border p-2.5 rounded-xl transition flex items-center justify-center"
+          >
+            <FaTimes className="text-xs" />
           </button>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-8 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {/* Form Body */}
+        <form onSubmit={handleSubmit} noValidate className="p-6 overflow-y-auto space-y-5 flex-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             
             {/* Full Name */}
-            <div className="flex flex-col">
-              <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Full Name *</label>
-              <div className="relative flex items-center bg-slate-50 rounded-xl border border-slate-200/80 focus-within:ring-2 focus-within:ring-slate-500/20 focus-within:border-slate-500">
-                
-                <input
-                  type="text"
-                  required
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  placeholder="e.g. Jane Doe"
-                  className="w-full bg-transparent px-4 py-3 text-sm text-slate-800 outline-none"
-                />
-              </div>
+            <div className="flex flex-col gap-2">
+              <label className="block text-sm font-semibold text-slate-700">
+                Full Name <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                name="name"
+                value={formData.name}
+                onChange={handleInputChange}
+                placeholder="e.g. Jane Doe"
+                className={`w-full px-4 py-2.5 bg-white border rounded-xl text-sm focus:outline-none focus:ring-2 transition-all font-semibold text-slate-800 ${
+                  hasNameError 
+                    ? "border-rose-300 focus:ring-rose-500/20 focus:border-rose-500" 
+                    : "border-slate-200 focus:ring-slate-100 focus:border-slate-300"
+                }`}
+              />
             </div>
 
             {/* Email Address */}
-            <div className="flex flex-col">
-              <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Email Address *</label>
-              <div className="relative flex items-center bg-slate-50 rounded-xl border border-slate-200/80 focus-within:ring-2 focus-within:ring-slate-500/20 focus-within:border-slate-500">
-                
-                <input
-                  type="email"
-                  required
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  placeholder="e.g. jane@example.com"
-                  className="w-full bg-transparent px-4 py-3 text-sm text-slate-800 outline-none"
-                />
-              </div>
+            <div className="flex flex-col gap-2">
+              <label className="block text-sm font-semibold text-slate-700">
+                Email Address <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="email"
+                required
+                name="email"
+                value={formData.email}
+                onChange={handleInputChange}
+                placeholder="e.g. jane@example.com"
+                className={`w-full px-4 py-2.5 bg-white border rounded-xl text-sm focus:outline-none focus:ring-2 transition-all font-semibold text-slate-800 ${
+                  hasEmailError 
+                    ? "border-rose-300 focus:ring-rose-500/20 focus:border-rose-500" 
+                    : "border-slate-200 focus:ring-slate-100 focus:border-slate-300"
+                }`}
+              />
             </div>
 
             {/* Phone Number */}
-            <div className="flex flex-col">
-              <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Phone Number</label>
-              <div className="relative flex items-center bg-slate-50 rounded-xl border border-slate-200/80 focus-within:ring-2 focus-within:ring-slate-500/20 focus-within:border-slate-500">
-                
-                <input
-                  type="text"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleInputChange}
-                  placeholder="e.g. +1234567890"
-                  className="w-full bg-transparent px-4 py-3 text-sm text-slate-800 outline-none"
-                />
-              </div>
+            <div className="flex flex-col gap-2">
+              <label className="block text-sm font-semibold text-slate-700">Phone Number</label>
+              <input
+                type="text"
+                name="phone"
+                value={formData.phone}
+                onChange={handleInputChange}
+                placeholder="e.g. +1234567890"
+                className={`w-full px-4 py-2.5 bg-white border rounded-xl text-sm focus:outline-none focus:ring-2 transition-all font-semibold text-slate-800 ${
+                  hasPhoneError 
+                    ? "border-rose-300 focus:ring-rose-500/20 focus:border-rose-500" 
+                    : "border-slate-200 focus:ring-slate-100 focus:border-slate-300"
+                }`}
+              />
             </div>
 
             {/* System Role Selection */}
-            <div className="flex flex-col">
-              <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">System Role</label>
-              <div className="relative flex items-center bg-slate-50 rounded-xl border border-slate-200/80 focus-within:ring-2 focus-within:ring-slate-500/20 focus-within:border-slate-500">
-                
-                <select
-                  name="role"
-                  value={formData.role}
-                  onChange={handleInputChange}
-                  className="w-full bg-transparent px-4 py-3 text-sm text-slate-700 outline-none font-medium cursor-pointer"
-                >
-                  <option value="admin">Admin</option>
-                  <option value="manager">Manager</option>
-                  <option value="receptionist">Receptionist</option>
-                </select>
-              </div>
+            <div className="flex flex-col gap-2">
+              <label className="block text-sm font-semibold text-slate-700">System Role</label>
+              <select
+                name="role"
+                value={formData.role}
+                onChange={handleInputChange}
+                className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-300 font-bold text-slate-700 cursor-pointer"
+              >
+              
+                <option value="manager">Manager</option>
+                <option value="receptionist">Receptionist</option>
+              </select>
             </div>
-          </div>
-
-          {/* Password */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div className="flex flex-col">
-              <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
-                {editingUser ? "New Password (optional)" : "Password *"}
+            
+            <div className="flex flex-col gap-2">
+              <label className="block text-sm font-semibold text-slate-700">
+                {editingUser ? "New Password (optional)" : "Password"}{" "}
+                {!editingUser && <span className="text-rose-500">*</span>}
               </label>
-              <div className="relative flex items-center bg-slate-50 rounded-xl border border-slate-200/80 focus-within:ring-2 focus-within:ring-slate-500/20 focus-within:border-slate-500">
-                <input
-                  type="password"
-                  name="password"
-                  required={!editingUser}
-                  value={formData.password}
-                  onChange={handleInputChange}
-                  placeholder="Min 8 chars: upper, lower, number & symbol"
-                  className="w-full bg-transparent px-4 py-3 text-sm text-slate-800 outline-none"
-                />
-              </div>
+              <input
+                type="password"
+                name="password"
+                required={!editingUser}
+                value={formData.password}
+                onChange={handleInputChange}
+                placeholder="Min 8 characters"
+                className={`w-full px-4 py-2.5 bg-white border rounded-xl text-sm focus:outline-none focus:ring-2 transition-all font-semibold text-slate-800 ${
+                  passwordError 
+                    ? "border-rose-300 focus:ring-rose-500/20 focus:border-rose-500" 
+                    : "border-slate-200 focus:ring-slate-100 focus:border-slate-300"
+                }`}
+              />
+              {editingUser && (
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Leave blank to keep the current password.
+                </p>
+              )}
             </div>
-            <div className="flex flex-col">
-              <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
-                {editingUser ? "Confirm New Password" : "Confirm Password *"}
-              </label>
-              <div className="relative flex items-center bg-slate-50 rounded-xl border border-slate-200/80 focus-within:ring-2 focus-within:ring-slate-500/20 focus-within:border-slate-500">
-                <input
-                  type="password"
-                  name="password_confirmation"
-                  required={!editingUser}
-                  value={formData.password_confirmation}
-                  onChange={handleInputChange}
-                  placeholder="Re-enter password"
-                  className="w-full bg-transparent px-4 py-3 text-sm text-slate-800 outline-none"
-                />
-              </div>
-            </div>
-          </div>
-          {editingUser && (
-            <p className="text-[11px] text-slate-400 -mt-3 ml-0.5">Leave blank to keep the current password.</p>
-          )}
-          {passwordError && (
-            <p className="text-xs text-rose-600 font-semibold -mt-1 ml-0.5">{passwordError}</p>
-          )}
-          {formError && (
-            <p className="text-xs text-rose-600 font-semibold -mt-1 ml-0.5">{formError}</p>
-          )}
 
-          {/* Account Status Configuration */}
-          <div className="flex flex-col">
-            <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Account Status</label>
-            <div className="relative flex items-center bg-slate-50 rounded-xl border border-slate-200/80 focus-within:ring-2 focus-within:ring-slate-500/20 focus-within:border-slate-500">
-
+            {/* Account Status Configuration (Password ရဲ့ ညာဘက်ဘေးကို ရောက်သွားပါပြီ) */}
+            <div className="flex flex-col gap-2">
+              <label className="block text-sm font-semibold text-slate-700">Account Status</label>
               <select
                 name="status"
                 value={formData.status}
                 onChange={handleInputChange}
-                className="w-full bg-transparent px-4 py-3 text-sm text-slate-700 outline-none font-medium cursor-pointer"
+                className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-300 font-bold text-slate-700 cursor-pointer"
               >
                 <option value="Active">Active</option>
                 <option value="Inactive">Inactive</option>
               </select>
             </div>
+
           </div>
 
-          {/* Actions Footer */}
-          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+          {/* Validation Error Messages */}
+          {formError && (
+            <p className="text-xs font-medium text-rose-500 mt-1.5 ml-1">{formError}</p>
+          )}
+          {passwordError && (
+            <p className="text-xs font-medium text-rose-500 mt-1.5 ml-1">{passwordError}</p>
+          )}
+
+          {/* Action Footer */}
+          <div className="flex gap-3 justify-end pt-5 border-t border-slate-100 mt-6">
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 border border-slate-200"
+              className="px-5 py-2.5 border border-slate-200 hover:bg-slate-50 rounded-xl text-sm font-semibold text-slate-700 transition"
             >
               Cancel
             </button>
+          
             <button
               type="submit"
-              className="px-6 py-2.5 bg-slate-950 hover:bg-slate-800 text-white font-semibold text-sm rounded-xl active:scale-[0.98] transition-all shadow-sm"
+              className="px-6 py-2.5 bg-black hover:bg-slate-900 active:scale-95 text-white text-sm font-semibold rounded-xl transition shadow-sm"
             >
               {editingUser ? "Update Details" : "Save User"}
             </button>

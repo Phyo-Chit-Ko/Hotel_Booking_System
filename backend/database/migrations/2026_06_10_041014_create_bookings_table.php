@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id('booking_id');
             $table->foreignId('room_type_id')->constrained('room_types', 'room_type_id')->onDelete('cascade');
             $table->foreignId('user_id')
-                ->after('booking_id')
+                // ->after('booking_id')
                 ->constrained('users', 'user_id')
                 ->cascadeOnDelete();
             $table->string('first_name');

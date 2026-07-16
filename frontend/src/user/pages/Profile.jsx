@@ -89,23 +89,19 @@ const { user, setUser, logout } = useAuth();
     text: "You will be logged out of your account.",
     icon: "warning",
     showCancelButton: true,
-    confirmButtonColor: "#c79b56",
-    cancelButtonColor: "#d33",
+    confirmButtonColor: "#d33",
+    cancelButtonColor: "#c79b56",
     confirmButtonText: "Yes, logout",
-    cancelButtonText: "Cancel"
+    cancelButtonText: "Cancel",
+    // This property swaps the button positions
+    reverseButtons: true 
   }).then((result) => {
-
     if (result.isConfirmed) {
-
-      logout(); // removes user + auth_token correctly
-
+      logout();
       window.location.href = "/";
-
     }
-
   });
 };
-
   const goBack = () => {
     window.history.back();
   };

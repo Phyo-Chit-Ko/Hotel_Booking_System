@@ -12,15 +12,15 @@ import {
   FaTimes,
   FaEdit
 } from "react-icons/fa";
-
+ 
 const authHeaders = () => {
   const token = sessionStorage.getItem("auth_token");
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
-
+ 
 export default function Settings() {
   const { user: authUser, setUser: setAuthUser } = useAuth();
-
+ 
   const [user, setUser] = useState({
     name: authUser?.name || "",
     email: authUser?.email || "",
@@ -28,12 +28,12 @@ export default function Settings() {
     role: authUser?.role || "",
     status: authUser?.status || "Active",
   });
-
+ 
   const [isEditing, setIsEditing] = useState(false);
   const [profileForm, setProfileForm] = useState({ ...user });
   const [profileError, setProfileError] = useState("");
   const [profileSaving, setProfileSaving] = useState(false);
-
+ 
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
     newPassword: "",
@@ -42,7 +42,7 @@ export default function Settings() {
   const [passwordError, setPasswordError] = useState("");
   const [passwordSuccess, setPasswordSuccess] = useState("");
   const [passwordSaving, setPasswordSaving] = useState(false);
-
+ 
   // Refresh from the server on mount so the page reflects the real,
   // persisted account instead of only whatever was cached at login time.
   useEffect(() => {
@@ -66,12 +66,12 @@ export default function Settings() {
       });
     return () => { active = false; };
   }, []);
-
+ 
   const handleProfileChange = (e) => {
     const { name, value } = e.target;
     setProfileForm((prev) => ({ ...prev, [name]: value }));
   };
-
+ 
   const handleSaveProfile = async (e) => {
     e.preventDefault();
     setProfileError("");
@@ -79,22 +79,27 @@ export default function Settings() {
     try {
       const res = await axios.put(
         "/api/profile/update",
-        { name: profileForm.name, email: profileForm.email },
+        {
+          name: profileForm.name,
+          email: profileForm.email,
+          phone: profileForm.phone // 🟢 FIX 1: Added phone to the request payload
+        },
         { headers: authHeaders() }
       );
       const updated = res.data.user;
-      const merged = { ...user, name: updated.name, email: updated.email, phone: profileForm.phone };
+      const merged = { ...user, name: updated.name, email: updated.email, phone: updated.phone };
       setUser(merged);
       setIsEditing(false);
       // Keep the shared auth context (Navbar, Sidebar, etc.) in sync.
-      setAuthUser?.((prev) => (prev ? { ...prev, name: updated.name, email: updated.email } : prev));
+      // 🟢 FIX 2: Added phone alignment here so other components show the updated number instantly
+      setAuthUser?.((prev) => (prev ? { ...prev, name: updated.name, email: updated.email, phone: updated.phone } : prev));
     } catch (err) {
       setProfileError(err.response?.data?.message || "Failed to update profile.");
     } finally {
       setProfileSaving(false);
     }
   };
-
+ 
   const handlePasswordChange = (e) => {
     setPasswordData({
       ...passwordData,
@@ -103,11 +108,11 @@ export default function Settings() {
     setPasswordError("");
     setPasswordSuccess("");
   };
-
+ 
   const handleUpdatePassword = async () => {
     setPasswordError("");
     setPasswordSuccess("");
-
+ 
     if (!passwordData.currentPassword || !passwordData.newPassword) {
       setPasswordError("Enter your current password and a new password.");
       return;
@@ -116,7 +121,7 @@ export default function Settings() {
       setPasswordError("New password and confirmation do not match.");
       return;
     }
-
+ 
     setPasswordSaving(true);
     try {
       await axios.put(
@@ -137,41 +142,41 @@ export default function Settings() {
       setPasswordSaving(false);
     }
   };
-
+ 
   return (
     <AdminLayout>
       {/* စာသားအပေါ်က space ရောစေရန် pt-4 ထည့်ပေးထားပါသည် */}
       <div className="space-y-8 font-sans pt-4">
-
+ 
         {/* 🛑 Header Section (Settings နှင့် Manage your profile စာကြောင်းများ) ကို ဖယ်ရှားလိုက်ပါပြီ */}
-
+ 
         {/* Profile Section Workspace */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-
+ 
           {/* Left Panel: Profile Avatar Status Card */}
           <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
             <div className="flex flex-col items-center text-center">
               <div className="w-24 h-24 rounded-full bg-amber-50 flex items-center justify-center border border-amber-100 shadow-inner">
                 <FaUser className="text-4xl text-amber-600" />
               </div>
-
+ 
               <h2 className="text-xl font-bold mt-4 text-slate-800">
                 {user.name}
               </h2>
-
+ 
               <span className="mt-2 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700">
                 {user.status}
               </span>
-
+ 
               <p className="text-sm font-medium text-slate-400 mt-2 flex items-center gap-1.5">
                 <FaShieldAlt className="text-slate-300" /> {user.role}
               </p>
             </div>
           </div>
-
+ 
           {/* Right Panel: Dynamic Informative or Editing Interactive Frame */}
           <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
-
+ 
             {!isEditing ? (
               /* VIEW MODE DISPLAY SUB-PANEL */
               <div>
@@ -186,7 +191,7 @@ export default function Settings() {
                     <FaEdit size={14} /> Edit Profile
                   </button>
                 </div>
-
+ 
                 <div className="space-y-5">
                   <div className="flex items-center gap-4 p-3 bg-slate-50 rounded-xl border border-slate-100">
                     <div className="p-2.5 bg-white rounded-lg text-slate-400 border border-slate-200/60"><FaUser size={14}/></div>
@@ -195,7 +200,7 @@ export default function Settings() {
                       <p className="font-semibold text-slate-800 text-sm mt-0.5">{user.name}</p>
                     </div>
                   </div>
-
+ 
                   <div className="flex items-center gap-4 p-3 bg-slate-50 rounded-xl border border-slate-100">
                     <div className="p-2.5 bg-white rounded-lg text-slate-400 border border-slate-200/60"><FaEnvelope size={14}/></div>
                     <div>
@@ -203,7 +208,7 @@ export default function Settings() {
                       <p className="font-semibold text-slate-800 text-sm mt-0.5">{user.email}</p>
                     </div>
                   </div>
-
+ 
                   <div className="flex items-center gap-4 p-3 bg-slate-50 rounded-xl border border-slate-100">
                     <div className="p-2.5 bg-white rounded-lg text-slate-400 border border-slate-200/60"><FaPhone size={14}/></div>
                     <div>
@@ -229,11 +234,11 @@ export default function Settings() {
                     <FaTimes size={16} />
                   </button>
                 </div>
-
+ 
                 {profileError && (
                   <div className="bg-red-50 border border-red-100 text-red-700 text-sm px-4 py-3 rounded-xl">{profileError}</div>
                 )}
-
+ 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   {/* Full Name Input */}
                   <div className="flex flex-col">
@@ -249,7 +254,7 @@ export default function Settings() {
                       />
                     </div>
                   </div>
-
+ 
                   {/* Phone Input */}
                   <div className="flex flex-col">
                     <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Phone Number</label>
@@ -264,7 +269,7 @@ export default function Settings() {
                     </div>
                   </div>
                 </div>
-
+ 
                 {/* Email Input (Full Width Input Line row) */}
                 <div className="flex flex-col">
                   <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Email Address *</label>
@@ -279,7 +284,7 @@ export default function Settings() {
                     />
                   </div>
                 </div>
-
+ 
                 {/* Submit Panel Group Button Row Elements */}
                 <div className="flex justify-end gap-3 pt-2">
                   <button
@@ -299,10 +304,10 @@ export default function Settings() {
                 </div>
               </form>
             )}
-
+ 
           </div>
         </div>
-
+ 
         {/* Change Password Block Panel Section */}
         <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
           <div className="flex items-center gap-3 mb-6">
@@ -311,14 +316,14 @@ export default function Settings() {
               Change Password
             </h3>
           </div>
-
+ 
           {passwordError && (
             <div className="bg-red-50 border border-red-100 text-red-700 text-sm px-4 py-3 rounded-xl mb-5">{passwordError}</div>
           )}
           {passwordSuccess && (
             <div className="bg-emerald-50 border border-emerald-100 text-emerald-700 text-sm px-4 py-3 rounded-xl mb-5">{passwordSuccess}</div>
           )}
-
+ 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             <div className="flex flex-col">
               <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Current Password</label>
@@ -333,7 +338,7 @@ export default function Settings() {
                 />
               </div>
             </div>
-
+ 
             <div className="flex flex-col">
               <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">New Password</label>
               <div className="relative flex items-center bg-slate-50 rounded-xl border border-slate-200/80 focus-within:ring-2 focus-within:ring-slate-500/20 focus-within:border-slate-500">
@@ -347,7 +352,7 @@ export default function Settings() {
                 />
               </div>
             </div>
-
+ 
             <div className="flex flex-col">
               <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Confirm Password</label>
               <div className="relative flex items-center bg-slate-50 rounded-xl border border-slate-200/80 focus-within:ring-2 focus-within:ring-slate-500/20 focus-within:border-slate-500">
@@ -362,7 +367,7 @@ export default function Settings() {
               </div>
             </div>
           </div>
-
+ 
           <button
             type="button"
             onClick={handleUpdatePassword}
@@ -373,8 +378,10 @@ export default function Settings() {
             {passwordSaving ? "Updating…" : "Update Password"}
           </button>
         </div>
-
+ 
       </div>
     </AdminLayout>
   );
 }
+ 
+ 
