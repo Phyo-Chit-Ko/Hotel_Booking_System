@@ -4,8 +4,8 @@ import "./Rooms.css";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import Swal from "sweetalert2"; // Ensure you have this installed
-
-const BACKEND_URL = "http://localhost:8000";
+import { API_BASE_URL } from "../../config/api";
+// const BACKEND_URL = "http://localhost:8000";
 
 // Used only when a room type has no uploaded image yet, so the grid still looks presentable.
 const FALLBACK_IMAGES = [
@@ -23,6 +23,12 @@ function describeRoom(room) {
   return `Comfortable accommodation for up to ${guests}${perkText}.`;
 }
 
+function computeNights(checkIn, checkOut) {
+  if (!checkIn || !checkOut) return 0;
+  const diff = new Date(checkOut) - new Date(checkIn);
+  return Math.max(0, Math.round(diff / 86400000));
+}
+
 export default function Rooms() {
   const navigate = useNavigate(); // Hook for navigation
   const { user } = useAuth();
@@ -34,10 +40,11 @@ export default function Rooms() {
   const [roomData, setRoomData] = useState([]);
   const [isLoadingRooms, setIsLoadingRooms] = useState(true);
   const [roomsError, setRoomsError] = useState(false);
+  const [errors, setErrors] = useState({});
 
   const QR_CODES = {
-    "K-Pay": "/images/176.jpg",
-    Bank: "/images/178.jpg",
+    "K-Pay": "/images/18.png",
+    Bank: "/images/18.png",
   };
 
   useEffect(() => {
@@ -49,7 +56,7 @@ export default function Rooms() {
           .filter((r) => r.status === "Active")
           .map((r, idx) => {
             const features = [
-              { icon: "👥", label: r.capacity === 1 ? "1 Guest" : `${r.capacity} Guests` },
+              { icon: "👥", label: `${r.capacity} std / ${r.maximum_capacity ?? r.capacity} max guests` },
               { icon: "💵", label: `$${Number(r.base_price).toFixed(0)} / night` },
             ];
             if (r.breakfast) features.push({ icon: "🍳", label: "Free Breakfast" });
@@ -59,10 +66,13 @@ export default function Rooms() {
               id: r.room_type_id,
               title: r.name,
               image: r.image
-                ? `${BACKEND_URL}/storage/${r.image}`
+                ? `${API_BASE_URL}/storage/${r.image}`
                 : FALLBACK_IMAGES[idx % FALLBACK_IMAGES.length],
               description: describeRoom(r),
               features,
+              capacity: r.capacity,
+              maximumCapacity: r.maximum_capacity ?? r.capacity,
+              basePrice: Number(r.base_price) || 0,
             };
           });
         setRoomData(mapped);
@@ -94,7 +104,9 @@ export default function Rooms() {
   });
 
   const handleInputChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
   const handleFileChange = (e) => {
@@ -102,6 +114,9 @@ export default function Rooms() {
     if (!file) return;
 
     setPaymentFile(file);
+    if (errors.payment_screenshot) {
+      setErrors((prev) => ({ ...prev, payment_screenshot: "" }));
+    }
 
     if (file.type.startsWith("image/")) {
       setFilePreview(URL.createObjectURL(file));
@@ -133,15 +148,107 @@ export default function Rooms() {
     });
     setPaymentFile(null);
     setFilePreview(null);
+    setErrors({});
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+
+    if (!formData.first_name.trim()) newErrors.first_name = "First name is required.";
+    if (!formData.last_name.trim()) newErrors.last_name = "Last name is required.";
+
+    if (!formData.email.trim()) {
+      newErrors.email = "Email is required.";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = "Enter a valid email address.";
+    }
+
+    if (!formData.phone.trim()) {
+      newErrors.phone = "Phone number is required.";
+    } else if (!/^[0-9+\-\s()]{6,20}$/.test(formData.phone)) {
+      newErrors.phone = "Enter a valid phone number.";
+    }
+
+    if (!formData.adult || Number(formData.adult) < 1) {
+      newErrors.adult = "At least 1 adult is required.";
+    }
+
+    if (formData.child !== "" && Number(formData.child) < 0) {
+      newErrors.child = "Cannot be negative.";
+    }
+
+    if (!formData.total_room || Number(formData.total_room) < 1) {
+      newErrors.total_room = "At least 1 room is required.";
+    } else {
+      const totalGuests = (Number(formData.adult) || 0) + (Number(formData.child) || 0);
+      const maxCap = selectedRoom?.maximumCapacity || Infinity;
+      const rooms = Number(formData.total_room) || 1;
+
+      if (totalGuests > maxCap * rooms) {
+        newErrors.total_room = rooms === 1
+          ? "Total person is more than room's maximum capacity, please choose more than 1 (total rooms) room or reduce total guests."
+          : `Total guests (${totalGuests}) exceed the combined maximum capacity (${maxCap * rooms}) for ${rooms} rooms. Please add more rooms or reduce guests.`;
+      }
+    }
+
+    if (!formData.bed_preference) {
+      newErrors.bed_preference = "Please select a bed preference.";
+    }
+
+    if (!formData.check_in_date) {
+      newErrors.check_in_date = "Check-in date is required.";
+    }
+
+    if (!formData.check_out_date) {
+      newErrors.check_out_date = "Check-out date is required.";
+    } else if (formData.check_in_date && formData.check_out_date <= formData.check_in_date) {
+      newErrors.check_out_date = "Check-out must be after check-in.";
+    }
+
+    if (!formData.payment_method) {
+      newErrors.payment_method = "Please select a payment method.";
+    }
+
+    if (!paymentFile) {
+      newErrors.payment_screenshot = "Payment screenshot is required.";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const checkAvailability = async () => {
+    if (!formData.check_in_date || !formData.check_out_date || !selectedRoom) return true;
+    try {
+      const res = await axios.get("/api/rooms/available", {
+        params: { check_in: formData.check_in_date, check_out: formData.check_out_date },
+      });
+      const availableOfType = (res.data.rooms || []).filter(
+        (r) => r.room_type_id === selectedRoom.id
+      );
+      if (availableOfType.length < Number(formData.total_room || 1)) {
+        Swal.fire({
+          icon: "info",
+          title: "We're so sorry!",
+          text: `Only ${availableOfType.length} ${selectedRoom.title} room(s) are available for the dates you selected. Please choose different dates or a different room type.`,
+        });
+        return false;
+      }
+      return true;
+    } catch {
+      return true; // fail-open — let the backend re-validate at submit time
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!paymentFile) {
-      alert("Please upload a payment screenshot.");
-      return;
-    }
+    if (!validateForm()) return;
+    if (!(await checkAvailability())) return;
+
+    const nights = computeNights(formData.check_in_date, formData.check_out_date);
+    const totalRooms = Number(formData.total_room) || 0;
+    const depositAmount = (nights * totalRooms * (selectedRoom?.basePrice || 0)) / 2;
 
     const data = new FormData();
 
@@ -149,13 +256,14 @@ export default function Rooms() {
       data.append(key, key === "child" && value === "" ? 0 : value);
     });
 
+    data.append("deposit", depositAmount.toFixed(2));
     data.append("user_id", user.user_id);
     data.append("payment_screenshot", paymentFile);
 
     setSubmitting(true);
 
     try {
-      const response = await fetch("http://localhost:8000/api/bookings", {
+      const response = await fetch("API_BASE_URL/api/bookings", {
         method: "POST",
         headers: {
           "Accept": "application/json",
@@ -174,12 +282,20 @@ export default function Rooms() {
       }
 
       console.log("Success:", result);
-      alert(result.message || "Booking saved successfully!");
+      Swal.fire({
+        icon: "success",
+        title: "Booking saved successfully!",
+        text: result.message || "",
+      });
       setShowForm(false);
       resetForm();
     } catch (err) {
       console.error("Fetch error details:", err);
-      alert("Submission Failed:\n" + err.message);
+      Swal.fire({
+        icon: "error",
+        title: "Submission Failed",
+        text: err.message,
+      });
     } finally {
       setSubmitting(false);
     }
@@ -246,6 +362,7 @@ export default function Rooms() {
                           room_type_id: room.id,
                           email: user.email || "",
                         }));
+                        setErrors({});
                         setShowForm(true);
                       }}
                     >
@@ -263,7 +380,7 @@ export default function Rooms() {
         <div className="modal-overlay">
           <div className="reservation-form">
             <h2>Book {selectedRoom?.title}</h2>
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit} noValidate>
               <div className="form-columns">
                 <div className="form-col form-col-main">
                   <div className="form-grid">
@@ -274,8 +391,8 @@ export default function Rooms() {
                         name="first_name"
                         value={formData.first_name}
                         onChange={handleInputChange}
-                        required
                       />
+                      {errors.first_name && <p className="field-error">{errors.first_name}</p>}
                     </div>
                     <div className="field-group">
                       <label>Last Name*</label>
@@ -284,8 +401,8 @@ export default function Rooms() {
                         name="last_name"
                         value={formData.last_name}
                         onChange={handleInputChange}
-                        required
                       />
+                      {errors.last_name && <p className="field-error">{errors.last_name}</p>}
                     </div>
                     <div className="field-group">
                       <label>Email*</label>
@@ -294,8 +411,8 @@ export default function Rooms() {
                         name="email"
                         value={formData.email}
                         onChange={handleInputChange}
-                        required
                       />
+                      {errors.email && <p className="field-error">{errors.email}</p>}
                     </div>
                     <div className="field-group">
                       <label>Phone*</label>
@@ -304,8 +421,8 @@ export default function Rooms() {
                         name="phone"
                         value={formData.phone}
                         onChange={handleInputChange}
-                        required
                       />
+                      {errors.phone && <p className="field-error">{errors.phone}</p>}
                     </div>
                     <div className="field-group">
                       <label>Adult*</label>
@@ -315,8 +432,8 @@ export default function Rooms() {
                         min="1"
                         value={formData.adult}
                         onChange={handleInputChange}
-                        required
                       />
+                      {errors.adult && <p className="field-error">{errors.adult}</p>}
                     </div>
                     <div className="field-group">
                       <label>Child</label>
@@ -327,6 +444,7 @@ export default function Rooms() {
                         value={formData.child}
                         onChange={handleInputChange}
                       />
+                      {errors.child && <p className="field-error">{errors.child}</p>}
                     </div>
                     <div className="field-group">
                       <label>Total Rooms*</label>
@@ -336,8 +454,8 @@ export default function Rooms() {
                         min="1"
                         value={formData.total_room}
                         onChange={handleInputChange}
-                        required
                       />
+                      {errors.total_room && <p className="field-error">{errors.total_room}</p>}
                     </div>
                     <div className="field-group">
                       <label>Bed Preference*</label>
@@ -345,12 +463,12 @@ export default function Rooms() {
                         name="bed_preference"
                         value={formData.bed_preference}
                         onChange={handleInputChange}
-                        required
                       >
                         <option value="">Select...</option>
                         <option value="King Bed">King Bed</option>
                         <option value="Twin Bed">Twin Bed</option>
                       </select>
+                      {errors.bed_preference && <p className="field-error">{errors.bed_preference}</p>}
                     </div>
                     <div className="field-group">
                       <label>Check In*</label>
@@ -359,8 +477,8 @@ export default function Rooms() {
                         name="check_in_date"
                         value={formData.check_in_date}
                         onChange={handleInputChange}
-                        required
                       />
+                      {errors.check_in_date && <p className="field-error">{errors.check_in_date}</p>}
                     </div>
                     <div className="field-group">
                       <label>Check Out*</label>
@@ -369,8 +487,8 @@ export default function Rooms() {
                         name="check_out_date"
                         value={formData.check_out_date}
                         onChange={handleInputChange}
-                        required
                       />
+                      {errors.check_out_date && <p className="field-error">{errors.check_out_date}</p>}
                     </div>
                   </div>
                   <div className="field-group">
@@ -386,8 +504,18 @@ export default function Rooms() {
 
                 <div className="form-col form-col-payment">
                   <div className="field-group">
-                    <label>Deposit</label>
-                    <input type="text" value="45$" readOnly className="read-only" />
+                    <label>Deposit (50% of Room Charges)</label>
+                    <input
+                      type="text"
+                      value={`$${((computeNights(formData.check_in_date, formData.check_out_date) * (Number(formData.total_room) || 0) * (selectedRoom?.basePrice || 0)) / 2).toFixed(2)}`}
+                      readOnly
+                      className="read-only"
+                    />
+                    {computeNights(formData.check_in_date, formData.check_out_date) > 0 && Number(formData.total_room) > 0 && (
+                      <p className="field-hint">
+                        {formData.total_room} room(s) × {computeNights(formData.check_in_date, formData.check_out_date)} night(s) × ${selectedRoom?.basePrice?.toFixed(2)} ÷ 2
+                      </p>
+                    )}
                   </div>
                   <div className="field-group">
                     <label>Method*</label>
@@ -395,12 +523,12 @@ export default function Rooms() {
                       name="payment_method"
                       value={formData.payment_method}
                       onChange={handleInputChange}
-                      required
                     >
                       <option value="">Select...</option>
                       <option value="K-Pay">K-Pay</option>
-                      <option value="Bank">Bank</option>
+                      <option value="Bank">CB-Pay</option>
                     </select>
+                    {errors.payment_method && <p className="field-error">{errors.payment_method}</p>}
                   </div>
 
                   {formData.payment_method && QR_CODES[formData.payment_method] && (
@@ -456,6 +584,7 @@ export default function Rooms() {
                         </button>
                       </div>
                     )}
+                    {errors.payment_screenshot && <p className="field-error">{errors.payment_screenshot}</p>}
                   </div>
                 </div>
               </div>

@@ -47,7 +47,7 @@ export default function AddPaymentModal({ isOpen, onClose, onSave }) {
       payload.append("reservationId", formData.reservation_id);
       payload.append("depositAmount", formData.amount || 0);
       payload.append("paymentMethod", formData.payment_method);
-      if (formData.description) payload.append("description", formData.description);
+      if (formData.description) payload.append("comment", formData.description);
       if (formData.payment_proof) payload.append("paymentProof", formData.payment_proof);
 
       const res = await fetch("/api/payments", {
@@ -89,7 +89,7 @@ export default function AddPaymentModal({ isOpen, onClose, onSave }) {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-8 space-y-6">
+        <form onSubmit={handleSubmit} noValidate className="p-8 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             
             {/* Reservation ID */}
@@ -179,9 +179,9 @@ export default function AddPaymentModal({ isOpen, onClose, onSave }) {
             </div>
           )}
 
-          {/* Description */}
+          {/* Comment */}
           <div className="flex flex-col">
-            <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Notes / Description</label>
+            <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Comment</label>
             <div className="relative flex items-start bg-slate-50 rounded-xl border border-slate-200/80 focus-within:ring-2 focus-within:ring-amber-500/20 focus-within:border-amber-500">
               <FaFileAlt className="absolute left-4 top-4 text-slate-400" size={14} />
               <textarea

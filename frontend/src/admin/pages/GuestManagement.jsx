@@ -1,23 +1,25 @@
 import { useEffect, useState, useMemo } from "react";
 import AdminLayout from "../layouts/AdminLayout";
-import {
-  FaPlus,
-  FaSearch,
-} from "react-icons/fa";
+import { FaSearch } from "react-icons/fa";
 import axios from "axios";
- 
-const BACKEND_URL = "http://localhost:8000";
- 
+import { API_BASE_URL } from "../../config/api";
+
+// const BACKEND_URL = "http://localhost:8000";
+
 export default function GuestManagement() {
   const [guests, setGuests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
- 
+
   const [search, setSearch] = useState("");
   const [nationality, setNationality] = useState("");
   const [idType, setIdType] = useState("");
   const [vip, setVip] = useState("");
- 
+
+  // 1. Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
   const fetchGuests = async () => {
     setLoading(true);
     setError(null);
@@ -35,13 +37,15 @@ export default function GuestManagement() {
         docFront: g.id_front_path ? "View" : "Missing",
         docBack: g.id_back_path ? "View" : "Missing",
 
-        // 🟢 Absolute URLs pointing straight to your Laravel server assets
-        docFrontUrl: g.id_front_path ? `${BACKEND_URL}/storage/${g.id_front_path}` : null,
-        docBackUrl: g.id_back_path ? `${BACKEND_URL}/storage/${g.id_back_path}` : null,
+        // Absolute URLs pointing straight to your Laravel server assets
+        // docFrontUrl: g.id_front_path ? `${BACKEND_URL}/storage/${g.id_front_path}` : null,
+        // docBackUrl: g.id_back_path ? `${BACKEND_URL}/storage/${g.id_back_path}` : null,
+        docFrontUrl: g.id_front_path ? `${API_BASE_URL}/storage/${g.id_front_path}` : null,
+        docBackUrl: g.id_back_path ? `${API_BASE_URL}/storage/${g.id_back_path}` : null,
 
         vip: !!g.is_vip,
       }));
- 
+
       setGuests(mapped);
     } catch (err) {
       console.error(err);
@@ -50,10 +54,15 @@ export default function GuestManagement() {
       setLoading(false);
     }
   };
- 
+
   useEffect(() => {
     fetchGuests();
   }, []);
+
+  // 2. Reset page to 1 when filters or search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, nationality, idType, vip]);
 
   const filteredGuests = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -66,10 +75,20 @@ export default function GuestManagement() {
     });
   }, [guests, search, nationality, idType, vip]);
 
+  // 3. Calculate total pages and slice the data for the current page
+  const totalPages = Math.max(1, Math.ceil(filteredGuests.length / itemsPerPage));
+  const paginatedGuests = useMemo(() => {
+    return filteredGuests.slice(
+      (currentPage - 1) * itemsPerPage,
+      currentPage * itemsPerPage
+    );
+  }, [filteredGuests, currentPage]);
+
   return (
     <AdminLayout>
       <div className="w-full space-y-6 p-1">
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-5">
+          {/* Filters Area */}
           <div className="flex items-center gap-3">
             <div className="relative w-[355px] h-11">
               
@@ -78,7 +97,7 @@ export default function GuestManagement() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search Guest Name.."
-                className="w-full h-full border border-slate-300 rounded-xl pl-11 pr-4 text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 box-border"
+                className="w-full h-full border border-slate-300 rounded-xl pl-11 pr-4 text-sm text-slate-700 bg-white shadow-sm focus:outline-none  focus:ring-amber-500 box-border"
               />
               
             </div>
@@ -122,16 +141,15 @@ export default function GuestManagement() {
             </div>
 
             <div className="flex-1" />
-
-            
           </div>
 
+          {/* Table Area */}
           <div className="overflow-x-auto border border-slate-100 rounded-xl">
             {loading ? (
               <p className="p-6 text-slate-500 text-sm">Loading guests...</p>
             ) : error ? (
               <p className="p-6 text-red-500 text-sm">{error}</p>
-            ) : filteredGuests.length === 0 ? (
+            ) : paginatedGuests.length === 0 ? (
               <p className="p-6 text-slate-500 text-sm">No guests found.</p>
             ) : (
               <table className="w-full text-left text-sm text-slate-600 border-collapse">
@@ -151,67 +169,109 @@ export default function GuestManagement() {
                 </thead>
 
                 <tbody className="divide-y divide-slate-100">
-                  {filteredGuests.map((guest, index) => (
-                    <tr key={guest.id} className="hover:bg-slate-50/70 transition-colors">
-                      <td className="px-5 py-4 text-slate-500 font-medium font-mono">{index + 1}</td>
-                      <td className="px-5 py-4 font-semibold text-slate-900">{guest.name}</td>
-                      <td className="px-5 py-4 text-slate-600">{guest.phone}</td>
-                      <td className="px-5 py-4 text-slate-600">{guest.email}</td>
-                      <td className="px-5 py-4 text-slate-700">{guest.nationality}</td>
-                      <td className="px-5 py-4 text-slate-600">{guest.idType}</td>
-                      <td className="px-5 py-4 text-slate-700 font-mono tracking-tight">{guest.idNumber}</td>
+                  {paginatedGuests.map((guest, index) => {
+                    const rowNumber = (currentPage - 1) * itemsPerPage + index + 1;
+                    return (
+                      <tr key={guest.id} className="hover:bg-slate-50/70 transition-colors">
+                        <td className="px-5 py-4 text-slate-500 font-medium font-mono">{rowNumber}</td>
+                        <td className="px-5 py-4 font-semibold text-slate-900">{guest.name}</td>
+                        <td className="px-5 py-4 text-slate-600">{guest.phone}</td>
+                        <td className="px-5 py-4 text-slate-600">{guest.email}</td>
+                        <td className="px-5 py-4 text-slate-700">{guest.nationality}</td>
+                        <td className="px-5 py-4 text-slate-600">{guest.idType}</td>
+                        <td className="px-5 py-4 text-slate-700 font-mono tracking-tight">{guest.idNumber}</td>
 
-                      <td className="px-5 py-4 text-center">
-                        {guest.docFront === "View" ? (
-                          <a
-                            href={guest.docFrontUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="bg-blue-50 text-blue-600 px-4 py-1.5 rounded-full text-xs font-bold hover:bg-blue-100 transition"
-                          >
-                            View
-                          </a>
-                        ) : (
-                          <span className="bg-slate-100 text-slate-500 px-4 py-1.5 rounded-full text-xs font-bold">
-                            Missing
-                          </span>
-                        )}
-                      </td>
+                        <td className="px-5 py-4 text-center">
+                          {guest.docFront === "View" ? (
+                            <a
+                              href={guest.docFrontUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="bg-blue-50 text-blue-600 px-4 py-1.5 rounded-full text-xs font-bold hover:bg-blue-100 transition"
+                            >
+                              View
+                            </a>
+                          ) : (
+                            <span className="bg-slate-100 text-slate-500 px-4 py-1.5 rounded-full text-xs font-bold">
+                              Missing
+                            </span>
+                          )}
+                        </td>
 
-                      <td className="px-5 py-4 text-center">
-                        {guest.docBack === "View" ? (
-                          <a
-                            href={guest.docBackUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="bg-blue-50 text-blue-600 px-4 py-1.5 rounded-full text-xs font-bold hover:bg-blue-100 transition"
-                          >
-                            View
-                          </a>
-                        ) : (
-                          <span className="bg-slate-100 text-slate-500 px-4 py-1.5 rounded-full text-xs font-bold">
-                            Missing
-                          </span>
-                        )}
-                      </td>
+                        <td className="px-5 py-4 text-center">
+                          {guest.docBack === "View" ? (
+                            <a
+                              href={guest.docBackUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="bg-blue-50 text-blue-600 px-4 py-1.5 rounded-full text-xs font-bold hover:bg-blue-100 transition"
+                            >
+                              View
+                            </a>
+                          ) : (
+                            <span className="bg-slate-100 text-slate-500 px-4 py-1.5 rounded-full text-xs font-bold">
+                              Missing
+                            </span>
+                          )}
+                        </td>
 
-                      <td className="px-5 py-4 text-center">
-                        {guest.vip ? (
-                          <span className="bg-emerald-100 text-emerald-700 px-4 py-1 rounded-full text-xs font-extrabold tracking-wider">
-                            YES
-                          </span>
-                        ) : (
-                          <span className="bg-slate-100 text-slate-500 px-4 py-1 rounded-full text-xs font-extrabold tracking-wider">
-                            NO
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                        <td className="px-5 py-4 text-center">
+                          {guest.vip ? (
+                            <span className="bg-emerald-100 text-emerald-700 px-4 py-1 rounded-full text-xs font-extrabold tracking-wider">
+                              YES
+                            </span>
+                          ) : (
+                            <span className="bg-slate-100 text-slate-500 px-4 py-1 rounded-full text-xs font-extrabold tracking-wider">
+                              NO
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             )}
           </div>
+
+          {/* 4. Pagination Controls Footer */}
+          {!loading && !error && filteredGuests.length > 0 && (
+            <div className="flex items-center justify-between px-1 pt-2">
+              <p className="text-xs text-slate-400">
+                Showing {(currentPage - 1) * itemsPerPage + 1}
+                –{Math.min(currentPage * itemsPerPage, filteredGuests.length)} of {filteredGuests.length}
+              </p>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
+                >
+                  Prev
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`w-8 h-8 text-xs font-semibold rounded-lg border transition ${
+                      page === currentPage
+                        ? "bg-slate-900 text-white border-slate-900"
+                        : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </AdminLayout>

@@ -80,9 +80,9 @@ export default function InvoiceView({ booking, onClose }) {
               {/* Letterhead */}
               <div className="flex justify-between items-start border-b border-slate-200 pb-6">
                 <div>
-                  <h1 className="text-2xl font-black tracking-tight text-slate-900">Harbor Grand Hotel</h1>
-                  <p className="text-xs text-slate-500 mt-1">123 Harbor Front Avenue · Yangon, Myanmar</p>
-                  <p className="text-xs text-slate-500">Phone: +95 1 234 5678 · info@harborgrand.example</p>
+                  <h1 className="text-2xl font-black tracking-tight text-slate-900">Relax Hotel</h1>
+                  <p className="text-xs text-slate-500 mt-1">73rd Street, Chanmytharzi Tsp, Mandalay, Myanmar</p>
+                  <p className="text-xs text-slate-500">Phone: +959 980 683 177 · info@relaxhotel.example</p>
                 </div>
                 <div className="text-right">
                   <h2 className="text-sm font-bold uppercase tracking-widest text-slate-400">Invoice</h2>
@@ -187,7 +187,7 @@ export default function InvoiceView({ booking, onClose }) {
               </div>
 
               <p className="text-center text-[11px] text-slate-400 pt-4 border-t border-slate-100">
-                Thank you for staying with Harbor Grand Hotel.
+                Thank you for staying with Relax Hotel.
               </p>
             </div>
           )}

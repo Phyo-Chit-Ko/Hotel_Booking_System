@@ -8,6 +8,9 @@ export const NATIONALITY_RE = /^\p{L}[\p{L}\s-]*$/u;
 export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const PASSPORT_RE = /^[A-Za-z0-9]{6,9}$/;
 
+export const composeNrc = (region, township, type, number) =>
+  region && township && type && number ? `${region}/${township}(${type})${number}` : "";
+
 export function validateIdNumber(idType, value) {
   const trimmed = (value || "").trim();
   if (!trimmed) return "ID number is required.";

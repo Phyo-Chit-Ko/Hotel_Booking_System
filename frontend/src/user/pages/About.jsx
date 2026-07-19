@@ -55,7 +55,7 @@ function About({ sidebarOpen }) {
           
           {/* Vision Card */}
           <div className="vm-card">
-            <img src="/images/6.png" alt="Our Vision" />
+            <img src="/images/17.jpg" alt="Our Vision" />
             <h3>Our Vision</h3>
             <p>
               To be the premier destination in Mandalay, recognized for 

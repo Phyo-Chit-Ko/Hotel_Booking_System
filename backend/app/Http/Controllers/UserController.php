@@ -2,10 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User; // User Model ကို သုံးနိုင်ဖို့ import လုပ်ထားတာပါ
-use App\Http\Requests\StoreUserRequest;
-use App\Http\Requests\UpdateUserRequest;
-use Illuminate\Http\Request;
+use App\Models\User; 
+use Illuminate\Http\Request; // Standard Request class ကို ပြောင်းသုံးထားပါတယ်
 
 class UserController extends Controller
 {
@@ -14,7 +12,6 @@ class UserController extends Controller
      */
     public function index()
     {
-        // User အားလုံးကို list ပြန်ထုတ်ပေးဖို့ (React ဘက်က table မှာ ပြချင်ရင် သုံးနိုင်ပါတယ်)
         $users = User::all();
         return response()->json($users, 200);
     }
@@ -82,7 +79,7 @@ class UserController extends Controller
         // password ကို 'nullable' ပေးထားလို့ အလွတ်ထားခဲ့ရင် error မတက်ပါဘူး (ထည့်ရင်တော့ ၈ လုံးပြည့်ရပါမယ်)
         $request->validate([
             'name'     => 'required|string|max:255',
-            'email'    => 'required|string|email|max:255|unique:users,email,' . $id,
+            'email' => 'required|string|email|max:255|unique:users,email,' . $id . ',user_id',
             'phone'    => 'nullable|string|max:20',
             'role'     => 'required|string',
             'status'   => 'required|string',
@@ -112,7 +109,9 @@ class UserController extends Controller
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Deactivate the specified staff account (kept for hotel record-keeping
+     * constraints — never a hard delete). Admin accounts and registered
+     * public "user" accounts can never be deactivated from this endpoint.
      */
     public function destroy(string $id)
     {
@@ -122,20 +121,26 @@ class UserController extends Controller
             return response()->json(['message' => 'User not found'], 404);
         }
 
-        // Universal rule: admin accounts can never be deleted, by anyone —
-        // not by another admin, not by a manager. Checked against the
-        // TARGET row's role, independent of who's making the request.
-        if (strtolower((string) $user->role) === 'admin') {
+        $role = strtolower((string) $user->role);
+
+        if ($role === 'admin') {
             return response()->json([
-                'message' => 'Admin accounts cannot be deleted.',
+                'message' => 'Admin accounts cannot be deactivated.',
             ], 403);
         }
 
-        // Database ကနေ Delete လုပ်ခြင်း
-        $user->delete();
+        if ($role === 'user') {
+            return response()->json([
+                'message' => 'Registered user accounts cannot be modified here.',
+            ], 403);
+        }
+
+        $user->status = 'Inactive';
+        $user->save();
 
         return response()->json([
-            'message' => 'User deleted successfully'
+            'message' => 'User deactivated successfully',
+            'user' => $user,
         ], 200);
     }
 }

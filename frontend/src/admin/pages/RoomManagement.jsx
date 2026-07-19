@@ -4,6 +4,8 @@ import AdminLayout from "../layouts/AdminLayout";
 import AddRoomModal from "../components/AddRoomModal";
 import RoomDetailModal from "../components/RoomDetailModal";
 import axios from "axios";
+import Swal from "sweetalert2";
+import { API_BASE_URL } from "../../config/api";
 import {
   FaPlus,
   FaSearch,
@@ -34,14 +36,14 @@ export default function RoomManagement() {
  
   // States for Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10; // adjust as needed
+  const itemsPerPage = 6; // adjust as needed
  
   const fetchData = async () => {
     try {
       setIsLoading(true);
       const [roomsResponse, roomTypesResponse] = await Promise.all([
-        axios.get("http://127.0.0.1:8000/api/rooms"),
-        axios.get("http://127.0.0.1:8000/api/room-types"),
+        axios.get(`${API_BASE_URL}/api/rooms`),
+        axios.get(`${API_BASE_URL}/api/room-types`),
       ]);
       setRooms(roomsResponse.data);
       setRoomTypes(roomTypesResponse.data);
@@ -98,13 +100,13 @@ export default function RoomManagement() {
     try {
       if (isEditing) {
         await axios.put(
-          `http://127.0.0.1:8000/api/rooms/${formData.room_number}`,
+          `${API_BASE_URL}/api/rooms/${formData.room_number}`,
           formData,
         );
         toast.success("Room updated successfully!");
       } else {
         await axios.post(
-          "http://127.0.0.1:8000/api/rooms",
+          "${API_BASE_URL}/api/rooms",
           formData,
         );
         toast.success("New room created successfully!");
@@ -122,17 +124,30 @@ export default function RoomManagement() {
   };
  
   const handleDeleteRoom = async (roomNumber) => {
-    if (
-      window.confirm(
-        `Are you sure you want to permanently remove Room ${roomNumber}?`,
-      )
-    ) {
-      try {
-        await axios.delete(`http://127.0.0.1:8000/api/rooms/${roomNumber}`);
-        toast.success("Room purged successfully.");
-        fetchData();
-      } catch (error) {
-        toast.error("Failed to delete room item context.");
+    const result = await Swal.fire({
+      icon: "warning",
+      title: "Are you sure?",
+      text: `Room ${roomNumber} will be permanently removed.`,
+      showCancelButton: true,
+      confirmButtonColor: "#dc2626",
+      confirmButtonText: "Yes, remove",
+    });
+    if (!result.isConfirmed) return;
+
+    try {
+      await axios.delete(`${API_BASE_URL}/api/rooms/${roomNumber}`);
+      toast.success("Room purged successfully.");
+      fetchData();
+    } catch (error) {
+      console.error("Error deleting room:", error);
+      if (error.response?.status === 422) {
+        Swal.fire({
+          icon: "error",
+          title: "Cannot Delete Room",
+          text: error.response?.data?.message || "This room has reservation history and cannot be deleted.",
+        });
+      } else {
+        toast.error(error.response?.data?.message || "Failed to delete room.");
       }
     }
   };
@@ -151,7 +166,7 @@ export default function RoomManagement() {
       );
  
       await axios.patch(
-        `http://127.0.0.1:8000/api/rooms/${roomNumber}/toggle-status`,
+        `${API_BASE_URL}/api/rooms/${roomNumber}/toggle-status`,
         {
           status: nextStatus,
         },

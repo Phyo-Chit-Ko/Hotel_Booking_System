@@ -39,7 +39,9 @@ class GoogleController extends Controller
 
             // Redirect to success route
             // In GoogleController.php
-            return redirect("http://localhost:5173/auth/success?token=" . $token);
+            // return redirect("http://localhost:5173/auth/success?token=" . $token);
+            $frontendUrl = rtrim(explode(',', env('FRONTEND_URL', 'http://localhost:5173'))[0], '/');
+            return redirect($frontendUrl . 'auth/succcess?token=' . $token);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }

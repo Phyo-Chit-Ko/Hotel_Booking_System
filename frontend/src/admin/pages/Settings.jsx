@@ -220,7 +220,7 @@ export default function Settings() {
               </div>
             ) : (
               /* EDIT PROFILE MODE SUB-FORM */
-              <form onSubmit={handleSaveProfile} className="space-y-5">
+              <form onSubmit={handleSaveProfile} noValidate className="space-y-5">
                 <div className="flex justify-between items-center mb-2">
                   <div>
                     <h3 className="text-xl font-bold text-slate-800">Update Profile</h3>

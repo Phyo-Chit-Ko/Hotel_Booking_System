@@ -11,13 +11,11 @@ return new class extends Migration
         Schema::create('night_audit_reports', function (Blueprint $table) {
             $table->id();
             $table->date('audit_date')->unique();
-            $table->decimal('total_room_revenue', 12, 2);
-            $table->decimal('total_tax', 12, 2);
-            $table->decimal('total_extra_person_revenue', 12, 2);
-            $table->decimal('total_payments_received', 12, 2);
-            $table->decimal('grand_total', 12, 2);
-            $table->unsignedInteger('occupied_rooms');
-            $table->unsignedInteger('no_show_count');
+            $table->unsignedInteger('total_check_in')->default(0);
+            $table->unsignedInteger('total_check_out')->default(0);
+            $table->unsignedInteger('total_inhouse')->default(0);
+            $table->unsignedInteger('total_no_show_rooms')->default(0);
+            $table->decimal('total_revenue', 12, 2)->default(0);
             $table->enum('status', ['success', 'failed'])->default('success');
             $table->timestamps();
         });

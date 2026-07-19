@@ -73,7 +73,7 @@ export default function ForceChangePassword() {
           This is your first login — please set a new password to continue.
         </p>
         {error && <small className="error">{error}</small>}
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           <div className="form-row">
             <label>Current (Temporary) Password</label>
             <input

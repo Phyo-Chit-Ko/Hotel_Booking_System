@@ -14,7 +14,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\Api\ReservationGuestController;
 use App\Http\Controllers\Api\RestaurantItemController;
-use App\Http\Controllers\Api\NightAuditReportController;
+use App\Http\Controllers\NightAuditReportController;
 use App\Http\Controllers\Api\GoogleController;
 
 Route::middleware('api')->post('/login', [AuthController::class, 'login']);
@@ -50,7 +50,10 @@ Route::middleware(['auth:sanctum', 'role:admin,manager'])->group(function () {
 // restaurant menu items. Admin and receptionist can both VIEW this data (see
 // the ungated GET routes above) but neither can mutate it — admin is
 // intentionally read-only here, matching receptionist's existing restriction.
-Route::middleware(['auth:sanctum', 'role:manager'])->group(function () {
+//
+// Night audit reports also live here: GET to view past reports, POST to
+// manually trigger the batch job (see NightAuditReportController::runBatch).
+Route::middleware(['auth:sanctum', 'role:manager', ])->group(function () {
     Route::post('/room-types', [RoomTypeController::class, 'store']);
     Route::patch('/room-types/{id}/toggle-status', [RoomTypeController::class, 'toggleStatus']);
     Route::put('/room-types/{id}', [RoomTypeController::class, 'update']);
@@ -63,6 +66,9 @@ Route::middleware(['auth:sanctum', 'role:manager'])->group(function () {
     Route::put('/restaurant-items/{id}', [RestaurantItemController::class, 'update']);
     Route::patch('/restaurant-items/{id}/toggle-status', [RestaurantItemController::class, 'toggleStatus']);
     Route::delete('/restaurant-items/{id}', [RestaurantItemController::class, 'destroy']);
+
+    Route::get('/night-audit-reports', [NightAuditReportController::class, 'index']);
+    Route::post('/night-audit-reports/run-batch', [NightAuditReportController::class, 'runBatch']);
 });
 
 // ── Reservations ──────────────────────────────────────────────────────────────
@@ -76,6 +82,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/bookings/{id}', [BookingController::class, 'show']);
 
     Route::put('/bookings/{id}', [BookingController::class, 'update']);
+    Route::put('/bookings/{id}/rooms', [BookingController::class, 'assignRooms']);
 });
 Route::get('/my-bookings/{user_id}', [BookingController::class, 'myBookings']);
 
@@ -113,10 +120,6 @@ Route::patch('/reservations/{id}/move-room', [ReservationController::class, 'mov
 
 Route::get('/restaurant-items', [RestaurantItemController::class, 'index']);
 
-// routes/api.php
-
-
-Route::get('/night-audit-reports', [NightAuditReportController::class, 'index']);
 // Add these to your routes/api.php
 Route::prefix('auth')->group(function () {
     Route::post('/initiate-registration', [AuthController::class, 'register']);

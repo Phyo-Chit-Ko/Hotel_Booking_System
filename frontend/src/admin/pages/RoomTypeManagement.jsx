@@ -2,13 +2,15 @@ import { useState, useEffect } from "react";
 import AdminLayout from "../layouts/AdminLayout";
 import AddRoomTypeModal from "../../admin/components/AddRoomTypeModal";
 import axios from "axios";
+import Swal from "sweetalert2";
+import { API_BASE_URL } from "../../config/api";
 import {
   FaPlus, FaSearch, FaEdit, FaTrash, FaTimes, FaImage,
   FaThLarge, FaCheckCircle, FaBan, FaBed, FaDollarSign,
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
  
-const BACKEND_URL = "http://localhost:8000";
+// const BACKEND_URL = "http://localhost:8000";
  
 const STATUS_META = {
   Active:   { badge: "bg-emerald-50 text-emerald-700 border-emerald-100", dot: "bg-emerald-500", ring: "ring-emerald-300" },
@@ -61,7 +63,9 @@ export default function RoomTypeManagement() {
       payload.append("code", formData.code);
       payload.append("base_price", parseFloat(formData.base_price));
       payload.append("extra_person_rate", parseFloat(formData.extra_person_rate || 0));
+      payload.append("extra_bed_fee", parseFloat(formData.extra_bed_fee || 0));
       payload.append("capacity", parseInt(formData.capacity));
+      payload.append("maximum_capacity", parseInt(formData.maximum_capacity || formData.capacity));
       payload.append("breakfast", formData.breakfast ? 1 : 0);
       payload.append("bathtub", formData.bathtub ? 1 : 0);
       if (formData.image) payload.append("image", formData.image);
@@ -88,7 +92,15 @@ export default function RoomTypeManagement() {
   };
  
   const handleDeleteRoomType = async (id, name) => {
-    if (!window.confirm(`Delete "${name}"? This cannot be undone.`)) return;
+    const result = await Swal.fire({
+      icon: "warning",
+      title: `Delete "${name}"?`,
+      text: "This cannot be undone.",
+      showCancelButton: true,
+      confirmButtonColor: "#dc2626",
+      confirmButtonText: "Yes, delete",
+    });
+    if (!result.isConfirmed) return;
     try {
       const res = await axios.delete(`/api/room-types/${id}`);
       if (res.status === 200 || res.status === 204) {
@@ -97,7 +109,15 @@ export default function RoomTypeManagement() {
       }
     } catch (error) {
       console.error("Error deleting room type:", error);
-      showNotification(error.response?.data?.message || "Failed to delete room type.", "error");
+      if (error.response?.status === 422) {
+        Swal.fire({
+          icon: "error",
+          title: "Cannot Delete Room Type",
+          text: error.response?.data?.message || "This room type still has rooms assigned to it.",
+        });
+      } else {
+        showNotification(error.response?.data?.message || "Failed to delete room type.", "error");
+      }
     }
   };
  
@@ -233,7 +253,8 @@ export default function RoomTypeManagement() {
                 <th className="px-6 py-3.5 text-xs font-bold text-slate-400 uppercase tracking-wider">Room Type</th>
                 <th className="px-6 py-3.5 text-xs font-bold text-slate-400 uppercase tracking-wider">Code</th>
                 <th className="px-6 py-3.5 text-xs font-bold text-slate-400 uppercase tracking-wider">Rooms Count</th>
-                <th className="px-6 py-3.5 text-xs font-bold text-slate-400 uppercase tracking-wider">Capacity</th>
+                <th className="px-6 py-3.5 text-xs font-bold text-slate-400 uppercase tracking-wider">Standard Capacity</th>
+                <th className="px-6 py-3.5 text-xs font-bold text-slate-400 uppercase tracking-wider">Max Capacity</th>
                 <th className="px-6 py-3.5 text-xs font-bold text-slate-400 uppercase tracking-wider">Base Rate</th>
                 <th className="px-6 py-3.5 text-xs font-bold text-slate-400 uppercase tracking-wider">Amenities</th>
                 <th className="px-6 py-3.5 text-xs font-bold text-slate-400 uppercase tracking-wider">Status</th>
@@ -243,14 +264,14 @@ export default function RoomTypeManagement() {
             <tbody className="divide-y divide-slate-200">
               {isLoading ? (
                 <tr>
-                  <td colSpan="10" className="text-center py-14 bg-white">
+                  <td colSpan="11" className="text-center py-14 bg-white">
                     <FaImage className="w-7 h-7 text-slate-200 mx-auto mb-2" />
                     <p className="text-sm font-medium text-slate-400">Loading room types records...</p>
                   </td>
                 </tr>
               ) : filteredRoomTypes.length === 0 ? (
                 <tr>
-                  <td colSpan="10" className="text-center py-14 bg-white">
+                  <td colSpan="11" className="text-center py-14 bg-white">
                     <FaSearch className="w-7 h-7 text-slate-200 mx-auto mb-2" />
                     <p className="text-sm font-medium text-slate-400">No room types found matching your search criteria.</p>
                   </td>
@@ -264,7 +285,7 @@ export default function RoomTypeManagement() {
                       <td className="px-5 py-3 text-sm">
                         <div className={`w-10 h-10 rounded-lg overflow-hidden bg-slate-50 ring-2 ${meta.ring} ring-offset-1 ring-offset-white shadow-sm flex items-center justify-center`}>
                           {room.image ? (
-                            <img src={`${BACKEND_URL}/storage/${room.image}`} alt={room.name} className="w-full h-full object-cover" />
+                            <img src={`${API_BASE_URL}/storage/${room.image}`} alt={room.name} className="w-full h-full object-cover" />
                           ) : (
                             <FaImage className="text-slate-300 w-4 h-4" />
                           )}
@@ -286,6 +307,11 @@ export default function RoomTypeManagement() {
                       <td className="px-5 py-3 text-sm">
                         <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-50 text-slate-600 text-xs font-medium border border-slate-100">
                           {room.capacity} Pax
+                        </span>
+                      </td>
+                      <td className="px-5 py-3 text-sm">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-50 text-slate-600 text-xs font-medium border border-slate-100">
+                          {room.maximum_capacity ?? room.capacity} Pax
                         </span>
                       </td>
                       <td className="px-5 py-3 text-sm text-slate-800 font-semibold">${room.base_price}</td>

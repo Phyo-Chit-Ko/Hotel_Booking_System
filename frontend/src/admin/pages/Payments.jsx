@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import AdminLayout from "../layouts/AdminLayout";
+import AddPaymentModal from "../components/AddPaymentModal";
 import { useAuth } from "../../context/AuthContext";
+import { API_BASE_URL } from "../../config/api";
 import {
   FaSearch,
   FaMoneyBillWave,
@@ -10,7 +12,7 @@ import {
   FaPlus,
 } from "react-icons/fa";
 
-const BACKEND_URL = "http://localhost:8000";
+// const BACKEND_URL = "http://localhost:8000";
 
 const METHOD_LABELS = {
   cash: "Cash",
@@ -18,8 +20,6 @@ const METHOD_LABELS = {
   bank_transfer: "Bank Transfer",
   online: "Online",
 };
-
-const getCurrentMonth = () => new Date().toISOString().slice(0, 7);
 
 const PaymentManagement = () => {
   const { user } = useAuth();
@@ -31,10 +31,15 @@ const PaymentManagement = () => {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedMethod, setSelectedMethod] = useState("All");
-  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+});
 
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 6;
 
   const getAuthHeaders = () => {
     const token = sessionStorage.getItem("auth_token");
@@ -55,7 +60,8 @@ const PaymentManagement = () => {
       const mapped = (data.payments || []).map((p) => ({
         ...p,
         amount: Number(p.amount || 0),
-        proofUrl: p.proofPath ? `${BACKEND_URL}/storage/${p.proofPath}` : null,
+        // proofUrl: p.proofPath ? `${BACKEND_URL}/storage/${p.proofPath}` : null,
+        proofUrl: p.proofPath ? `${API_BASE_URL}/storage/${p.proofPath}` : null,
       }));
       setPayments(mapped);
     } catch (err) {
@@ -124,36 +130,52 @@ const PaymentManagement = () => {
   return (
     <AdminLayout>
       <div className="w-full space-y-6 p-1">
-        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex items-center justify-between gap-6 max-w-md">
-          <div className="flex items-center gap-4">
-            <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-100 text-xl text-slate-700">
-              <FaMoneyBillWave />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">
-                Gross Collections
-                {selectedMethod !== "All" ? ` · ${METHOD_LABELS[selectedMethod] || selectedMethod}` : ""}
-              </p>
-              <h3 className="text-2xl font-semibold text-slate-900 tracking-tight mt-0.5">${grossCollections.toFixed(2)}</h3>
-            </div>
-          </div>
-          <input
-            type="month"
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
-            className="h-9 px-3 border border-slate-200 rounded-lg text-xs text-slate-600 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 [color-scheme:light]"
-          />
-        </div>
+  <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex items-center justify-between">
+    
+    {/* Left Side */}
+    <div className="flex items-center gap-4">
+      {/* Icon */}
+      <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-100 text-2xl text-slate-700">
+        <FaMoneyBillWave />
+      </div>
+
+      {/* Text */}
+      <div>
+        <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">
+          Gross Collections
+          {selectedMethod !== "All"
+            ? ` · ${METHOD_LABELS[selectedMethod] || selectedMethod}`
+            : ""}
+        </p>
+
+        <h3 className="text-2xl font-semibold text-slate-900 tracking-tight mt-0.5">
+          ${grossCollections.toFixed(2)}
+        </h3>
+      </div>
+    </div>
+
+    {/* Right Side */}
+    <div className=" w-[305px] h-11">
+      <input
+        type="month"
+        value={selectedMonth}
+        onChange={(e) => setSelectedMonth(e.target.value)}
+        className=" h-11 px-3 border border-slate-200 rounded-lg text-xs text-slate-600 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 [color-scheme:light]"
+      />
+    </div>
+
+  </div>
+       
 
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-5">
           <div className="flex items-center gap-3">
             <div className="relative w-[355px] h-11">
               <input
                 type="text"
-                placeholder="Search booking #, ref #, or context..."
+                placeholder="Search ...."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full h-full border border-slate-300 rounded-xl pl-4 pr-11 text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 box-border"
+                className="w-full h-full border border-slate-300 rounded-xl pl-4 pr-11 text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-0 focus:border-slate-300 box-border"
               />
               <FaSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none" />
             </div>
@@ -166,19 +188,21 @@ const PaymentManagement = () => {
               >
                 <option value="All">All Methods</option>
                 <option value="cash">Cash</option>
-                <option value="credit_card">Credit Card</option>
                 <option value="online">Online</option>
-                <option value="bank_transfer">Bank Transfer</option>
               </select>
             </div>
 
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="h-11 px-5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-xl flex items-center justify-center gap-2 shadow-sm transition active:scale-95 ml-auto"
-            >
-              <FaPlus className="text-sm" />
-              <span>Add New</span>
-            </button>
+            <div className="flex-1" />
+
+            {canWrite && (
+              <button
+                type="button"
+                onClick={() => setShowAddModal(true)}
+                className="h-11 px-4 flex items-center gap-1.5 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 active:scale-[0.98] transition rounded-xl shadow-sm"
+              >
+                <FaPlus className="w-2.5 h-2.5" /> Add Payment
+              </button>
+            )}
           </div>
 
           <div className="overflow-x-auto border border-slate-100 rounded-xl">
@@ -191,7 +215,8 @@ const PaymentManagement = () => {
                   <th className="px-5 py-3.5 font-medium">Payment Date</th>
                   <th className="px-5 py-3.5 font-medium">Amount</th>
                   <th className="px-5 py-3.5 font-medium">Payment Method</th>
-                  <th className="px-5 py-3.5 font-medium text-center">Comment</th>
+                  <th className="px-5 py-3.5 font-medium text-center">Proof</th>
+                  <th className="px-5 py-3.5 font-medium">Comment</th>
                   <th className="px-5 py-3.5 font-medium">Handled By</th>
                 </tr>
               </thead>
@@ -251,6 +276,10 @@ const PaymentManagement = () => {
                           )}
                         </td>
 
+                        <td className="px-5 py-4 text-slate-600 max-w-[220px] truncate" title={payment.comment || ""}>
+                          {payment.comment || "—"}
+                        </td>
+
                         <td className="px-5 py-4 text-slate-500">
                           {payment.handledBy || "—"}
                         </td>
@@ -307,6 +336,15 @@ const PaymentManagement = () => {
           )}
         </div>
       </div>
+
+      <AddPaymentModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSave={() => {
+          setShowAddModal(false);
+          loadPayments();
+        }}
+      />
     </AdminLayout>
   );
 };

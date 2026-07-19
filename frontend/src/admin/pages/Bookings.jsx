@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useCallback } from "react";
+import axios from "axios";
 import AdminLayout from "../layouts/AdminLayout";
 import AddBookingModal from "../components/AddBookingModal";
+import BookingDetailModal from "../components/BookingDetailModal";
 import { useAuth } from "../../context/AuthContext"; // Ensure the path is correct
 import { useNavigate } from "react-router-dom";
+import { API_BASE_URL } from "../../config/api";
 import {
   FaSearch,
   FaCalendarCheck,
@@ -37,11 +40,19 @@ export default function BookingManagement() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [bookingToEdit, setBookingToEdit] = useState(null);
 
+  // Details popup
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [viewingBooking, setViewingBooking] = useState(null);
+
+  // Assign Room dropdowns (N = booking.total_room)
+  const [assignedRooms, setAssignedRooms] = useState([]);
+  const [availableAssignRooms, setAvailableAssignRooms] = useState([]);
+
   // States for Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10; // adjust as needed
+  const itemsPerPage = 6; // adjust as needed
 
-  const COLUMN_COUNT = 14;
+  const COLUMN_COUNT = 10;
 
   const fetchBookings = useCallback(async () => {
     setLoading(true);
@@ -53,7 +64,8 @@ export default function BookingManagement() {
       if (selectedDate) params.append("date", selectedDate);
 
    const res = await fetch(
- `http://localhost:8000/api/bookings?${params.toString()}`,
+//  `http://localhost:8000/api/bookings?${params.toString()}`,
+    `${API_BASE_URL}/api/bookings?${params.toString()}`,
  {
    headers:{
       Authorization: `Bearer ${sessionStorage.getItem("auth_token")}`,
@@ -85,8 +97,53 @@ export default function BookingManagement() {
     setCurrentPage(1);
   }, [searchTerm, statusFilter, selectedDate]);
 
+  // Fetch candidate rooms for the Assign Room dropdowns whenever the edit
+  // modal opens for a booking — filtered by the booking's room type and
+  // available for its check-in/check-out range (backend also re-validates
+  // at confirm time, this is just for a friendly dropdown list).
+  useEffect(() => {
+    if (!isEditModalOpen || !bookingToEdit) {
+      setAvailableAssignRooms([]);
+      setAssignedRooms([]);
+      return;
+    }
+
+    let cancelled = false;
+    axios
+      // .get("http://localhost:8000/api/rooms/available", {
+      .get(`${API_BASE_URL}/api/rooms/available`,{
+        params: { check_in: bookingToEdit.checkIn, check_out: bookingToEdit.checkOut },
+      })
+      .then((res) => {
+        if (cancelled) return;
+        const filtered = (res.data.rooms || []).filter(
+          (r) => r.room_type_id === bookingToEdit.room_type_id
+        );
+        setAvailableAssignRooms(filtered);
+      })
+      .catch(() => {
+        if (!cancelled) setAvailableAssignRooms([]);
+      });
+
+    const n = Number(bookingToEdit.total_room) || 1;
+    setAssignedRooms((prev) => {
+      const seed = bookingToEdit.roomNumber ? [bookingToEdit.roomNumber] : [];
+      const base = prev.length === n ? prev : Array(n).fill("");
+      return base.map((v, i) => v || seed[i] || "");
+    });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditModalOpen, bookingToEdit?.raw_id]);
+
+  const optionsForSlot = (index) =>
+    availableAssignRooms.filter(
+      (r) => !assignedRooms.some((chosen, i) => i !== index && chosen === r.room_number)
+    );
+
   // HANDLE EDIT SUBMISSION TO BACKEND
- // HANDLE EDIT SUBMISSION TO BACKEND
 const handleEditSubmit = async (e) => {
   e.preventDefault();
 
@@ -98,10 +155,32 @@ const handleEditSubmit = async (e) => {
   }
 
   try {
+    const chosenRooms = assignedRooms.filter(Boolean);
+    const wantsConfirm = (bookingToEdit.status || "").toLowerCase() === "confirmed";
 
-   
+    if (wantsConfirm && chosenRooms.length > 0) {
+      const assignRes = await fetch(
+        // `http://localhost:8000/api/bookings/${bookingToEdit.raw_id}/rooms`,
+        `${API_BASE_URL}/api/bookings/${bookingToEdit.raw_id}/rooms`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+          },
+          body: JSON.stringify({ room_numbers: chosenRooms }),
+        }
+      );
+      const assignJson = await assignRes.json();
+      if (!assignRes.ok) {
+        setEditError(assignJson.message || "Failed to assign rooms.");
+        return;
+      }
+    }
+
      const res = await fetch(
- `http://localhost:8000/api/bookings/${bookingToEdit.raw_id}`,
+//  `http://localhost:8000/api/bookings/${bookingToEdit.raw_id}`,
+ `${API_BASE_URL}/api/bookings/${bookingToEdit.raw_id}`,
       {
         method: "PUT",
         headers: {
@@ -221,7 +300,7 @@ const handleEditSubmit = async (e) => {
             <div className="relative w-[355px] h-11">
               <input
                 type="text"
-                placeholder="Search booking ID, guest name..."
+                placeholder="Search guest name..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full h-full border border-slate-300 rounded-xl pl-4 pr-11 text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:border-slate-400 box-border"
@@ -263,23 +342,31 @@ const handleEditSubmit = async (e) => {
 
           {/* Nested Data Table Box */}
           <div className="overflow-x-auto border border-slate-100 rounded-xl">
-            <table className="w-full border-collapse text-left text-sm text-slate-600">
+            <table className="w-full table-fixed border-collapse text-left text-xs text-slate-600">
+              <colgroup>
+                <col style={{ width: "10%" }} />
+                <col style={{ width: "12%" }} />
+                <col style={{ width: "12%" }} />
+                <col style={{ width: "16%" }} />
+                <col style={{ width: "7%" }} />
+                <col style={{ width: "7%" }} />
+                <col style={{ width: "11%" }} />
+                <col style={{ width: "11%" }} />
+                <col style={{ width: "9%" }} />
+                <col style={{ width: "5%" }} />
+              </colgroup>
               <thead className="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200">
                 <tr>
-                  <th className="px-5 py-3.5 font-medium">Booking ID</th>
-                  <th className="px-5 py-3.5 font-medium">First Name</th>
-                  <th className="px-5 py-3.5 font-medium">Last Name</th>
-                  <th className="px-5 py-3.5 font-medium">Room Type</th>
-                  <th className="px-5 py-3.5 font-medium">Phone</th>
-                  <th className="px-5 py-3.5 font-medium text-center">Adult</th>
-                  <th className="px-5 py-3.5 font-medium text-center">Child</th>
-                  <th className="px-5 py-3.5 font-medium">Check-In</th>
-                  <th className="px-5 py-3.5 font-medium">Check-Out</th>
-                  <th className="px-5 py-3.5 font-medium">Deposit</th>
-                  <th className="px-5 py-3.5 font-medium">Deposit SS</th>
-                  <th className="px-5 py-3.5 font-medium">Status</th>
-                  <th className="px-5 py-3.5 font-medium">Handled By</th>
-                  <th className="px-5 py-3.5 font-medium text-center">Actions</th>
+                  <th className="px-3 py-3 font-medium">ID</th>
+                  <th className="px-3 py-3 font-medium">First Name</th>
+                  <th className="px-3 py-3 font-medium">Last Name</th>
+                  <th className="px-3 py-3 font-medium">Room Type</th>
+                  <th className="px-3 py-3 font-medium text-center">Adult</th>
+                  <th className="px-3 py-3 font-medium text-center">Child</th>
+                  <th className="px-3 py-3 font-medium">Check-In</th>
+                  <th className="px-3 py-3 font-medium">Check-Out</th>
+                  <th className="px-3 py-3 font-medium">Status</th>
+                  <th className="px-3 py-3 font-medium text-center">Actions</th>
                 </tr>
               </thead>
 
@@ -312,94 +399,65 @@ const handleEditSubmit = async (e) => {
                   const rowNumber = (currentPage - 1) * itemsPerPage + index + 1;
                   return (
                   <tr key={booking.raw_id || booking.id} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="px-5 py-4 font-mono font-medium text-slate-900">
-                      {rowNumber}
+                    <td className="px-3 py-3 font-mono font-medium text-slate-900 truncate" title={booking.id}>
+                      {booking.id}
                     </td>
 
-                    <td className="px-5 py-4 font-medium text-slate-900">
+                    <td className="px-3 py-3 font-medium text-slate-900 truncate" title={booking.first_name}>
                       {booking.first_name}
                     </td>
 
-                    <td className="px-5 py-4 font-medium text-slate-900">
+                    <td className="px-3 py-3 font-medium text-slate-900 truncate" title={booking.last_name}>
                       {booking.last_name}
                     </td>
 
-                    <td className="px-5 py-4 text-slate-700">
+                    <td className="px-3 py-3 text-slate-700 truncate" title={booking.roomType}>
                       {booking.roomType}
                     </td>
 
-                    <td className="px-5 py-4 font-mono text-xs text-slate-500">
-                      {booking.phone}
-                    </td>
-
-                    <td className="px-5 py-4 text-center font-mono font-medium text-slate-700">
+                    <td className="px-3 py-3 text-center font-mono font-medium text-slate-700">
                       {booking.adult}
                     </td>
 
-                    <td className="px-5 py-4 text-center font-mono font-medium text-slate-700">
+                    <td className="px-3 py-3 text-center font-mono font-medium text-slate-700">
                       {booking.child}
                     </td>
 
-                    <td className="px-5 py-4 font-mono text-xs text-slate-500">
+                    <td className="px-3 py-3 font-mono text-slate-500">
                       {booking.checkIn}
                     </td>
 
-                    <td className="px-5 py-4 font-mono text-xs text-slate-500">
+                    <td className="px-3 py-3 font-mono text-slate-500">
                       {booking.checkOut}
                     </td>
 
-                    <td className="px-5 py-4 font-mono font-semibold text-slate-900">
-                      ${parseFloat(booking.amount || 0).toFixed(2)}
-                    </td>
-
-                    <td className="px-5 py-4">
-                      {booking.depositScreenshot ? (
-                        <a
-                          href={booking.depositScreenshot}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-amber-600 underline text-xs font-medium"
-                        >
-                          View
-                        </a>
-                      ) : (
-                        <span className="text-slate-300 text-xs">—</span>
-                      )}
-                    </td>
-
-                    <td className="px-5 py-4">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium inline-block ${getStatusStyle(booking.status)}`}>
+                    <td className="px-3 py-3">
+                      <span className={`px-2 py-1 rounded-full font-medium inline-block ${getStatusStyle(booking.status)}`}>
                         {booking.status}
                       </span>
                     </td>
 
-                    <td className="px-5 py-4 text-slate-500">
-                      {booking.handledBy || "—"}
-                    </td>
-
-                    <td className="px-5 py-4">
-  <div className="flex justify-center items-center gap-1.5">
-    {booking.rawStatus?.toLowerCase() === "converted" ? (
+                    <td className="px-3 py-3">
+  <div className="flex flex-col items-center gap-1.5">
+    {booking.rawStatus?.toLowerCase() === "converted" && (
       <button
-        className="px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-medium hover:bg-emerald-100 transition active:scale-95"
+        className="px-2.5 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-medium hover:bg-emerald-100 transition active:scale-95 w-full"
         title="See Reservation"
         onClick={() => navigate(`/admin/reservations?highlight=${booking.reservationId}`)}
       >
         See Reservation
       </button>
-    ) : (
-      <button
-        className="px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium hover:bg-slate-100 transition active:scale-95"
-        title="Edit Booking"
-       onClick={() => {
-  console.log("EDIT BOOKING:", booking);
-  setBookingToEdit({ ...booking });
-  setIsEditModalOpen(true);
-}}
-      >
-        Edit
-      </button>
     )}
+    <button
+      className="px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-700 font-medium hover:bg-slate-100 transition active:scale-95 w-full"
+      title="Details"
+      onClick={() => {
+        setViewingBooking(booking);
+        setIsDetailModalOpen(true);
+      }}
+    >
+      Details
+    </button>
   </div>
 </td>
                   </tr>
@@ -459,7 +517,7 @@ const handleEditSubmit = async (e) => {
             
             <div className="flex justify-center items-center border-b border-slate-100 pb-4">
     <h3 className="text-slate-900 font-semibold text-lg text-center">
-        Edit-Booking {bookingToEdit.raw_id}
+        Edit Booking {bookingToEdit.id}
     </h3>
 
               <button 
@@ -474,7 +532,7 @@ const handleEditSubmit = async (e) => {
     {editError}
   </p>
 )}
-            <form onSubmit={handleEditSubmit} className="mt-4 space-y-4">
+            <form onSubmit={handleEditSubmit} noValidate className="mt-4 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-500 mb-1">First Name</label>
@@ -525,14 +583,28 @@ const handleEditSubmit = async (e) => {
                 </div>
               </div>
               <div>
-  <label className="block text-xs font-semibold text-slate-500 mb-1">Assign Room</label>
-  <input
-    type="text"
-    placeholder="e.g. 101"
-    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500"
-    value={bookingToEdit.room_number || ""}
-    onChange={(e) => setBookingToEdit({ ...bookingToEdit, room_number: e.target.value })}
-  />
+  <label className="block text-xs font-semibold text-slate-500 mb-1">
+    Assign Room{Number(bookingToEdit.total_room) > 1 ? "s" : ""} ({bookingToEdit.total_room || 1} needed)
+  </label>
+  <div className="space-y-2">
+    {assignedRooms.map((val, i) => (
+      <select
+        key={i}
+        value={val}
+        onChange={(e) =>
+          setAssignedRooms((prev) => prev.map((v, idx) => (idx === i ? e.target.value : v)))
+        }
+        className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+      >
+        <option value="">— Select room {i + 1} —</option>
+        {optionsForSlot(i).map((r) => (
+          <option key={r.room_number} value={r.room_number}>
+            Room {r.room_number} — Floor {r.floor}
+          </option>
+        ))}
+      </select>
+    ))}
+  </div>
 </div>
 
               <div className="flex justify-end space-x-2.5 border-t border-slate-100 pt-4 mt-6">
@@ -555,11 +627,22 @@ const handleEditSubmit = async (e) => {
         </div>
       )}
 
+      <BookingDetailModal
+        isOpen={isDetailModalOpen}
+        booking={viewingBooking}
+        onClose={() => setIsDetailModalOpen(false)}
+        onEdit={(b) => {
+          setIsDetailModalOpen(false);
+          setBookingToEdit({ ...b, raw_id: b.raw_id ?? viewingBooking?.raw_id, id: b.booking_number || b.id });
+          setIsEditModalOpen(true);
+        }}
+      />
+
       <AddBookingModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         selectedRoom={{ title: "New Suite Room" }}
-        onSuccess={fetchBookings} 
+        onSuccess={fetchBookings}
       />
     </AdminLayout>
   );

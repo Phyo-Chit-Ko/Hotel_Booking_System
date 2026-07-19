@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
+import Swal from "sweetalert2";
 import AdminLayout from "../layouts/AdminLayout";
 import { useAuth } from "../../context/AuthContext";
+import { API_BASE_URL } from "../../config/api";
 import {
   FaUtensils,
   FaCoins,
@@ -34,9 +36,9 @@ export default function RestaurantManagement() {
  
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 6;
  
-  const API = "http://127.0.0.1:8000/api";
+  // const API = "http://127.0.0.1:8000/api";
  
   const activeMenuItemsCount = menuItems.filter(
     (item) => item.status === "Available"
@@ -62,7 +64,7 @@ export default function RestaurantManagement() {
   const fetchItemsFromDB = async () => {
     try {
       const response = await fetch(
-        `${API}/restaurant-items?search=${encodeURIComponent(
+        `${API_BASE_URL}/restaurant-items?search=${encodeURIComponent(
           searchQuery
         )}&category=${encodeURIComponent(selectedCategory)}`,
         {
@@ -83,7 +85,7 @@ export default function RestaurantManagement() {
       const data = await response.json();
       setMenuItems(data);
  
-      const chargesResponse = await fetch(`${API}/services`, {
+      const chargesResponse = await fetch(`${API_BASE_URL}/services`, {
         method: "GET",
         headers: getAuthHeaders(),
       });
@@ -139,8 +141,8 @@ export default function RestaurantManagement() {
     e.preventDefault();
  
     const url = isEditMode
-      ? `${API}/restaurant-items/${formItem.item_id}`
-      : `${API}/restaurant-items`;
+      ? `${API_BASE_URL}/restaurant-items/${formItem.item_id}`
+      : `${API_BASE_URL}/restaurant-items`;
  
     const method = isEditMode ? "PUT" : "POST";
  
@@ -185,10 +187,17 @@ export default function RestaurantManagement() {
   };
  
   const handleDelete = async (id) => {
-    if (!window.confirm("Delete this menu item?")) return;
- 
+    const result = await Swal.fire({
+      icon: "warning",
+      title: "Delete this menu item?",
+      showCancelButton: true,
+      confirmButtonColor: "#dc2626",
+      confirmButtonText: "Yes, delete",
+    });
+    if (!result.isConfirmed) return;
+
     try {
-      const response = await fetch(`${API}/restaurant-items/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/restaurant-items/${id}`, {
         method: "DELETE",
         headers: getAuthHeaders(),
       });
@@ -214,7 +223,7 @@ export default function RestaurantManagement() {
   const handleToggleStatus = async (id) => {
     try {
       const response = await fetch(
-        `${API}/restaurant-items/${id}/toggle-status`,
+        `${API_BASE_URL}/restaurant-items/${id}/toggle-status`,
         {
           method: "PATCH",
           headers: getAuthHeaders(),
@@ -539,6 +548,7 @@ export default function RestaurantManagement() {
  
           <form
             onSubmit={handleFormSubmit}
+            noValidate
             className="bg-white w-full max-w-md rounded-2xl border border-slate-200 shadow-2xl relative z-10 overflow-hidden flex flex-col max-h-[90vh]"
           >
             <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-gradient-to-r from-amber-50 to-orange-50 shrink-0">

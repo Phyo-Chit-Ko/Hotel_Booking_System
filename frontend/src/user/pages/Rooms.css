@@ -352,4 +352,17 @@
   .reservation-form { max-height: 92vh; overflow-y: auto; }
 }
  
+.field-error {
+  color: #d50e39;
+  font-size: 0.75rem;
+  margin-top: 4px;
+  margin-left: 2px;
+}
+
+.field-hint {
+  color: #8a8a8a;
+  font-size: 0.72rem;
+  margin-top: 4px;
+  margin-left: 2px;
+}
  

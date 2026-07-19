@@ -146,7 +146,7 @@ class ExtraServiceController extends Controller
         $rate = (float) $validatedData['rate'];
         $validatedData['total'] = $quantity * $rate;
 
-        $validatedData['created_by'] = Auth::id() ?? 1;
+        $validatedData['created_by'] = Auth::id() ?? 2;
 
         // FIX: If frontend sends it as a string instead of an array, don't double-json_encode it
         $foodInput = $request->input('food_items');
@@ -157,6 +157,8 @@ class ExtraServiceController extends Controller
             $extraCharge = DB::transaction(function () use ($validatedData, $reservation) {
                 $extraCharge = Service::create($validatedData);
                 $this->syncLedgerCharge($extraCharge, $reservation);
+                $reservation->increment('total_amount', $validatedData['total']);
+                $reservation->refresh();
                 return $extraCharge;
             });
 

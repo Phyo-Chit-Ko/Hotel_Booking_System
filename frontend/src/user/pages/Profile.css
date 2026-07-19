@@ -309,3 +309,31 @@
 
 }
  
+
+
+/* Base style for both buttons */
+.swal-btn-custom {
+  padding: 10px 24px !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  margin: 5px !important;
+  border: 1px solid transparent !important;
+  cursor: pointer;
+}
+ 
+/* Confirm Button (Yes, logout) */
+.swal-confirm {
+  background-color: #d33 !important;
+  color: white !important;
+}
+ 
+/* Cancel Button */
+.swal-cancel {
+  background-color: #c79b56 !important;
+  color: white !important;
+}
+ 
+/* Optional: Add hover effect to both */
+.swal-btn-custom:hover {
+  filter: brightness(1.1);
+}

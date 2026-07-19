@@ -98,7 +98,7 @@ export default function EditReservationModal({ booking, onClose, onSaved }) {
         {loading ? (
           <p className="text-sm text-slate-400 text-center py-10">Loading…</p>
         ) : (
-          <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <form onSubmit={handleSubmit} noValidate className="p-6 space-y-4">
             {error && (
               <div className="bg-red-50 border border-red-100 text-red-700 text-sm px-4 py-3 rounded-xl">{error}</div>
             )}

@@ -12,6 +12,9 @@ class Reservation extends Model
     protected $fillable = [
         'guest_id',
         'guest_name',
+        'first_name',
+        'last_name',
+        'source_booking_number',
         'guest_email',
         'guest_phone',
         'room_type_id',
@@ -168,10 +171,16 @@ class Reservation extends Model
         }
     }
 
+    // 'Check-Out' (due to leave today, action needed) is intentionally
+    // distinct from the stored status string 'Checked-Out' (already
+    // completed) — same pattern as 'Check-In' above vs. Reserved/Confirmed.
+    if ($status === 'Checked-In') {
+        return $this->check_out_date->isSameDay($today) ? 'Check-Out' : 'Occupied';
+    }
+
     return match ($status) {
-        'No-Show'    => 'No-Show',
-        'Checked-In' => 'Occupied',
-        default      => $status,
+        'No-Show' => 'No-Show',
+        default   => $status,
     };
 }
 
@@ -193,7 +202,10 @@ class Reservation extends Model
             'id'            => $this->reservation_id,
             'rowId'         => $this->reservation_id . '-' . ($g?->guest_id ?? 'na'),
             'bookingNumber' => $this->booking_number,
+            'sourceBookingNumber' => $this->source_booking_number,
             'guestName' => $g?->full_name ?? $this->guest_name ?? '',
+            'firstName' => $g?->first_name ?? $this->first_name ?? '',
+            'lastName'  => $g?->last_name ?? $this->last_name ?? '',
             'guestType'     => $guestType,
             'roomNumber'    => $this->room_number,
             'roomType'      => $this->roomType?->name ?? '',

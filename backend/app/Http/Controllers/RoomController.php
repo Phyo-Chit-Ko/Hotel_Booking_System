@@ -110,7 +110,6 @@ class RoomController extends Controller
             'room_number'       => 'required|string|max:10|unique:rooms,room_number',
             'room_type_id'      => 'required|integer|exists:room_types,room_type_id',
             'floor'             => 'required|string',
-            'capacity'          => 'required|integer|min:1',
             'bed_type'          => 'required|string',
             'status'            => 'required|string',
         ]);
@@ -132,7 +131,6 @@ class RoomController extends Controller
             'room_number'       => ['required', 'string', 'max:10', Rule::unique('rooms', 'room_number')->ignore($room->room_number, 'room_number')],
             'room_type_id'      => 'required|integer|exists:room_types,room_type_id',
             'floor'             => 'required|string',
-            'capacity'          => 'required|integer|min:1',
             'bed_type'          => 'required|string',
             'status'            => 'required|string',
         ]);
@@ -148,6 +146,13 @@ class RoomController extends Controller
     public function destroy($id)
     {
         $room = Room::where('room_number', $id)->firstOrFail();
+
+        if (Reservation::where('room_number', $room->room_number)->exists()) {
+            return response()->json([
+                'message' => "Room {$room->room_number} cannot be deleted: it has reservation history. Change its status instead of deleting it.",
+            ], 422);
+        }
+
         $room->delete();
 
         return response()->json([

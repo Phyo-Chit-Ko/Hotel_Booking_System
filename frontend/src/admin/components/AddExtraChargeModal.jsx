@@ -426,14 +426,17 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Cost Accounting Configurator</p>
                
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[11px] font-medium text-slate-500 mb-1">Quantity</label>
-                    <input
-                      type="number"
-                      min="1"
-                      name="quantity"
-                      value={formData.quantity}
-                      onChange={handleChange}
+                 <div>
+  <label className="block text-[11px] font-medium text-slate-500 mb-1">
+    {formData.service_type === "Car Rental" ? "Hours" : "Quantity"}
+  </label>
+  <input
+    type="number"
+    min="1"
+    name="quantity"
+    value={formData.quantity}
+    onChange={handleChange}
+  
                       className={`w-full px-3 py-1.5 text-sm bg-white border rounded-lg outline-none focus:ring-2 text-slate-800 font-semibold ${
                         errors.quantity ? "border-rose-300 focus:ring-rose-500/20" : "border-slate-200 focus:ring-slate-100 focus:border-slate-300"
                       }`}
