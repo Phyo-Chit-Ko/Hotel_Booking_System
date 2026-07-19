@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
+import Swal from "sweetalert2";
 import "./ForgotPassword.css";
 
 export default function ForgotPassword() {
@@ -14,10 +15,20 @@ export default function ForgotPassword() {
     try {
       await axios.post("/api/forgot-password", { email });
 
-      alert("Password reset link has been sent to your email.");
+      Swal.fire({
+        icon: "success",
+        title: "Check your email",
+        text: "Password reset link has been sent to your email.",
+        confirmButtonColor: "#c79b56",
+      });
       setEmail("");
     } catch (error) {
-      alert(error.response?.data?.message || "Something went wrong.");
+      Swal.fire({
+        icon: "error",
+        title: "Something went wrong",
+        text: error.response?.data?.message || "Something went wrong.",
+        confirmButtonColor: "#c79b56",
+      });
     } finally {
       setLoading(false);
     }
@@ -35,7 +46,7 @@ export default function ForgotPassword() {
           Enter your email and we’ll send a reset link.
         </p>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           <div className="input-group">
             <label>Email Address</label>
             <input

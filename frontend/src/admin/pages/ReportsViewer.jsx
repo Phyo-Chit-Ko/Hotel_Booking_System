@@ -72,8 +72,8 @@ export default function ReportViewer({ selectedType, dashboardDate, data, onBack
       <div className="bg-white max-w-4xl mx-auto rounded-3xl border border-slate-200 shadow-xl p-8 md:p-12 min-h-[842px] print:border-0 print:shadow-none print:p-0">
         <div className="flex justify-between items-start border-b-2 border-slate-950 pb-6 mb-8">
           <div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Grand Horizon Luxe Hotel</h1>
-            <p className="text-xs font-semibold text-slate-400 mt-1">Property Code: #GHL-2026-NY</p>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Relax Hotel</h1>
+            <p className="text-xs font-semibold text-slate-400 mt-1">Property Code: #RH-2026-MDY</p>
           </div>
           <div className="text-right">
             <h2 className="text-sm font-extrabold text-slate-900 tracking-wider uppercase bg-slate-100 px-3 py-1 rounded-md">{activeReport.title}</h2>
@@ -104,7 +104,7 @@ export default function ReportViewer({ selectedType, dashboardDate, data, onBack
         </table>
 
         <div className="mt-24 border-t border-dashed border-slate-200 pt-8 flex justify-between items-center text-[10px] text-slate-400 font-medium">
-          <p>© 2026 Grand Horizon System Logic Ledger. Confidential Document Asset.</p>
+          <p>© 2026 Relax Hotel. Confidential Document Asset.</p>
           <div className="w-32 border-b border-slate-900 pb-1 text-center font-bold text-slate-900">Authorized Signature</div>
         </div>
       </div>

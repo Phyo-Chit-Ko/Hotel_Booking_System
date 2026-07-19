@@ -210,5 +210,10 @@
   font-size: 14px !important;
 }
  
+input::placeholder {
+  color: rgba(255, 255, 255, 0.4); /* Faint, readable grey */
+  font-style: italic;
+}
+ 
  
  

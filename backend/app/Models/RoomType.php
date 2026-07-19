@@ -13,10 +13,11 @@ class RoomType extends Model
         'name',
         'code',
         'image',
-        'num_of_rooms',
         'base_price',
         'extra_person_rate',
+        'extra_bed_fee',
         'capacity',
+        'maximum_capacity',
         'breakfast',
         'bathtub',
         'status',
@@ -27,8 +28,9 @@ class RoomType extends Model
         'bathtub'      => 'boolean',
         'base_price'   => 'decimal:2',
         'extra_person_rate' => 'decimal:2',
-        'num_of_rooms' => 'integer',
-        'capacity'     => 'integer',
+        'extra_bed_fee'     => 'decimal:2',
+        'capacity'          => 'integer',
+        'maximum_capacity'  => 'integer',
     ];
 
     public function rooms(): HasMany

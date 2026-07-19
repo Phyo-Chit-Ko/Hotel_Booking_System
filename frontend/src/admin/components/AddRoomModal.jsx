@@ -6,7 +6,6 @@ const initialFormState = {
   room_number: "",
   room_type_id: "",
   floor: "",
-  capacity: "2",
   bed_type: "Single",
   status: "Available",
 };
@@ -22,7 +21,6 @@ export default function AddRoomModal({ isOpen, onClose, onSave, roomToEdit = nul
         room_number: roomToEdit.room_number || "",
         room_type_id: String(roomToEdit.room_type_id || ""),
         floor: roomToEdit.floor || "",
-        capacity: String(roomToEdit.capacity || "2"),
         bed_type: roomToEdit.bed_type || "Single",
         status: roomToEdit.status || "Available",
       });
@@ -143,18 +141,6 @@ export default function AddRoomModal({ isOpen, onClose, onSave, roomToEdit = nul
                 ))}
               </datalist>
               {errors.floor && <p className="text-xs font-medium text-rose-500 mt-1.5 ml-1">{errors.floor}</p>}
-            </div>
-
-            {/* Capacity */}
-            <div className="flex flex-col gap-2">
-              <label className="block text-sm font-semibold text-slate-700">Capacity</label>
-              <input
-                type="number"
-                name="capacity"
-                value={formData.capacity}
-                onChange={handleChange}
-                className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-300 transition-all font-bold text-slate-800"
-              />
             </div>
 
             {/* Bed Type */}

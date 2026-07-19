@@ -1,7 +1,7 @@
 <?php
-
+ 
 namespace App\Http\Controllers\Api;
-
+ 
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
 use App\Models\Reservation;
@@ -9,38 +9,45 @@ use App\Models\Room;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-
+ 
 class DashboardController extends Controller
 {
     /**
-     * Statuses that represent a room genuinely being occupied by a guest on
-     * a given day. Used both for "today"'s occupancy figure and for
-     * reconstructing the trailing chart series, since there's no historical
-     * daily room-status snapshot table — this is a reasonable proxy built
-     * from reservation date ranges rather than a true historical log.
+     * Statuses that represent a room genuinely being occupied by a guest.
      */
     private const OCCUPIED_STATUSES = ['Checked-In', 'Checked-Out', 'Moved'];
-
+ 
     public function stats(Request $request)
     {
-        $range = (int) $request->query('range', 7);
-        $range = in_array($range, [7, 30], true) ? $range : 7;
-
-        $today = Carbon::today();
-        $periodStart = $today->copy()->subDays($range - 1);
-        $prevPeriodStart = $periodStart->copy()->subDays($range);
-        $prevPeriodEnd = $periodStart->copy()->subDay();
-
+        // ── Parse the weekly calendar parameter (e.g., "2026-W29") ──────────
+        $weekParam = $request->query('week');
+ 
+        if ($weekParam && preg_match('/^(\d{4})-W(\d{2})$/', $weekParam, $matches)) {
+            $year = (int)$matches[1];
+            $week = (int)$matches[2];
+           
+            // Set Carbon to the first day (Monday) of that specific calendar week
+            $periodStart = Carbon::now()->setISODate($year, $week)->startOfDay();
+        } else {
+            // Fallback to the current week's Monday if parameter is missing or malformed
+            $periodStart = Carbon::now()->startOfWeek()->startOfDay();
+        }
+ 
+        // Define the bounds for the selected week (Monday through Sunday)
+        $periodEnd = $periodStart->copy()->endOfWeek()->endOfDay();
+ 
+        // Define the comparison bounds for the prior week (shifted back exactly 7 days)
+        $prevPeriodStart = $periodStart->copy()->subWeek()->startOfDay();
+        $prevPeriodEnd = $prevPeriodStart->copy()->endOfWeek()->endOfDay();
+ 
         $totalRooms = max(1, Room::count());
-
-        // ── Total Revenue (money actually received, i.e. payments — not
-        //    total_amount, which is a forward-looking charge total) ────────
-        $currentRevenue = (float) Payment::whereBetween('date', [$periodStart, $today])->sum('amount');
+ 
+        // ── Total Revenue (Payments registered within the specific weeks) ──
+        $currentRevenue = (float) Payment::whereBetween('date', [$periodStart, $periodEnd])->sum('amount');
         $prevRevenue    = (float) Payment::whereBetween('date', [$prevPeriodStart, $prevPeriodEnd])->sum('amount');
-
-        // ── Occupancy rate (today), via the same reservation-reconstruction
-        //    used for the chart series, for consistency ─────────────────────
-        $occupancyOn = function (Carbon $day) use ($totalRooms) {
+ 
+        // ── Occupancy Helper Function ──────────────────────────────────────
+        $getOccupancyOn = function (Carbon $day) use ($totalRooms) {
             $occupied = Reservation::whereIn('reservation_status', self::OCCUPIED_STATUSES)
                 ->whereDate('check_in_date', '<=', $day)
                 ->where('check_out_date', '>', $day)
@@ -48,47 +55,56 @@ class DashboardController extends Controller
                 ->count('room_number');
             return round(($occupied / $totalRooms) * 100, 1);
         };
-
-        $currentOccupancy  = $occupancyOn($today);
-        $previousOccupancy = $occupancyOn($today->copy()->subDays($range));
-
-        // ── Active check-ins — precise current state, not reconstructed ────
-        $currentCheckIns  = Reservation::where('reservation_status', 'Checked-In')->count();
-        $previousCheckIns = Reservation::where('reservation_status', 'Checked-In')
-            ->where('check_in_date', '<=', $today->copy()->subDays($range))
+ 
+        // Average occupancy rate over the course of the target weeks
+        $currentOccupancy  = $this->getAverageOccupancyForPeriod($periodStart, $periodEnd, $getOccupancyOn);
+        $previousOccupancy = $this->getAverageOccupancyForPeriod($prevPeriodStart, $prevPeriodEnd, $getOccupancyOn);
+ 
+        // ── Active Check-Ins (Calculated for the terminal date of the week) ──
+        // Since it's a structural snapshot, we evaluate what was active at the end of the weeks
+        $currentCheckIns  = Reservation::where('reservation_status', 'Checked-In')
+            ->where('check_in_date', '<=', $periodEnd)
+            ->where('check_out_date', '>', $periodEnd)
             ->count();
-
-        // ── Chart series: daily revenue + reconstructed occupancy ──────────
+ 
+        $previousCheckIns = Reservation::where('reservation_status', 'Checked-In')
+            ->where('check_in_date', '<=', $prevPeriodEnd)
+            ->where('check_out_date', '>', $prevPeriodEnd)
+            ->count();
+ 
+        // ── Chart Series: Exact 7-day breakdown of the selected week ───────
         $chartSeries = [];
         $dailyRevenue = Payment::selectRaw('date, SUM(amount) as total')
-            ->whereBetween('date', [$periodStart, $today])
+            ->whereBetween('date', [$periodStart, $periodEnd])
             ->groupBy('date')
             ->pluck('total', 'date');
-
-        for ($i = 0; $i < $range; $i++) {
+ 
+        for ($i = 0; $i < 7; $i++) {
             $day = $periodStart->copy()->addDays($i);
+            $dateString = $day->toDateString();
+           
             $chartSeries[] = [
-                'date'           => $day->toDateString(),
-                'revenue'        => (float) ($dailyRevenue[$day->toDateString()] ?? 0),
-                'occupancy_rate' => $occupancyOn($day),
+                'date'           => $dateString,
+                'revenue'        => (float) ($dailyRevenue[$dateString] ?? 0),
+                'occupancy_rate' => $getOccupancyOn($day),
             ];
         }
-
-        // ── Distribution channels (booking source), reservations created in range ─
-        $channelRows = Reservation::whereBetween('created_at', [$periodStart, $today->copy()->endOfDay()])
+ 
+        // ── Distribution Channels: Bookings created during this specific week ─
+        $channelRows = Reservation::whereBetween('created_at', [$periodStart, $periodEnd])
             ->select('booking_source', DB::raw('count(*) as count'))
             ->groupBy('booking_source')
             ->orderByDesc('count')
             ->get();
-
+ 
         $channelTotal = max(1, $channelRows->sum('count'));
         $distributionChannels = $channelRows->map(fn ($row) => [
             'name'    => $row->booking_source ?: 'Unknown',
             'count'   => (int) $row->count,
             'percent' => round(($row->count / $channelTotal) * 100, 1),
         ])->values();
-
-        // ── Recent activity: blended reservations + payments, newest first ──
+ 
+        // ── Recent Activity Log ─────────────────────────────────────────────
         $recentReservations = Reservation::latest('created_at')->limit(10)
             ->get(['reservation_id', 'guest_name', 'room_number', 'booking_source', 'created_at'])
             ->map(fn ($r) => [
@@ -96,14 +112,14 @@ class DashboardController extends Controller
                 'text' => "New booking for Room {$r->room_number}" . ($r->booking_source ? " via {$r->booking_source}" : ''),
                 'at'   => $r->created_at,
             ]);
-
+ 
         $recentPayments = Payment::with('reservation')->latest('created_at')->limit(10)->get()
             ->map(fn ($p) => [
                 'id'   => "payment-{$p->payment_id}",
                 'text' => 'Payment of $' . number_format((float) $p->amount, 2) . ' recorded for Room ' . ($p->reservation->room_number ?? '—'),
                 'at'   => $p->created_at,
             ]);
-
+ 
         $recentActivity = $recentReservations->concat($recentPayments)
             ->sortByDesc('at')
             ->take(10)
@@ -113,9 +129,9 @@ class DashboardController extends Controller
                 'time' => $item['at']?->diffForHumans() ?? '',
             ])
             ->values();
-
+ 
         return response()->json([
-            'range' => $range,
+            'week' => $weekParam ?: Carbon::now()->format('Y-\WW'),
             'stats' => [
                 'total_revenue'   => ['value' => $currentRevenue, 'change' => $this->pctChange($currentRevenue, $prevRevenue)],
                 'occupancy_rate'  => ['value' => $currentOccupancy, 'change' => $this->pctChange($currentOccupancy, $previousOccupancy)],
@@ -126,7 +142,25 @@ class DashboardController extends Controller
             'recent_activity'       => $recentActivity,
         ]);
     }
-
+ 
+    /**
+     * Helper to compute aggregate average occupancy percentage over a 7-day phase.
+     */
+    private function getAverageOccupancyForPeriod(Carbon $start, Carbon $end, callable $occupancyOn): float
+    {
+        $totalPct = 0;
+        $daysCount = 0;
+       
+        $current = $start->copy();
+        while ($current->lte($end) && $daysCount < 7) {
+            $totalPct += $occupancyOn($current);
+            $daysCount++;
+            $current->addDay();
+        }
+       
+        return $daysCount > 0 ? round($totalPct / $daysCount, 1) : 0.0;
+    }
+ 
     private function pctChange(float $current, float $previous): ?float
     {
         if ($previous == 0.0) {
@@ -135,3 +169,4 @@ class DashboardController extends Controller
         return round((($current - $previous) / $previous) * 100, 1);
     }
 }
+ 

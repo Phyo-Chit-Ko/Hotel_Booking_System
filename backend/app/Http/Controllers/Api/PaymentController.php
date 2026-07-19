@@ -26,7 +26,7 @@ class PaymentController extends Controller
                 'amount'        => (float) $p->amount,
                 'paymentMethod' => $p->payment_method,
                 'date'          => optional($p->date)->toDateString(),
-                'comment'       => $p->description,
+                'comment'       => $p->comment,
                 'proofPath'     => $p->payment_proof_path,
                 'handledBy'     => $p->handledBy?->name,
             ])->values(),
@@ -40,7 +40,7 @@ class PaymentController extends Controller
             'depositAmount' => 'nullable|numeric|min:0',
             'paymentMethod' => 'required|string|in:cash,credit_card,bank_transfer,online',
             'transactionNo' => 'nullable|string|max:100',
-            'description'   => 'nullable|string|max:1000',
+            'comment'       => 'nullable|string|max:1000',
             'paymentProof'  => 'nullable|file|max:5120',
         ]);
 
@@ -55,7 +55,7 @@ class PaymentController extends Controller
                     'payment_method' => $validated['paymentMethod'],
                     'date'           => now()->toDateString(),
                     'transaction_no' => $validated['transactionNo'] ?? null,
-                    'description'    => $validated['description'] ?? 'Initial deposit at booking',
+                    'comment'        => $validated['comment'] ?? null,
                     'handled_by'     => $request->user()?->user_id ?? 1,
                 ];
 

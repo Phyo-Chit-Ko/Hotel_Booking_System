@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import {
   FaTimes, FaMinus, FaSearch, FaUpload, FaCheck, FaCalculator, FaChevronRight
 } from "react-icons/fa";
-import { NAME_RE, PHONE_RE, EMAIL_RE, NATIONALITY_RE, validateIdNumber } from "../../utils/validators";
+import { NAME_RE, PHONE_RE, EMAIL_RE, NATIONALITY_RE, validateIdNumber, composeNrc } from "../../utils/validators";
+import NrcInput from "./NrcInput";
 
 const inp = "w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:ring-4 focus:ring-yellow-500/20 focus:border-yellow-500 transition-all placeholder-slate-400 bg-slate-50/50 hover:bg-yellow-50/40 hover:border-yellow-300 focus:bg-white";
 const sel = inp + " appearance-none pr-10 bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2364748b%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:1.25rem] bg-[right_0.75rem_center] bg-no-repeat";
@@ -33,7 +34,6 @@ function FileUpload({ label, name, value, onChange }) {
     </div>
   );
 }
-
 const EMPTY = {
   // step 1 -> guests table
   guestSearch: "", guestId: null,
@@ -51,6 +51,11 @@ const EMPTY = {
 
   // step 3 -> payments table
   depositAmount: "", paymentMethod: "cash", transactionNo: "", paymentProof: null,
+
+  nrcRegionCode: "",
+  nrcTownship: "",
+  nrcCitizenType: "N",
+  nrcNumber: "",
 };
 
 export default function AddReservation({
@@ -564,6 +569,7 @@ export default function AddReservation({
     firstName: "", lastName: "", phone: "", email: "", nationality: "", gender: "",
     idType: "Passport", idNumber: "", guestType: "Adult",
     idFront: null, idBack: null,
+    nrcRegionCode: "", nrcTownship: "", nrcCitizenType: "N", nrcNumber: "",
     saved: false, savedGuestId: null, createdThisSession: false, error: "",
   });
 
@@ -651,7 +657,7 @@ export default function AddReservation({
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
+        <form onSubmit={handleSubmit} noValidate className="flex-1 overflow-y-auto">
           <div className="p-6 space-y-6">
 
             {stepError && (
@@ -661,109 +667,152 @@ export default function AddReservation({
             )}
 
             {currentStep === 1 && (
-              <div className={sec}>
-                <div>
-                  <label className={lbl}>Search Profile</label>
-                  <div className="relative">
-                    <FaSearch size={14} className="text-slate-400 pointer-events-none"
-                      style={{ position: "absolute", left: "16px", top: "50%", transform: "translateY(-50%)", zIndex: 2 }} />
-                    <input className={inp} style={{ paddingLeft: "44px" }}
-                      placeholder="Search by name, email, or phone…"
-                      value={form.guestSearch} onChange={(e) => handleGuestSearch(e.target.value)}
-                      disabled={isCheckin} />
-                    {searchLoading && <div className="absolute right-4 top-3 w-5 h-5 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin" />}
-                  </div>
-                  {guestResults.length > 0 && (
-                    <div className="mt-2 border border-slate-100 rounded-xl overflow-hidden shadow-xl bg-white max-h-48 overflow-y-auto z-10 relative">
-                      {guestResults.map((g) => (
-                        <button key={g.guest_id} type="button" onClick={() => selectGuest(g)}
-                          className="w-full text-left px-4 py-3 hover:bg-yellow-50/50 text-sm flex justify-between items-center border-b border-slate-50 last:border-0">
-                          <span className="font-semibold text-slate-800">{g.first_name} {g.last_name}</span>
-                          <span className="text-slate-500 text-xs">{g.phone}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {form.guestId && (
-                    <p className="text-xs text-emerald-600 font-semibold mt-2">
-                      {isCheckin
-                        ? "✓ Existing reservation guest — you may correct their details below before checking in."
-                        : "✓ Using existing guest profile — manual fields below are ignored."}
-                    </p>
-                  )}
-                </div>
+  <div className={sec}>
+    <div>
+      <label className={lbl}>Search Profile</label>
+      <div className="relative">
+        <FaSearch size={14} className="text-slate-400 pointer-events-none"
+          style={{ position: "absolute", left: "16px", top: "50%", transform: "translateY(-50%)", zIndex: 2 }} />
+        <input className={inp} style={{ paddingLeft: "44px" }}
+          placeholder="Search by name, email, or phone…"
+          value={form.guestSearch} onChange={(e) => handleGuestSearch(e.target.value)}
+          disabled={isCheckin} />
+        {searchLoading && <div className="absolute right-4 top-3 w-5 h-5 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin" />}
+      </div>
+      {guestResults.length > 0 && (
+        <div className="mt-2 border border-slate-100 rounded-xl overflow-hidden shadow-xl bg-white max-h-48 overflow-y-auto z-10 relative">
+          {guestResults.map((g) => (
+            <button key={g.guest_id} type="button" onClick={() => selectGuest(g)}
+              className="w-full text-left px-4 py-3 hover:bg-yellow-50/50 text-sm flex justify-between items-center border-b border-slate-50 last:border-0">
+              <span className="font-semibold text-slate-800">{g.first_name} {g.last_name}</span>
+              <span className="text-slate-500 text-xs">{g.phone}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {form.guestId && (
+        <p className="text-xs text-emerald-600 font-semibold mt-2">
+          {isCheckin
+            ? "✓ Existing reservation guest — you may correct their details below before checking in."
+            : "✓ Using existing guest profile — manual fields below are ignored."}
+        </p>
+      )}
+    </div>
 
-                <div className="flex items-center gap-4 text-xs text-slate-400 my-2">
-                  <div className="flex-1 h-px bg-slate-100" />
-                  <span className="font-medium bg-white px-2 text-slate-400">Manual Registration</span>
-                  <div className="flex-1 h-px bg-slate-100" />
-                </div>
+    <div className="flex items-center gap-4 text-xs text-slate-400 my-2">
+      <div className="flex-1 h-px bg-slate-100" />
+      <span className="font-medium bg-white px-2 text-slate-400">Manual Registration</span>
+      <div className="flex-1 h-px bg-slate-100" />
+    </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div><label className={lbl}>First Name *</label>
-                    <input className={inp} placeholder="John" value={form.firstName} onChange={field("firstName")} required disabled={!isCheckin && !!form.guestId} /></div>
-                  <div><label className={lbl}>Last Name *</label>
-                    <input className={inp} placeholder="Smith" value={form.lastName} onChange={field("lastName")} required disabled={!isCheckin && !!form.guestId} /></div>
-                </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div><label className={lbl}>First Name *</label>
+        <input className={inp} placeholder="John" value={form.firstName} onChange={field("firstName")} required disabled={!isCheckin && !!form.guestId} /></div>
+      <div><label className={lbl}>Last Name *</label>
+        <input className={inp} placeholder="Smith" value={form.lastName} onChange={field("lastName")} required disabled={!isCheckin && !!form.guestId} /></div>
+    </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div><label className={lbl}>Phone Number *</label>
-                    <input className={inp} type="tel" placeholder="+1 (555) 000-0000" value={form.phone} onChange={field("phone")} required disabled={!isCheckin && !!form.guestId} /></div>
-                  <div><label className={lbl}>Email Address</label>
-                    <input className={inp} type="email" placeholder="john.smith@example.com" value={form.email} onChange={field("email")} disabled={!isCheckin && !!form.guestId} /></div>
-                </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div><label className={lbl}>Phone Number *</label>
+        <input className={inp} type="tel" placeholder="+1 (555) 000-0000" value={form.phone} onChange={field("phone")} required disabled={!isCheckin && !!form.guestId} /></div>
+      <div><label className={lbl}>Email Address</label>
+        <input className={inp} type="email" placeholder="john.smith@example.com" value={form.email} onChange={field("email")} disabled={!isCheckin && !!form.guestId} /></div>
+    </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div><label className={lbl}>Nationality</label>
-                    <input className={inp} placeholder="e.g. Canadian, Japanese" value={form.nationality} onChange={field("nationality")} disabled={!isCheckin && !!form.guestId} /></div>
-                  <div><label className={lbl}>Gender</label>
-                    <select className={sel} value={form.gender} onChange={field("gender")} disabled={!isCheckin && !!form.guestId}>
-                      <option value="">— Select —</option>
-                      <option value="Male">Male</option>
-                      <option value="Female">Female</option>
-                      <option value="Other">Other</option>
-                    </select></div>
-                </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div><label className={lbl}>Nationality</label>
+        <input className={inp} placeholder="e.g. Canadian, Japanese" value={form.nationality} onChange={field("nationality")} disabled={!isCheckin && !!form.guestId} /></div>
+      <div><label className={lbl}>Gender</label>
+        <select className={sel} value={form.gender} onChange={field("gender")} disabled={!isCheckin && !!form.guestId}>
+          <option value="">— Select —</option>
+          <option value="Male">Male</option>
+          <option value="Female">Female</option>
+          <option value="Other">Other</option>
+        </select></div>
+    </div>
 
-                <label className="flex items-center gap-2.5 px-1 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={!!form.isVip}
-                    onChange={(e) => set("isVip", e.target.checked)}
-                    className="w-4 h-4 rounded border-slate-300 text-yellow-500 focus:ring-yellow-500/40"
-                  />
-                  <span className="text-sm font-semibold text-slate-700">Mark as VIP Guest</span>
-                </label>
+    {/* --- Updated VIP checkbox: proper toggle-style control --- */}
+    <label
+      htmlFor="isVipToggle"
+      className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-yellow-50/40 hover:border-yellow-300 transition-all cursor-pointer select-none"
+    >
+      <div className="flex flex-col">
+        <span className="text-sm font-semibold text-slate-700">VIP Guest</span>
+        <span className="text-[11px] text-slate-400">Flag this guest for priority service and amenities</span>
+      </div>
+      <button
+        type="button"
+        id="isVipToggle"
+        role="switch"
+        aria-checked={!!form.isVip}
+        onClick={() => set("isVip", !form.isVip)}
+        className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors duration-200 ${
+          form.isVip ? "bg-yellow-500" : "bg-slate-300"
+        }`}
+      >
+        <span
+          className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ${
+            form.isVip ? "translate-x-6" : "translate-x-1"
+          }`}
+        />
+      </button>
+    </label>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="md:col-span-1"><label className={lbl}>ID Type *</label>
-                    <select className={sel} value={form.idType} onChange={field("idType")} required disabled={!isCheckin && !!form.guestId}>
-                      <option value="Passport">Passport</option>
-                      <option value="NRC">NRC</option>
-                      <option value="Driver's License">Driver's License</option>
-                      <option value="National ID">National ID</option>
-                    </select></div>
-                  <div className="md:col-span-2"><label className={lbl}>Identification Document Number *</label>
-                    <input className={inp} placeholder="Document serial identifier..." value={form.idNumber} onChange={field("idNumber")} required disabled={!isCheckin && !!form.guestId} /></div>
-                </div>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="md:col-span-1"><label className={lbl}>ID Type *</label>
+        <select className={sel} value={form.idType} onChange={field("idType")} required disabled={!isCheckin && !!form.guestId}>
+          <option value="Passport">Passport</option>
+          <option value="NRC">NRC</option>
+        </select></div>
 
-                {!form.guestId && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FileUpload label="ID Document (Front)" name="idFront" value={form.idFront} onChange={(k,v) => set(k,v)} />
-                    <FileUpload label="ID Document (Back)"  name="idBack"  value={form.idBack}  onChange={(k,v) => set(k,v)} />
-                  </div>
-                )}
+      {form.idType !== "NRC" && (
+        <div className="md:col-span-2"><label className={lbl}>Identification Document Number *</label>
+          <input className={inp} placeholder="Document serial identifier..." value={form.idNumber} onChange={field("idNumber")} required disabled={!isCheckin && !!form.guestId} /></div>
+      )}
+    </div>
 
-                {form.guestId && !isCheckin && (
-                  <button type="button" onClick={() => setForm((p) => ({ ...p, guestId: null, guestSearch: "" }))}
-                    className="text-xs font-semibold text-slate-500 underline">
-                    Clear selection and enter a different guest
-                  </button>
-                )}
-              </div>
-            )}
+    {form.idType === "NRC" && (
+      <div>
+        <label className={lbl}>NRC Number *</label>
+        <NrcInput
+          region={form.nrcRegionCode}
+          township={form.nrcTownship}
+          citizenType={form.nrcCitizenType}
+          number={form.nrcNumber}
+          disabled={!isCheckin && !!form.guestId}
+          onChange={(patch) =>
+            setForm((p) => {
+              const next = { ...p, ...patch };
+              next.idNumber = composeNrc(
+                next.nrcRegionCode,
+                next.nrcTownship,
+                next.nrcCitizenType,
+                next.nrcNumber
+              );
+              return next;
+            })
+          }
+        />
+      </div>
+    )}
 
-            {currentStep === 2 && (
+    {!form.guestId && (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <FileUpload label="ID Document (Front)" name="idFront" value={form.idFront} onChange={(k,v) => set(k,v)} />
+        <FileUpload label="ID Document (Back)"  name="idBack"  value={form.idBack}  onChange={(k,v) => set(k,v)} />
+      </div>
+    )}
+
+    {form.guestId && !isCheckin && (
+      <button type="button" onClick={() => setForm((p) => ({ ...p, guestId: null, guestSearch: "" }))}
+        className="text-xs font-semibold text-slate-500 underline">
+        Clear selection and enter a different guest
+      </button>
+    )}
+  </div>
+)}
+
+{currentStep === 2 && (
               <div className={sec}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div><label className={lbl}>Check-in Date *</label>
@@ -942,14 +991,37 @@ export default function AddReservation({
                             </>
                           )}
 
-                          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <input
-                              className={inp + " py-2.5"}
-                              placeholder="ID Number *"
-                              value={g.idNumber}
-                              disabled={g.saved}
-                              onChange={(e) => updateGuestRow(g.localId, "idNumber", e.target.value)}
-                            />
+                          <div className="mt-3 space-y-3">
+                            {g.idType === "NRC" ? (
+                              <NrcInput
+                                region={g.nrcRegionCode}
+                                township={g.nrcTownship}
+                                citizenType={g.nrcCitizenType}
+                                number={g.nrcNumber}
+                                disabled={g.saved}
+                                onChange={(patch) =>
+                                  setAdditionalGuests((prev) => prev.map((row) => {
+                                    if (row.localId !== g.localId) return row;
+                                    const next = { ...row, ...patch };
+                                    next.idNumber = composeNrc(
+                                      next.nrcRegionCode,
+                                      next.nrcTownship,
+                                      next.nrcCitizenType,
+                                      next.nrcNumber
+                                    );
+                                    return next;
+                                  }))
+                                }
+                              />
+                            ) : (
+                              <input
+                                className={inp + " py-2.5"}
+                                placeholder="ID Number *"
+                                value={g.idNumber}
+                                disabled={g.saved}
+                                onChange={(e) => updateGuestRow(g.localId, "idNumber", e.target.value)}
+                              />
+                            )}
 
                             <select
                               className={sel + " py-2.5"}
@@ -1083,20 +1155,24 @@ export default function AddReservation({
               </button>
             )}
             {currentStep === 1 && (
-              <button type="button" disabled={saving} onClick={submitStep1}
-                className="flex-1 bg-yellow-500 hover:bg-yellow-600 disabled:opacity-60 text-slate-900 font-bold py-3.5 rounded-xl text-sm transition-all shadow-md shadow-yellow-500/20">
-                {saving ? "Saving guest…" : "Continue Next"}
-              </button>
-            )}
+  <button type="button" disabled={saving} onClick={submitStep1}
+    className="flex-1 bg-slate-900 hover:bg-black disabled:opacity-60 text-white font-bold py-3.5 rounded-xl text-sm transition-all shadow-md shadow-slate-900/30">
+    {saving ? "Saving guest…" : "Continue Next"}
+  </button>
+)}
             {currentStep === 2 && (
-              <button type="button" disabled={saving} onClick={submitStep2}
-                className="flex-1 bg-yellow-500 hover:bg-yellow-600 disabled:opacity-60 text-slate-900 font-bold py-3.5 rounded-xl text-sm transition-all shadow-md shadow-yellow-500/20">
-                {saving ? "Saving reservation…" : "Continue Next"}
-              </button>
+              <button
+  type="button"
+  disabled={saving}
+  onClick={submitStep2}
+  className="flex-1 bg-slate-900 hover:bg-black disabled:opacity-60 text-white font-bold py-3.5 rounded-xl text-sm transition-all shadow-md shadow-black-900/10"
+>
+  {saving ? "Saving reservation…" : "Continue Next"}
+</button>
             )}
             {currentStep === 3 && (
               <button type="submit" disabled={saving}
-                className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-bold py-3.5 rounded-xl text-sm transition-all shadow-md shadow-emerald-600/10 flex items-center justify-center gap-2">
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-bold py-3.5 rounded-xl text-sm transition-all shadow-md shadow-blue-900/30 flex items-center justify-center gap-2">
                 <FaCheck size={12} /> {saving ? "Saving…" : isCheckin ? "Confirm Check-In" : "Authorize Booking"}
               </button>
             )}

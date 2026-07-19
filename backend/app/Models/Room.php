@@ -19,17 +19,6 @@ class Room extends Model
         'floor',
         'status',
         'bed_type',
-        'grid_col',
-        'grid_row',
-        'grid_w',
-        'grid_h',
-    ];
-
-    protected $casts = [
-        'grid_col'          => 'integer',
-        'grid_row'          => 'integer',
-        'grid_w'            => 'integer',
-        'grid_h'            => 'integer',
     ];
 
     // ── Relationships ──────────────────────────────────────────────────────

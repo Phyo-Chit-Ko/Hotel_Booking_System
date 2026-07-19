@@ -12,13 +12,18 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('guests', function (Blueprint $table) {
-            $table->id('guest_id'); 
+            $table->id('guest_id');
             $table->string('first_name');
             $table->string('last_name');
-            $table->string('email')->unique();
+            $table->string('email')->nullable()->unique();
             $table->string('phone');
-            $table->string('id_number_NRC');
-            $table->string('nationality');
+            $table->string('id_number');
+            $table->boolean('is_vip')->default(false);
+            $table->string('id_front_path')->nullable();
+            $table->string('id_back_path')->nullable();
+            $table->string('nationality')->nullable();
+            $table->string('gender')->nullable(); // Male | Female | Other
+            $table->string('id_type')->default('Passport');
             $table->timestamps();
         });
     }

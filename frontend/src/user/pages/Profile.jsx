@@ -4,7 +4,7 @@ import axios from "axios";
 import "./Profile.css";
 import Swal from "sweetalert2"; // <--- Add this at the top
 import { useNavigate } from "react-router-dom";
-
+import { API_BASE_URL } from "../../config/api";
 export default function Profile() {
 
   const navigate = useNavigate();
@@ -21,7 +21,7 @@ const { user, setUser, logout } = useAuth();
 });
 //   const handleSave = async () => {
 //   try {
-//     const res = await axios.put("http://localhost:8000/api/profile/update", {
+//     const res = await axios.put("API_BASE_URL/api/profile/update", {
 //       user_id: user.user_id,
 //       name: form.name,
 //       email: form.email,
@@ -89,12 +89,14 @@ const { user, setUser, logout } = useAuth();
     text: "You will be logged out of your account.",
     icon: "warning",
     showCancelButton: true,
-    confirmButtonColor: "#d33",
-    cancelButtonColor: "#c79b56",
     confirmButtonText: "Yes, logout",
     cancelButtonText: "Cancel",
-    // This property swaps the button positions
-    reverseButtons: true 
+    reverseButtons: true,
+    buttonsStyling: false, // Disables default swal styling so YOUR css takes over
+    customClass: {
+      confirmButton: "swal-btn-custom swal-confirm",
+      cancelButton: "swal-btn-custom swal-cancel"
+    }
   }).then((result) => {
     if (result.isConfirmed) {
       logout();
@@ -186,7 +188,7 @@ const { user, setUser, logout } = useAuth();
                 className="eye-icon"
                 onClick={() => setShowPassword(!showPassword)}
               >
-                {showPassword ? "🙈" : "👁️"}
+                {showPassword ? "👁️" : "🙈" }
               </span>
 
             </div>

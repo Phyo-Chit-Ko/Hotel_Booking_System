@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Booking extends Model
 {
@@ -15,6 +16,7 @@ class Booking extends Model
     protected $fillable = [
         'user_id',
         'room_type_id',
+        'booking_number',
         'first_name',
         'last_name',
         'email',
@@ -61,5 +63,10 @@ class Booking extends Model
     public function handledBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'handled_by', 'user_id');
+    }
+
+    public function roomAssignments(): HasMany
+    {
+        return $this->hasMany(BookingRoomAssignment::class, 'booking_id', 'booking_id');
     }
 }

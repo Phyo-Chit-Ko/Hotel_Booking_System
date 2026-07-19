@@ -3,6 +3,7 @@ import AdminLayout from "../layouts/AdminLayout";
 import { FaPlus, FaSearch, FaTrash, FaEdit, FaTshirt, FaUtensils, FaCar } from "react-icons/fa";
 import AddExtraChargeModal from "../../admin/components/AddExtraChargeModal";
 import axios from "axios";
+import Swal from "sweetalert2";
 
 const ExtraServices = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -11,7 +12,7 @@ const ExtraServices = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [metrics, setMetrics] = useState({ laundry_count: 0, car_rental_count: 0, food_count: 0 });
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 6;
 
   const fetchServices = async () => {
     try {
@@ -63,15 +64,27 @@ const ExtraServices = () => {
   const closeModal = () => { setIsModalOpen(false); setChargeToEdit(null); };
 
   const handleDelete = async (id) => {
-    if (window.confirm("Are you sure you want to delete this charge?")) {
-      try {
-        await axios.delete(`/api/services/${id}`);
-        alert("Deleted successfully!");
-        fetchServices();
-      } catch (error) {
-        console.error("Delete Error:", error);
-        alert("Failed to delete record: " + (error.response?.data?.message || error.message));
-      }
+    const result = await Swal.fire({
+      icon: "warning",
+      title: "Are you sure?",
+      text: "This charge will be permanently deleted.",
+      showCancelButton: true,
+      confirmButtonColor: "#dc2626",
+      confirmButtonText: "Yes, delete",
+    });
+    if (!result.isConfirmed) return;
+
+    try {
+      await axios.delete(`/api/services/${id}`);
+      Swal.fire({ icon: "success", title: "Deleted successfully!" });
+      fetchServices();
+    } catch (error) {
+      console.error("Delete Error:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Failed to delete record",
+        text: error.response?.data?.message || error.message,
+      });
     }
   };
   async function handleSaveCharge(data, editingId) {
@@ -85,7 +98,11 @@ const ExtraServices = () => {
       closeModal();
     } catch (error) {
       console.error("API Storage Error:", error.response?.data || error.message);
-      alert("Error saving: " + (error.response?.data?.message || "Verify Laravel setup properties."));
+      Swal.fire({
+        icon: "error",
+        title: "Error saving",
+        text: error.response?.data?.message || "Verify Laravel setup properties.",
+      });
     }
   }
 
@@ -140,7 +157,6 @@ const ExtraServices = () => {
                   <th className="px-5 py-3.5">Guest Name</th>
                   <th className="px-5 py-3.5">Service Type</th>
                   <th className="px-5 py-3.5">Charge Date</th>
-                  <th className="px-5 py-3.5">Description</th>
                   <th className="px-5 py-3.5">Food Items</th>
                   <th className="px-5 py-3.5 text-center">QTY</th>
                   <th className="px-5 py-3.5">Rate</th>
@@ -167,17 +183,7 @@ const ExtraServices = () => {
                           </span>
                         </td>
                         <td className="px-5 py-4 font-mono text-xs text-slate-500">{item.charge_date}</td>
-                        <td className="px-5 py-4 text-slate-600 max-w-[150px]">
-                          <div className="relative group cursor-help">
-                            <div className="truncate">{item.description || <span className="text-slate-300">-</span>}</div>
-                            {item.description && (
-                              <div className="absolute hidden group-hover:block bg-slate-900 text-white text-xs rounded-xl p-3 bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 shadow-xl z-50 whitespace-normal break-words border border-slate-700/50">
-                                <div className="font-bold text-amber-400 mb-1 flex items-center gap-1.5">Service Details:</div>
-                                <p className="text-slate-200 leading-relaxed">{item.description}</p>
-                              </div>
-                            )}
-                          </div>
-                        </td>
+                        
                         <td className="px-5 py-4 text-slate-600 max-w-[150px]">
                           <div className="relative group cursor-help">
                             <div className="truncate">

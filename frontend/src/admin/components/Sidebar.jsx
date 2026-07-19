@@ -2,7 +2,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import {
   FaChartPie, FaBed, FaHotel, FaUsers, FaCalendarAlt,
   FaCreditCard, FaConciergeBell, FaUtensils,
-  FaUserShield, FaTimes
+  FaUserShield, FaTimes, FaChartLine
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
 
@@ -46,7 +46,7 @@ export default function Sidebar({ isOpen = false, onClose }) {
         { name: "Room Type Management", path: "/admin/room-types", icon: <FaHotel /> },
         { name: "User Management", path: "/admin/user_management", icon: <FaUserShield /> },
         { name: "Restaurant", path: "/admin/restaurant", icon: <FaUtensils /> },
-        { name: "Reports", path: "/admin/reports", icon: <FaUtensils /> },
+        { name: "Reports", path: "/admin/reports", icon: <FaChartLine /> },
       ]
     }
   ]
@@ -77,15 +77,15 @@ export default function Sidebar({ isOpen = false, onClose }) {
           ${isOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
       >
         {/* Branding Header */}
-        <div className="relative px-5 pt-6 pb-5 shrink-0">
+        <div className="relative px-5 pt-6 pb-2 shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-300 via-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20 ring-1 ring-white/20 shrink-0">
-                <span className="text-slate-950 font-extrabold text-sm tracking-tight">HG</span>
+                <span className="text-slate-950 font-extrabold text-sm tracking-tight">RH</span>
               </div>
               <div className="min-w-0">
                 <h1 className="text-white font-bold text-[15px] tracking-tight leading-tight truncate">
-                  Harbor Grand
+                  Relax Hotel
                 </h1>
                 <p className="text-slate-500 text-[10px] font-semibold uppercase tracking-[0.12em] mt-0.5">
                   Hotel Management
@@ -111,14 +111,14 @@ export default function Sidebar({ isOpen = false, onClose }) {
           {menuGroups.map((group) => (
             <div key={group.groupName}>
               {/* Category Header Label */}
-              <div className="flex items-center gap-2 px-3 mb-2">
+              <div className="flex items-center gap- px-3 mb-0">
                 <span className="w-3 h-px bg-slate-600" />
                 <h2 className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
                   {group.groupName}
                 </h2>
               </div>
 
-              <ul className="space-y-0.5">
+              <ul className="space-y-0.1">
                 {group.items.map((item) => {
                   const isActive = location.pathname === item.path;
                   return (
@@ -126,7 +126,7 @@ export default function Sidebar({ isOpen = false, onClose }) {
                       <NavLink
                         to={item.path}
                         onClick={onClose}
-                        className={`group relative flex items-center gap-3 pl-3.5 pr-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-all duration-150 ${
+                        className={`group relative flex items-center gap-3 pl-3.5 pr-3 py-1.5 rounded-xl text-[13.5px] font-medium transition-all duration-150 ${
                           isActive
                             ? "bg-white/[0.06] text-white"
                             : "text-slate-400 hover:bg-white/[0.045] hover:text-slate-100"

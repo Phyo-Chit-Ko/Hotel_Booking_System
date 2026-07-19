@@ -17,8 +17,13 @@ return new class extends Migration
             $table->decimal('amount', 10, 2);
             $table->string('payment_method');
             $table->date('date');
-            $table->string('transaction_no');
-            $table->text('description')->nullable();
+            $table->string('transaction_no')->nullable();
+            $table->text('comment')->nullable();
+            $table->foreignId('handled_by')
+                ->nullable()
+                ->constrained('users', 'user_id')
+                ->nullOnDelete();
+            $table->string('payment_proof_path')->nullable();
             $table->timestamps();
         });
     }

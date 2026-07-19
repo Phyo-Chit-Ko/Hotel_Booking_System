@@ -15,7 +15,7 @@ class Payment extends Model
         'payment_method',
         'date',
         'transaction_no',
-        'description',
+        'comment',
         'payment_proof_path',
         'handled_by',
     ];

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\RoomType;
+use App\Models\Room;
 use Illuminate\Support\Facades\Storage;
 
 class RoomTypeController extends Controller
@@ -30,7 +31,9 @@ class RoomTypeController extends Controller
             'name'              => 'required|string|max:255',
             'base_price'        => 'required|numeric|min:0',
             'extra_person_rate' => 'required|numeric|min:0',
+            'extra_bed_fee'     => 'nullable|numeric|min:0',
             'capacity'          => 'required|integer|min:1',
+            'maximum_capacity'  => 'required|integer|min:1|gte:capacity',
             'breakfast'         => 'required|boolean',
             'bathtub'           => 'required|boolean',
             'image'             => 'nullable|file|image|max:5120',
@@ -42,7 +45,9 @@ class RoomTypeController extends Controller
             'name'              => $request->name,
             'base_price'        => $request->base_price,
             'extra_person_rate' => $request->extra_person_rate,
+            'extra_bed_fee'     => $request->extra_bed_fee ?? 0,
             'capacity'          => $request->capacity,
+            'maximum_capacity'  => $request->maximum_capacity,
             'breakfast'         => $request->breakfast,
             'bathtub'           => $request->bathtub,
             'status'            => 'Active',
@@ -66,7 +71,9 @@ class RoomTypeController extends Controller
             'name'              => 'required|string|max:255',
             'base_price'        => 'required|numeric|min:0',
             'extra_person_rate' => 'required|numeric|min:0',
+            'extra_bed_fee'     => 'nullable|numeric|min:0',
             'capacity'          => 'required|integer|min:1',
+            'maximum_capacity'  => 'required|integer|min:1|gte:capacity',
             'breakfast'         => 'required|boolean',
             'bathtub'           => 'required|boolean',
             'image'             => 'nullable|file|image|max:5120',
@@ -86,7 +93,9 @@ class RoomTypeController extends Controller
             'name'              => $request->name,
             'base_price'        => $request->base_price,
             'extra_person_rate' => $request->extra_person_rate,
+            'extra_bed_fee'     => $request->extra_bed_fee ?? 0,
             'capacity'          => $request->capacity,
+            'maximum_capacity'  => $request->maximum_capacity,
             'breakfast'         => $request->breakfast,
             'bathtub'           => $request->bathtub,
             'code'              => $request->code,
@@ -113,6 +122,13 @@ class RoomTypeController extends Controller
     public function destroy(int $id)
     {
         $roomType = RoomType::findOrFail($id);
+
+        if (Room::where('room_type_id', $id)->exists()) {
+            return response()->json([
+                'message' => 'Cannot delete this room type: rooms still belong to it. Reassign or delete those rooms first.',
+            ], 422);
+        }
+
         if ($roomType->image) {
             Storage::disk('public')->delete($roomType->image);
         }

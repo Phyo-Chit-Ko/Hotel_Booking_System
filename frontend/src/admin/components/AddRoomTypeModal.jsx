@@ -1,15 +1,18 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { FaTimes, FaChevronDown, FaImage, FaSpinner } from "react-icons/fa";
+import { API_BASE_URL } from "../../config/api";
 
-const BACKEND_URL = "http://localhost:8000";
+// const BACKEND_URL = "http://localhost:8000";
 
 const initialFormState = {
   name:               "",
   code:               "",
   base_price:         "",
   extra_person_rate:  "0",
+  extra_bed_fee:      "0",
   capacity:           "2",
+  maximum_capacity:   "2",
   breakfast:          false,
   bathtub:            false,
   image:              null,
@@ -28,13 +31,15 @@ export default function AddRoomTypeModal({ isOpen, onClose, onSave, roomToEdit =
       name:              room.name       || "",
       code:              room.code       || "",
       capacity:          String(room.capacity || "2"),
+      maximum_capacity:  String(room.maximum_capacity || room.capacity || "2"),
       base_price:        room.base_price || "",
       extra_person_rate: String(room.extra_person_rate ?? "0"),
+      extra_bed_fee:     String(room.extra_bed_fee ?? "0"),
       breakfast:         room.breakfast === 1 || room.breakfast === true,
       bathtub:           room.bathtub   === 1 || room.bathtub   === true,
       image:             null,
     });
-    setImagePreview(room.image ? `${BACKEND_URL}/storage/${room.image}` : null);
+    setImagePreview(room.image ? `${API_BASE_URL}/storage/${room.image}` : null);
     setRoomCount(room.num_of_rooms ?? room.numOfRooms ?? 0);
   };
 
@@ -98,6 +103,14 @@ export default function AddRoomTypeModal({ isOpen, onClose, onSave, roomToEdit =
 
     if (formData.extra_person_rate !== "" && parseFloat(formData.extra_person_rate) < 0) {
       tempErrors.extra_person_rate = "Rate cannot be negative.";
+    }
+
+    if (formData.maximum_capacity === "" || parseInt(formData.maximum_capacity, 10) < parseInt(formData.capacity, 10)) {
+      tempErrors.maximum_capacity = "Maximum capacity must be greater than or equal to standard capacity.";
+    }
+
+    if (formData.extra_bed_fee !== "" && parseFloat(formData.extra_bed_fee) < 0) {
+      tempErrors.extra_bed_fee = "Fee cannot be negative.";
     }
 
     setErrors(tempErrors);
@@ -211,11 +224,11 @@ export default function AddRoomTypeModal({ isOpen, onClose, onSave, roomToEdit =
           {/* Capacity + Base Price */}
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
-              <label className="block text-sm font-semibold text-slate-700">Max Guest Capacity</label>
+              <label className="block text-sm font-semibold text-slate-700">Standard Capacity</label>
               <div className="relative flex items-center">
-                <select 
-                  name="capacity" 
-                  value={formData.capacity} 
+                <select
+                  name="capacity"
+                  value={formData.capacity}
                   onChange={handleChange}
                   className="px-4 pr-10 py-2.5 bg-white border border-slate-200 rounded-xl w-full text-sm focus:outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-300 appearance-none cursor-pointer font-bold text-slate-700"
                 >
@@ -241,6 +254,25 @@ export default function AddRoomTypeModal({ isOpen, onClose, onSave, roomToEdit =
             </div>
           </div>
 
+          {/* Maximum Capacity + Extra Bed Fee */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-2">
+              <label className="block text-sm font-semibold text-slate-700">Maximum Capacity</label>
+              <input type="number" name="maximum_capacity" min={formData.capacity || 1} value={formData.maximum_capacity}
+                onChange={handleChange} className={inp("maximum_capacity")} />
+              {errors.maximum_capacity && <p className="text-xs text-rose-500 mt-1.5 ml-1">{errors.maximum_capacity}</p>}
+              <p className="text-xs text-slate-400 mt-1 ml-1">
+                Absolute max guests allowed (standard capacity + extra beds).
+              </p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="block text-sm font-semibold text-slate-700">Extra Bed Fee</label>
+              <input type="number" name="extra_bed_fee" step="0.01" value={formData.extra_bed_fee}
+                onChange={handleChange} className={inp("extra_bed_fee")} />
+              {errors.extra_bed_fee && <p className="text-xs text-rose-500 mt-1.5 ml-1">{errors.extra_bed_fee}</p>}
+            </div>
+          </div>
+
           {/* Extra Person Rate */}
           <div className="flex flex-col gap-2">
             <label className="block text-sm font-semibold text-slate-700">Extra Person Rate</label>
@@ -250,7 +282,7 @@ export default function AddRoomTypeModal({ isOpen, onClose, onSave, roomToEdit =
             </div>
             {errors.extra_person_rate && <p className="text-xs text-rose-500 mt-1.5 ml-1">{errors.extra_person_rate}</p>}
             <p className="text-xs text-slate-400 mt-1 ml-1">
-              Charged per extra guest beyond double occupancy, per night.
+              Charged per extra guest beyond standard capacity, per night.
             </p>
           </div>
 

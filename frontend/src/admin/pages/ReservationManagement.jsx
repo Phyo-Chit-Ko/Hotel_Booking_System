@@ -6,6 +6,7 @@ import MoveRoomModal from "../components/MoveRoomModal";
 import ChargesLedgerModal from "../components/ChargesLedgerModal";
 import EditReservationModal from "../components/EditReservationModal";
 import ExtendStayModal from "../components/ExtendStayModal";
+import ReservationDetailModal from "../components/ReservationDetailModal";
 import {
   FaPlus,
   FaSearch,
@@ -14,10 +15,6 @@ import {
   FaTimes,
   FaMoneyBillWave,
   FaExclamationTriangle,
-  FaCalendarPlus,
-  FaExchangeAlt,
-  FaWallet,
-  FaEdit,
 } from "react-icons/fa";
 
 export default function ReservationManagement() {
@@ -35,14 +32,15 @@ export default function ReservationManagement() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [minimizedStep, setMinimizedStep] = useState(null);
-  const [selectedDate, setSelectedDate] = useState(getTodayDateString());
+  const [selectedDate, setSelectedDate] = useState("");
+  const TODAY = getTodayDateString();
 
   const [activeFilter, setActiveFilter] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [roomTypes, setRoomTypes] = useState([]);
   const [roomTypeFilter, setRoomTypeFilter] = useState("All Room Types");
 
-  const PAGE_SIZE = 10;
+  const PAGE_SIZE = 6;
   const [page, setPage] = useState(1);
 
   const [checkinReservationId, setCheckinReservationId] = useState(null);
@@ -57,6 +55,14 @@ export default function ReservationManagement() {
   const [ledgerMode, setLedgerMode] = useState("view");
   const [ledgerRefreshKey, setLedgerRefreshKey] = useState(0);
   const [editBooking, setEditBooking] = useState(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [detailBooking, setDetailBooking] = useState(null);
+
+  const [apiStats, setApiStats] = useState({
+    daily_check_in: { completed: 0, due: 0 },
+    daily_check_out: { completed: 0, due: 0 },
+    occupied_rooms: 0,
+  });
 
   const loadBookings = async () => {
     setLoading(true);
@@ -66,6 +72,7 @@ export default function ReservationManagement() {
       if (!res.ok) throw new Error("Failed to load reservations");
       const data = await res.json();
       setBookings(data.bookings || []);
+      if (data.stats) setApiStats(data.stats);
     } catch (err) {
       setLoadError(err.message);
     } finally {
@@ -84,7 +91,6 @@ export default function ReservationManagement() {
       .catch(() => setRoomTypes([]));
   }, []);
 
-  // Reset to page 1 whenever the visible set of rows would change shape.
   useEffect(() => {
     setPage(1);
   }, [activeFilter, selectedDate, searchTerm, roomTypeFilter]);
@@ -99,6 +105,8 @@ export default function ReservationManagement() {
         return "bg-blue-50 text-blue-700 border border-blue-100 font-medium";
       case "Check-In":
         return "bg-amber-50 text-amber-700 border border-amber-200 font-semibold";
+      case "Check-Out":
+        return "bg-orange-50 text-orange-700 border border-orange-200 font-semibold";
       case "No-Show":
         return "bg-red-50 text-red-600 border border-red-100 font-semibold";
       case "Checked-Out":
@@ -120,26 +128,27 @@ export default function ReservationManagement() {
 
   const isRealCheckOut = (b, date) => b.checkOut === date && b.rawStatus !== "Moved";
 
-  const hasCheckedIn = (b) => ["Checked-In", "Checked-Out", "Moved"].includes(b.rawStatus);
-
-  const stats = useMemo(() => {
-    const checkInTotal = primaryBookings.filter((b) => b.checkIn === selectedDate).length;
-    const checkInDone = primaryBookings.filter((b) => b.checkIn === selectedDate && hasCheckedIn(b)).length;
-    const checkOutTotal = primaryBookings.filter((b) => isRealCheckOut(b, selectedDate)).length;
-    const checkOutDone = primaryBookings.filter((b) => isRealCheckOut(b, selectedDate) && b.rawStatus === "Checked-Out").length;
-    const inHouse = primaryBookings.filter((b) => isInHouseOn(b, selectedDate)).length;
-    return { checkInDone, checkInTotal, checkOutDone, checkOutTotal, inHouse };
-  }, [primaryBookings, selectedDate]);
+  // Backend-computed (see Api\ReservationController::index()'s `stats` block).
+  const stats = {
+    checkInDone: apiStats.daily_check_in?.completed ?? 0,
+    checkInTotal: apiStats.daily_check_in?.due ?? 0,
+    checkOutDone: apiStats.daily_check_out?.completed ?? 0,
+    checkOutTotal: apiStats.daily_check_out?.due ?? 0,
+    inHouse: apiStats.occupied_rooms ?? 0,
+  };
 
   const filteredBookings = useMemo(() => {
-    let rows = bookings;
+    // Only the primary guest gets a row in the main table — additional
+    // guests sharing a room are shown inside that reservation's Details popup.
+    let rows = primaryBookings;
+    const cardDate = selectedDate || TODAY;
 
     if (activeFilter === "checkin") {
-      rows = rows.filter((b) => b.checkIn === selectedDate);
+      rows = rows.filter((b) => b.checkIn === cardDate);
     } else if (activeFilter === "checkout") {
-      rows = rows.filter((b) => isRealCheckOut(b, selectedDate));
+      rows = rows.filter((b) => isRealCheckOut(b, cardDate));
     } else if (activeFilter === "inhouse") {
-      rows = rows.filter((b) => isInHouseOn(b, selectedDate));
+      rows = rows.filter((b) => isInHouseOn(b, cardDate));
     } else if (selectedDate) {
       rows = rows.filter((b) => b.checkIn === selectedDate || b.checkOut === selectedDate);
     }
@@ -151,13 +160,13 @@ export default function ReservationManagement() {
     const term = searchTerm.trim().toLowerCase();
     if (term) {
       rows = rows.filter((b) =>
-        [b.bookingNumber, b.guestName, b.roomNumber, b.roomType, b.source, b.status, String(b.id)]
+        [b.bookingNumber, b.sourceBookingNumber, b.guestName, b.roomNumber, b.roomType, b.source, b.status, String(b.id)]
           .some((field) => (field ?? "").toString().toLowerCase().includes(term))
       );
     }
 
     return rows;
-  }, [bookings, activeFilter, selectedDate, searchTerm, roomTypeFilter]);
+  }, [primaryBookings, activeFilter, selectedDate, searchTerm, roomTypeFilter, TODAY]);
 
   const totalPages = Math.max(1, Math.ceil(filteredBookings.length / PAGE_SIZE));
   const pagedBookings = useMemo(
@@ -165,9 +174,6 @@ export default function ReservationManagement() {
     [filteredBookings, page]
   );
 
-  // Print all rows matching the current filters (search/date/room type),
-  // ignoring on-screen pagination — same convention as InvoiceView.jsx's
-  // window.print()-based export, no PDF/Excel library involved.
   const handleExport = () => {
     window.print();
   };
@@ -338,7 +344,7 @@ export default function ReservationManagement() {
             className={statCardClass("inhouse")}
           >
             <div>
-              <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">In-House Today</p>
+              <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Occupied Rooms</p>
               <h3 className="text-2xl font-semibold text-slate-900 tracking-tight mt-0.5">
                 {loading ? "…" : stats.inHouse}
               </h3>
@@ -381,6 +387,17 @@ export default function ReservationManagement() {
                 onChange={(e) => setSelectedDate(e.target.value)}
               />
             </div>
+
+            {selectedDate && (
+              <button
+                type="button"
+                onClick={() => setSelectedDate("")}
+                className="h-11 px-3 flex items-center gap-1.5 text-xs font-medium text-slate-600 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition focus:outline-none focus:ring-0"
+              >
+                <FaTimes className="text-[10px]" />
+                Clear date
+              </button>
+            )}
 
             {activeFilter && (
               <button
@@ -433,140 +450,100 @@ export default function ReservationManagement() {
           </div>
 
           <div className="overflow-x-auto border border-slate-100 rounded-xl">
-            <table className="w-full text-left text-sm text-slate-600 border-collapse">
+            <table className="w-full table-fixed text-left text-xs text-slate-600 border-collapse">
+              <colgroup>
+                <col style={{ width: "5%" }} />
+                <col style={{ width: "12%" }} />
+                <col style={{ width: "12%" }} />
+                <col style={{ width: "8%" }} />
+                <col style={{ width: "14%" }} />
+                <col style={{ width: "11%" }} />
+                <col style={{ width: "11%" }} />
+                <col style={{ width: "6%" }} />
+                <col style={{ width: "6%" }} />
+                <col style={{ width: "8%" }} />
+                <col style={{ width: "7%" }} />
+              </colgroup>
               <thead>
                 <tr className="text-slate-500 font-semibold text-xs uppercase tracking-wider border-b border-slate-200 bg-slate-50">
-                  <th className="px-5 py-2">ID</th>
-                  <th className="px-5 py-2">Guest Name</th>
-                  <th className="px-5 py-2">Guest Type</th>
-                  <th className="px-5 py-2">Room</th>
-                  <th className="px-5 py-2">Room Type</th>
-                  <th className="px-5 py-2">Check-In</th>
-                  <th className="px-5 py-2">Check-Out</th>
-                  <th className="px-5 py-2 text-center">Nights</th>
-                  <th className="px-5 py-2 text-center">Guests</th>
-                  <th className="px-5 py-2">Source</th>
-                  <th className="px-5 py-2 text-center">Status</th>
-                  <th className="px-5 py-2 text-right">Total Amount</th>
-                  <th className="px-5 py-2 text-right">Balance</th>
-                  <th className="px-5 py-2">Handled By</th>
-                  <th className="px-5 py-2 text-center no-print">Action</th>
+                  <th className="px-3 py-2">ID</th>
+                  <th className="px-3 py-2">First Name</th>
+                  <th className="px-3 py-2">Last Name</th>
+                  <th className="px-3 py-2">Room</th>
+                  <th className="px-3 py-2">Room Type</th>
+                  <th className="px-3 py-2">Check-In</th>
+                  <th className="px-3 py-2">Check-Out</th>
+                  <th className="px-3 py-2 text-center">Nights</th>
+                  <th className="px-3 py-2 text-center">Guests</th>
+                  <th className="px-3 py-2 text-center">Status</th>
+                  <th className="px-3 py-2 text-center no-print">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {loading && (
-                  <tr><td colSpan={15} className="px-5 py-6 text-center text-slate-400">Loading reservations…</td></tr>
+                  <tr><td colSpan={11} className="px-5 py-6 text-center text-slate-400">Loading reservations…</td></tr>
                 )}
                 {!loading && loadError && (
-                  <tr><td colSpan={15} className="px-5 py-6 text-center text-red-500">{loadError}</td></tr>
+                  <tr><td colSpan={11} className="px-5 py-6 text-center text-red-500">{loadError}</td></tr>
                 )}
                 {!loading && !loadError && filteredBookings.length === 0 && (
-                  <tr><td colSpan={15} className="px-5 py-6 text-center text-slate-400">
+                  <tr><td colSpan={11} className="px-5 py-6 text-center text-slate-400">
                     {bookings.length === 0 ? "No reservations yet." : "No reservations match this filter."}
                   </td></tr>
                 )}
-                {!loading && !loadError && pagedBookings.map((booking, index) => (
+                {!loading && !loadError && pagedBookings.map((booking, index) => {
+                  const [fallbackFirst, ...fallbackRest] = (booking.guestName || "").split(" ");
+                  const firstName = booking.firstName || fallbackFirst || "";
+                  const lastName = booking.lastName || fallbackRest.join(" ") || "";
+                  return (
                   <tr key={booking.rowId} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="px-5 py-2 text-slate-500 font-medium font-mono">{(page - 1) * PAGE_SIZE + index + 1}</td>
-                    <td className="px-5 py-2 font-medium text-slate-900">{booking.guestName}</td>
-                    <td className="px-5 py-2">
-                      <span className={`px-2 py-0.5 rounded-md text-xs font-semibold ${
-                        booking.guestType === "Primary"
-                          ? "bg-amber-50 text-amber-700 border border-amber-100"
-                          : "bg-slate-50 text-slate-500 border border-slate-100"
-                      }`}>
-                        {booking.guestType}
-                      </span>
-                    </td>
-                    <td className="px-5 py-2 font-mono font-medium text-slate-700">{booking.roomNumber}</td>
-                    <td className="px-5 py-2 text-slate-600">{booking.roomType}</td>
-                    <td className="px-5 py-2 font-mono text-xs text-slate-500">{booking.checkIn}</td>
-                    <td className="px-5 py-2 font-mono text-xs text-slate-500">{booking.checkOut}</td>
-                    <td className="px-5 py-2 text-center font-mono text-slate-700">{booking.nights}</td>
-                    <td className="px-5 py-2 text-center font-mono text-slate-700">{booking.totalGuests}</td>
-                    <td className="px-5 py-2 text-slate-600">{booking.source}</td>
-                    <td className="px-5 py-2 text-center">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium inline-block ${getStatusBadgeClass(booking.status)}`}>
+                    <td className="px-3 py-2 text-slate-500 font-medium font-mono">{(page - 1) * PAGE_SIZE + index + 1}</td>
+                    <td className="px-3 py-2 font-medium text-slate-900 truncate" title={firstName}>{firstName}</td>
+                    <td className="px-3 py-2 font-medium text-slate-900 truncate" title={lastName}>{lastName}</td>
+                    <td className="px-3 py-2 font-mono font-medium text-slate-700">{booking.roomNumber}</td>
+                    <td className="px-3 py-2 text-slate-600 truncate" title={booking.roomType}>{booking.roomType}</td>
+                    <td className="px-3 py-2 font-mono text-slate-500">{booking.checkIn}</td>
+                    <td className="px-3 py-2 font-mono text-slate-500">{booking.checkOut}</td>
+                    <td className="px-3 py-2 text-center font-mono text-slate-700">{booking.nights}</td>
+                    <td className="px-3 py-2 text-center font-mono text-slate-700">{booking.totalGuests}</td>
+                    <td className="px-3 py-2 text-center">
+                      <span className={`px-2 py-1 rounded-full font-medium inline-block ${getStatusBadgeClass(booking.status)}`}>
                         {booking.status}
                       </span>
                     </td>
-                    <td className="px-5 py-2 text-right font-mono font-semibold text-slate-900">{booking.totalAmount}</td>
-                    <td className="px-5 py-2 text-right font-mono">
-                      {booking.guestType === "Primary" ? (
-                        <div className="flex items-center justify-end gap-2">
-                          {booking.remainingAmount > 0 ? (
-                            <span className="font-semibold text-amber-600">
-                              ${booking.remainingAmount.toFixed(2)}
-                            </span>
-                          ) : (
-                            <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-md">
-                              Paid
-                            </span>
-                          )}
-                          <button
-                            type="button"
-                            title="Check Balance"
-                            onClick={() => handleOpenLedger(booking)}
-                            className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-100 transition no-print focus:outline-none focus:ring-0"
-                          >
-                            <FaWallet size={12} />
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-slate-300">—</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-2 text-slate-500">{booking.handledBy || "—"}</td>
-                    <td className="px-5 py-2 text-center no-print">
+                    <td className="px-3 py-2 text-center no-print">
                       <div className="flex flex-col items-center gap-1.5">
-                        {booking.guestType === "Primary" && (booking.status === "Check-In" || booking.status === "No-Show") && (
+                        {(booking.status === "Check-In" || booking.status === "No-Show") && (
                           <button onClick={() => handleOpenCheckIn(booking.id)}
-                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition w-full focus:outline-none focus:ring-0">
+                            className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg transition w-full focus:outline-none focus:ring-0">
                             Check-In
                           </button>
                         )}
 
-                        {booking.guestType === "Primary" && booking.status === "Occupied" && (
+                        {(booking.status === "Occupied" || booking.status === "Check-Out") && (
                           <button onClick={() => handleCheckOutClick(booking)}
-                            className="px-3 py-1.5 bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg transition w-full focus:outline-none focus:ring-0">
+                            className="px-2.5 py-1.5 bg-slate-700 hover:bg-slate-800 text-white font-semibold rounded-lg transition w-full focus:outline-none focus:ring-0">
                             Check-Out
                           </button>
                         )}
 
-                        {booking.guestType === "Primary" && booking.rawStatus === "Moved" && (
-                          <span className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-500 text-[11px] font-semibold border border-slate-200 w-full text-center">
-                            {booking.movedToRoom ? `Moved to Room ${booking.movedToRoom}` : "Moved"}
+                        {booking.rawStatus === "Moved" && (
+                          <span className="px-2 py-1 rounded-md bg-slate-100 text-slate-500 text-[11px] font-semibold border border-slate-200 w-full text-center">
+                            {booking.movedToRoom ? `Moved to ${booking.movedToRoom}` : "Moved"}
                           </span>
                         )}
 
-                        {booking.guestType === "Primary" &&
-                          booking.rawStatus !== "Checked-Out" &&
-                          booking.rawStatus !== "Moved" && (
-                          <div className="flex gap-1 w-full">
-                            {booking.remainingAmount > 0 && (
-                              <button title="Record Payment" onClick={() => setPaymentBooking(booking)}
-                                className="flex-1 px-2 py-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-700 text-[11px] font-semibold rounded-lg transition focus:outline-none focus:ring-0">
-                                <FaMoneyBillWave className="mx-auto" />
-                              </button>
-                            )}
-                            <button title="Edit" onClick={() => setEditBooking(booking)}
-                              className="flex-1 px-2 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 text-[11px] font-semibold rounded-lg transition focus:outline-none focus:ring-0">
-                              <FaEdit className="mx-auto" />
-                            </button>
-                            <button title="Extend Stay" onClick={() => setExtendBooking(booking)}
-                              className="flex-1 px-2 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 text-[11px] font-semibold rounded-lg transition focus:outline-none focus:ring-0">
-                              <FaCalendarPlus className="mx-auto" />
-                            </button>
-                            <button title="Move Room" onClick={() => { setMoveRoomPrefill(null); setMoveRoomBooking(booking); }}
-                              className="flex-1 px-2 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 text-[11px] font-semibold rounded-lg transition focus:outline-none focus:ring-0">
-                              <FaExchangeAlt className="mx-auto" />
-                            </button>
-                          </div>
-                        )}
+                        <button
+                          onClick={() => { setDetailBooking(booking); setIsDetailOpen(true); }}
+                          className="px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-semibold rounded-lg transition w-full focus:outline-none focus:ring-0"
+                        >
+                          Details
+                        </button>
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -614,7 +591,7 @@ export default function ReservationManagement() {
         <table className="w-full text-left" style={{ borderCollapse: "collapse", border: "1px solid #94a3b8", fontSize: "11px" }}>
           <thead>
             <tr style={{ backgroundColor: "#0f172a" }}>
-              {["#", "Guest Name", "Room", "Room Type", "Check-In", "Check-Out", "Nights", "Guests", "Source", "Status", "Total Amount", "Balance", "Comments", "Handled By"].map((label) => (
+              {["#", "Guest Name", "Room", "Room Type", "Check-In", "Check-Out", "Nights", "Guests", "Source", "Status", "Total Amount", "Balance", "Handled By"].map((label) => (
                 <th key={label} style={{ border: "1px solid #94a3b8", padding: "6px 8px", fontWeight: 700, color: "#fff" }}>
                   {label}
                 </th>
@@ -622,46 +599,46 @@ export default function ReservationManagement() {
             </tr>
           </thead>
           <tbody>
-            {filteredBookings.map((booking, index) => (
-              <tr key={booking.rowId} style={{ backgroundColor: index % 2 === 0 ? "#ffffff" : "#f1f5f9" }}>
-                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px", fontWeight: 600 }}>{index + 1}</td>
-                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px", fontWeight: 600 }}>{booking.guestName}</td>
-                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px" }}>{booking.roomNumber}</td>
-                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px" }}>{booking.roomType}</td>
-                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px" }}>{booking.checkIn}</td>
-                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px" }}>{booking.checkOut}</td>
-                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px", textAlign: "center" }}>{booking.nights}</td>
-                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px", textAlign: "center" }}>{booking.totalGuests}</td>
-                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px" }}>{booking.source}</td>
-                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px" }}>{booking.status}</td>
-                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px", fontWeight: 600 }}>{booking.totalAmount}</td>
-                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px", fontWeight: 600 }}>
-                  {booking.guestType === "Primary" ? `$${(booking.remainingAmount || 0).toFixed(2)}` : "—"}
-                </td>
-                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px" }}>{booking.comments || "—"}</td>
-                <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px" }}>{booking.handledBy || "—"}</td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr style={{ backgroundColor: "#e2e8f0", fontWeight: 700 }}>
-              <td colSpan={6} style={{ border: "1px solid #94a3b8", padding: "6px 8px", textAlign: "right" }}>
-                Totals — {filteredBookings.filter((b) => b.guestType === "Primary").length} reservation(s)
-              </td>
-              <td style={{ border: "1px solid #94a3b8", padding: "6px 8px", textAlign: "center" }}>
-                {filteredBookings.filter((b) => b.guestType === "Primary").reduce((sum, b) => sum + (b.totalGuests || 0), 0)}
-              </td>
-              <td style={{ border: "1px solid #94a3b8", padding: "6px 8px" }} />
-              <td style={{ border: "1px solid #94a3b8", padding: "6px 8px" }} />
-              <td style={{ border: "1px solid #94a3b8", padding: "6px 8px" }}>
-                ${filteredBookings.filter((b) => b.guestType === "Primary").reduce((sum, b) => sum + (b.totalAmountRaw || 0), 0).toFixed(2)}
-              </td>
-              <td style={{ border: "1px solid #94a3b8", padding: "6px 8px" }}>
-                ${filteredBookings.filter((b) => b.guestType === "Primary").reduce((sum, b) => sum + (b.remainingAmount || 0), 0).toFixed(2)}
-              </td>
-              <td colSpan={2} style={{ border: "1px solid #94a3b8", padding: "6px 8px" }} />
-            </tr>
-          </tfoot>
+  {filteredBookings.map((booking, index) => (
+    <tr key={booking.rowId} style={{ backgroundColor: index % 2 === 0 ? "#ffffff" : "#f1f5f9" }}>
+      <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px", fontWeight: 600, color: "#0f172a" }}>{index + 1}</td>
+      <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px", fontWeight: 600, color: "#0f172a" }}>{booking.guestName}</td>
+      <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px", color: "#0f172a" }}>{booking.roomNumber}</td>
+      <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px", color: "#0f172a" }}>{booking.roomType}</td>
+      <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px", color: "#0f172a" }}>{booking.checkIn}</td>
+      <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px", color: "#0f172a" }}>{booking.checkOut}</td>
+      <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px", textAlign: "center", color: "#0f172a" }}>{booking.nights}</td>
+      <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px", textAlign: "center", color: "#0f172a" }}>{booking.totalGuests}</td>
+      <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px", color: "#0f172a" }}>{booking.source}</td>
+      <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px", color: "#0f172a" }}>{booking.status}</td>
+      <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px", fontWeight: 600, color: "#0f172a" }}>{booking.totalAmount}</td>
+      <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px", fontWeight: 600, color: "#0f172a" }}>
+        {booking.guestType === "Primary" ? `$${(booking.remainingAmount || 0).toFixed(2)}` : "—"}
+      </td>
+      {/* <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px", color: "#0f172a" }}>{booking.comments || "—"}</td> */}
+      <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px", color: "#0f172a" }}>{booking.handledBy || "—"}</td>
+    </tr>
+  ))}
+</tbody>
+<tfoot>
+  <tr style={{ backgroundColor: "#e2e8f0", fontWeight: 700 }}>
+    <td colSpan={6} style={{ border: "1px solid #94a3b8", padding: "6px 8px", textAlign: "right", color: "#0f172a" }}>
+      Totals — {filteredBookings.filter((b) => b.guestType === "Primary").length} reservation(s)
+    </td>
+    <td style={{ border: "1px solid #94a3b8", padding: "6px 8px", textAlign: "center", color: "#0f172a" }}>
+      {filteredBookings.filter((b) => b.guestType === "Primary").reduce((sum, b) => sum + (b.totalGuests || 0), 0)}
+    </td>
+    <td style={{ border: "1px solid #94a3b8", padding: "6px 8px", color: "#0f172a" }} />
+    <td style={{ border: "1px solid #94a3b8", padding: "6px 8px", color: "#0f172a" }} />
+    <td style={{ border: "1px solid #94a3b8", padding: "6px 8px", color: "#0f172a" }}>
+      ${filteredBookings.filter((b) => b.guestType === "Primary").reduce((sum, b) => sum + (b.totalAmountRaw || 0), 0).toFixed(2)}
+    </td>
+    <td style={{ border: "1px solid #94a3b8", padding: "6px 8px", color: "#0f172a" }}>
+      ${filteredBookings.filter((b) => b.guestType === "Primary").reduce((sum, b) => sum + (b.remainingAmount || 0), 0).toFixed(2)}
+    </td>
+    <td colSpan={2} style={{ border: "1px solid #94a3b8", padding: "6px 8px", color: "#0f172a" }} />
+  </tr>
+</tfoot>
         </table>
       </div>
 
@@ -682,6 +659,17 @@ export default function ReservationManagement() {
         onClose={handleCloseModal}
         onMinimize={handleMinimize}
         onSave={handleSaveReservation}
+      />
+
+      <ReservationDetailModal
+        isOpen={isDetailOpen}
+        booking={detailBooking}
+        onClose={() => setIsDetailOpen(false)}
+        onRecordPayment={(b) => { setIsDetailOpen(false); setPaymentBooking(b); }}
+        onEdit={(b) => { setIsDetailOpen(false); setEditBooking(b); }}
+        onExtend={(b) => { setIsDetailOpen(false); setExtendBooking(b); }}
+        onMoveRoom={(b) => { setIsDetailOpen(false); setMoveRoomPrefill(null); setMoveRoomBooking(b); }}
+        onCheckBalance={(b) => { setIsDetailOpen(false); handleOpenLedger(b); }}
       />
 
       {paymentBooking && (

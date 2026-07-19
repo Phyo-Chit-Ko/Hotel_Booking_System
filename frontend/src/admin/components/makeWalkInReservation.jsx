@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { FaUserPlus, FaCalendarAlt, FaDollarSign, FaTimes, FaClipboardList } from "react-icons/fa";
-
+import Swal from "sweetalert2";
+import { API_BASE_URL } from "../../config/api";
 export default function MakeWalkInReservation({ selectedRoom, onClose, onSaveSuccess }) {
   // Form state structured to align cleanly with your Laravel migration schema
   const [formData, setFormData] = useState({
@@ -39,7 +40,7 @@ export default function MakeWalkInReservation({ selectedRoom, onClose, onSaveSuc
 
     try {
         console.log(payload);
-const response = await fetch('http://127.0.0.1:8000/api/reservations/walk-in', {
+const response = await fetch('API_BASE_URL/api/reservations/walk-in', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
@@ -65,7 +66,11 @@ if (onSaveSuccess) onSaveSuccess();
       }
       if (onClose) onClose();
       
-      alert(`Walk-in reservation verified and saved for Room ${selectedRoom.id}!`);
+      Swal.fire({
+        icon: "success",
+        title: "Reservation saved",
+        text: `Walk-in reservation verified and saved for Room ${selectedRoom.id}!`,
+      });
     } catch (err) {
       setError(err.response?.data?.message || "Failed to establish reservation record.");
     } finally {
@@ -102,7 +107,7 @@ if (onSaveSuccess) onSaveSuccess();
       </div>
 
       {/* Main Interactive Form */}
-      <form onSubmit={handleSubmit} className="p-6 space-y-6">
+      <form onSubmit={handleSubmit} noValidate className="p-6 space-y-6">
         {error && (
           <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg font-medium">
             {error}

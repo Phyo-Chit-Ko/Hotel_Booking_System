@@ -21,6 +21,7 @@ export default function RecordPayment({ booking, onClose, onSaved }) {
   );
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [transactionNo, setTransactionNo] = useState("");
+  const [comment, setComment] = useState("");
   const [paymentProof, setPaymentProof] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -45,6 +46,7 @@ export default function RecordPayment({ booking, onClose, onSaved }) {
       payload.append("depositAmount", amount);
       payload.append("paymentMethod", paymentMethod);
       if (transactionNo) payload.append("transactionNo", transactionNo);
+      if (comment.trim()) payload.append("comment", comment.trim());
       if (paymentProof) payload.append("paymentProof", paymentProof);
 
       const res = await fetch("/api/payments", {
@@ -80,7 +82,7 @@ export default function RecordPayment({ booking, onClose, onSaved }) {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        <form onSubmit={handleSubmit} noValidate className="p-6 space-y-5">
           {error && (
             <div className="bg-red-50 border border-red-100 text-red-700 text-sm px-4 py-3 rounded-xl">
               {error}
@@ -122,8 +124,6 @@ export default function RecordPayment({ booking, onClose, onSaved }) {
             <label className={lbl}>Payment Method *</label>
             <select className={sel} value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
               <option value="cash">Cash</option>
-              <option value="credit_card">Credit Card</option>
-              <option value="bank_transfer">Direct Bank Account</option>
               <option value="online">Mobile Bank Transfer</option>
             </select>
           </div>
@@ -135,6 +135,12 @@ export default function RecordPayment({ booking, onClose, onSaved }) {
                 value={transactionNo} onChange={(e) => setTransactionNo(e.target.value)} />
             </div>
           )}
+
+          <div>
+            <label className={lbl}>Comment</label>
+            <textarea className={inp} rows={2} placeholder="Internal note about this payment (optional)"
+              value={comment} onChange={(e) => setComment(e.target.value)} />
+          </div>
 
           {paymentMethod === "online" && (
             <div>

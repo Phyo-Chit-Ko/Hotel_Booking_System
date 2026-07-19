@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import Swal from "sweetalert2";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import "./MyBookings.css";
-
+import { API_BASE_URL } from "../../config/api";
 export default function MyBookings() {
 
   const { user } = useAuth();
@@ -24,7 +25,7 @@ export default function MyBookings() {
 
     if (userId) {
 
-      axios.get(`http://localhost:8000/api/my-bookings/${userId}`)
+      axios.get(`API_BASE_URL/api/my-bookings/${userId}`)
         .then(res => {
 
           console.log("API RESPONSE:", res.data);
@@ -103,7 +104,7 @@ export default function MyBookings() {
     try {
       // Send the necessary fields to satisfy Laravel's validation
       await axios.put(
-        `http://localhost:8000/api/bookings/${bookingId}`,
+        `API_BASE_URL/api/bookings/${bookingId}`,
         {
           first_name: selectedBooking.first_name,
           last_name: selectedBooking.last_name,
@@ -113,7 +114,6 @@ export default function MyBookings() {
           room_number: null
         }
       );
-
       // Update UI
       setBookings(prev =>
         prev.map(item =>
@@ -123,15 +123,30 @@ export default function MyBookings() {
         )
       );
 
-      alert("Booking cancelled successfully");
+      Swal.fire({
+        icon: "success",
+        title: "Booking cancelled successfully",
+        confirmButtonColor: "#c79b56",
+      });
     } catch (error) {
       console.log("Full Error Object:", error);
+
       // Check for specific validation errors from Laravel
       if (error.response?.data?.errors) {
         console.table(error.response.data.errors);
-        alert("Validation failed. Check console for details.");
+        Swal.fire({
+          icon: "error",
+          title: "Validation failed",
+          text: "Please check your booking details and try again.",
+          confirmButtonColor: "#c79b56",
+        });
       } else {
-        alert("Cancel failed: " + (error.response?.data?.message || error.message));
+        Swal.fire({
+          icon: "error",
+          title: "Cancel failed",
+          text: error.response?.data?.message || error.message,
+          confirmButtonColor: "#c79b56",
+        });
       }
     }
   };
