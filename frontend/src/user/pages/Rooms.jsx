@@ -4,8 +4,8 @@ import "./Rooms.css";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import Swal from "sweetalert2"; // Ensure you have this installed
-import { API_BASE_URL } from "../../config/api";
-// const BACKEND_URL = "http://localhost:8000";
+
+const BACKEND_URL = "http://localhost:8000";
 
 // Used only when a room type has no uploaded image yet, so the grid still looks presentable.
 const FALLBACK_IMAGES = [
@@ -13,6 +13,25 @@ const FALLBACK_IMAGES = [
   "https://images.unsplash.com/photo-1566665797739-1674de7a421a?q=80&w=600&auto=format&fit=crop",
   "https://images.unsplash.com/photo-1590490360182-c33d57733427?q=80&w=600&auto=format&fit=crop",
 ];
+
+// Helper functions to handle dates cleanly in local time zone
+function getLocalStatusDates() {
+  const today = new Date();
+  const tomorrow = new Date();
+  tomorrow.setDate(today.getDate() + 1);
+
+  const formatDate = (date) => {
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, "0");
+    const dd = String(date.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  return {
+    todayStr: formatDate(today),
+    tomorrowStr: formatDate(tomorrow),
+  };
+}
 
 function describeRoom(room) {
   const perks = [];
@@ -42,6 +61,8 @@ export default function Rooms() {
   const [roomsError, setRoomsError] = useState(false);
   const [errors, setErrors] = useState({});
 
+  const { todayStr, tomorrowStr } = getLocalStatusDates();
+
   const QR_CODES = {
     "K-Pay": "/images/18.png",
     Bank: "/images/18.png",
@@ -66,7 +87,7 @@ export default function Rooms() {
               id: r.room_type_id,
               title: r.name,
               image: r.image
-                ? `${API_BASE_URL}/storage/${r.image}`
+                ? `${BACKEND_URL}/storage/${r.image}`
                 : FALLBACK_IMAGES[idx % FALLBACK_IMAGES.length],
               description: describeRoom(r),
               features,
@@ -96,8 +117,8 @@ export default function Rooms() {
     child: "",
     total_room: "",
     bed_preference: "",
-    check_in_date: "",
-    check_out_date: "",
+    check_in_date: todayStr,     // Default to today
+    check_out_date: tomorrowStr, // Default to tomorrow
     special_requests: "",
     payment_method: "",
     room_type_id: "",
@@ -105,7 +126,26 @@ export default function Rooms() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    
+    setFormData((prev) => {
+      const updated = { ...prev, [name]: value };
+      
+      // If check-in date changes and becomes greater than or equal to current check-out date, 
+      // automatically move checkout to the next day relative to the new check-in date.
+      if (name === "check_in_date") {
+        if (!updated.check_out_date || updated.check_out_date <= value) {
+          const checkInDateObj = new Date(value);
+          checkInDateObj.setDate(checkInDateObj.getDate() + 1);
+          
+          const yyyy = checkInDateObj.getFullYear();
+          const mm = String(checkInDateObj.getMonth() + 1).padStart(2, "0");
+          const dd = String(checkInDateObj.getDate()).padStart(2, "0");
+          updated.check_out_date = `${yyyy}-${mm}-${dd}`;
+        }
+      }
+      return updated;
+    });
+
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
@@ -140,8 +180,8 @@ export default function Rooms() {
       child: "",
       total_room: "",
       bed_preference: "",
-      check_in_date: "",
-      check_out_date: "",
+      check_in_date: todayStr,
+      check_out_date: tomorrowStr,
       special_requests: "",
       payment_method: "",
       room_type_id: "",
@@ -263,7 +303,7 @@ export default function Rooms() {
     setSubmitting(true);
 
     try {
-      const response = await fetch("API_BASE_URL/api/bookings", {
+      const response = await fetch("http://localhost:8000/api/bookings", {
         method: "POST",
         headers: {
           "Accept": "application/json",
@@ -300,6 +340,18 @@ export default function Rooms() {
       setSubmitting(false);
     }
   };
+
+  // Determine the minimum allowed date for checkout based on what check-in is selected.
+  // Must be at least 1 day after check-in, or tomorrow (if check-in isn't filled yet).
+  let minCheckoutDate = tomorrowStr;
+  if (formData.check_in_date) {
+    const nextDay = new Date(formData.check_in_date);
+    nextDay.setDate(nextDay.getDate() + 1);
+    const yyyy = nextDay.getFullYear();
+    const mm = String(nextDay.getMonth() + 1).padStart(2, "0");
+    const dd = String(nextDay.getDate()).padStart(2, "0");
+    minCheckoutDate = `${yyyy}-${mm}-${dd}`;
+  }
 
   return (
     <div className="rooms-page">
@@ -361,6 +413,8 @@ export default function Rooms() {
                           ...prev,
                           room_type_id: room.id,
                           email: user.email || "",
+                          check_in_date: todayStr,     // Ensure defaults reset on open
+                          check_out_date: tomorrowStr, // Ensure defaults reset on open
                         }));
                         setErrors({});
                         setShowForm(true);
@@ -475,6 +529,7 @@ export default function Rooms() {
                       <input
                         type="date"
                         name="check_in_date"
+                        min={todayStr} // Disables past days
                         value={formData.check_in_date}
                         onChange={handleInputChange}
                       />
@@ -485,6 +540,7 @@ export default function Rooms() {
                       <input
                         type="date"
                         name="check_out_date"
+                        min={minCheckoutDate} // Disables past days & today (or days before check-in)
                         value={formData.check_out_date}
                         onChange={handleInputChange}
                       />

@@ -5,12 +5,14 @@ import AddBookingModal from "../components/AddBookingModal";
 import BookingDetailModal from "../components/BookingDetailModal";
 import { useAuth } from "../../context/AuthContext"; // Ensure the path is correct
 import { useNavigate } from "react-router-dom";
-import { API_BASE_URL } from "../../config/api";
 import {
   FaSearch,
   FaCalendarCheck,
   FaUsers,
   FaCheckCircle,
+  FaTimes,
+  FaSave,
+  FaBan
 } from "react-icons/fa";
 
 export default function BookingManagement() {
@@ -64,8 +66,7 @@ export default function BookingManagement() {
       if (selectedDate) params.append("date", selectedDate);
 
    const res = await fetch(
-//  `http://localhost:8000/api/bookings?${params.toString()}`,
-    `${API_BASE_URL}/api/bookings?${params.toString()}`,
+ `http://localhost:8000/api/bookings?${params.toString()}`,
  {
    headers:{
       Authorization: `Bearer ${sessionStorage.getItem("auth_token")}`,
@@ -110,8 +111,7 @@ export default function BookingManagement() {
 
     let cancelled = false;
     axios
-      // .get("http://localhost:8000/api/rooms/available", {
-      .get(`${API_BASE_URL}/api/rooms/available`,{
+      .get("http://localhost:8000/api/rooms/available", {
         params: { check_in: bookingToEdit.checkIn, check_out: bookingToEdit.checkOut },
       })
       .then((res) => {
@@ -160,8 +160,7 @@ const handleEditSubmit = async (e) => {
 
     if (wantsConfirm && chosenRooms.length > 0) {
       const assignRes = await fetch(
-        // `http://localhost:8000/api/bookings/${bookingToEdit.raw_id}/rooms`,
-        `${API_BASE_URL}/api/bookings/${bookingToEdit.raw_id}/rooms`,
+        `http://localhost:8000/api/bookings/${bookingToEdit.raw_id}/rooms`,
         {
           method: "PUT",
           headers: {
@@ -179,8 +178,7 @@ const handleEditSubmit = async (e) => {
     }
 
      const res = await fetch(
-//  `http://localhost:8000/api/bookings/${bookingToEdit.raw_id}`,
- `${API_BASE_URL}/api/bookings/${bookingToEdit.raw_id}`,
+ `http://localhost:8000/api/bookings/${bookingToEdit.raw_id}`,
       {
         method: "PUT",
         headers: {
@@ -344,15 +342,15 @@ const handleEditSubmit = async (e) => {
           <div className="overflow-x-auto border border-slate-100 rounded-xl">
             <table className="w-full table-fixed border-collapse text-left text-xs text-slate-600">
               <colgroup>
-                <col style={{ width: "10%" }} />
-                <col style={{ width: "12%" }} />
-                <col style={{ width: "12%" }} />
-                <col style={{ width: "16%" }} />
-                <col style={{ width: "7%" }} />
-                <col style={{ width: "7%" }} />
-                <col style={{ width: "11%" }} />
-                <col style={{ width: "11%" }} />
+                <col style={{ width: "8%" }} />
+                <col style={{ width: "8%" }} />
+                <col style={{ width: "8%" }} />
+                <col style={{ width: "8%" }} />
+                <col style={{ width: "5%" }} />
+                <col style={{ width: "5%" }} />
                 <col style={{ width: "9%" }} />
+                <col style={{ width: "9%" }} />
+                <col style={{ width: "7%" }} />
                 <col style={{ width: "5%" }} />
               </colgroup>
               <thead className="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200">
@@ -438,28 +436,20 @@ const handleEditSubmit = async (e) => {
                     </td>
 
                     <td className="px-3 py-3">
-  <div className="flex flex-col items-center gap-1.5">
-    {booking.rawStatus?.toLowerCase() === "converted" && (
-      <button
-        className="px-2.5 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-medium hover:bg-emerald-100 transition active:scale-95 w-full"
-        title="See Reservation"
-        onClick={() => navigate(`/admin/reservations?highlight=${booking.reservationId}`)}
-      >
-        See Reservation
-      </button>
-    )}
-    <button
-      className="px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-700 font-medium hover:bg-slate-100 transition active:scale-95 w-full"
-      title="Details"
-      onClick={() => {
-        setViewingBooking(booking);
-        setIsDetailModalOpen(true);
-      }}
-    >
-      Details
-    </button>
-  </div>
-</td>
+                      <div className="flex flex-col items-center justify-center">
+                        {/* CHANGED: Action column now strictly renders the unified details button */}
+                        <button
+                          className="px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-700 font-medium hover:bg-slate-100 transition active:scale-95 w-full text-center"
+                          title="Details"
+                          onClick={() => {
+                            setViewingBooking(booking);
+                            setIsDetailModalOpen(true);
+                          }}
+                        >
+                          Details
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                   );
                 })}
@@ -512,45 +502,53 @@ const handleEditSubmit = async (e) => {
 
       {/* RENDER DYNAMIC POPUP EDIT OVERLAY SCREEN */}
       {isEditModalOpen && bookingToEdit && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 backdrop-blur-sm">
-          <div className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-xl border border-slate-100 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="bg-slate-900 text-white rounded-xl w-full max-w-xl shadow-2xl shadow-black/60 overflow-hidden border border-slate-800 m-2">
             
-            <div className="flex justify-center items-center border-b border-slate-100 pb-4">
-    <h3 className="text-slate-900 font-semibold text-lg text-center">
-        Edit Booking {bookingToEdit.id}
-    </h3>
+            <div className="relative bg-gradient-to-r from-slate-800 via-slate-900 to-slate-950 p-5 shrink-0 border-b border-slate-800 flex justify-between items-center">
+              <div>
+                <span className="text-[10px] font-mono text-emerald-400 font-bold uppercase tracking-widest block mb-0.5">
+                  Management Portal
+                </span>
+                <h2 className="text-white text-xl font-black tracking-tight">
+                  Edit Booking {bookingToEdit.id}
+                </h2>
+              </div>
 
               <button 
+                type="button"
                 onClick={() => setIsEditModalOpen(false)}
-                className="text-slate-600 hover:text-slate-600 text-sm p-1"
+                className="absolute top-5 right-5 w-7 h-7 rounded-full bg-black/30 hover:bg-black/60 text-white flex items-center justify-center transition"
               >
-                ✕
+                <FaTimes className="w-3 h-3" />
               </button>
             </div>
-{editError && (
-  <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
-    {editError}
-  </p>
-)}
-            <form onSubmit={handleEditSubmit} noValidate className="mt-4 space-y-4">
+
+            {editError && (
+              <div className="p-4 bg-rose-500/10 border-b border-rose-500/20 px-5 text-xs text-rose-400 font-medium tracking-wide">
+                ⚠️ {editError}
+              </div>
+            )}
+
+            <form onSubmit={handleEditSubmit} noValidate className="p-5 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1">First Name</label>
+                  <label className="text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider block mb-1.5">First Name</label>
                   <input 
                     type="text" 
                     required
-                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    className="w-full bg-slate-800/40 border border-slate-700/40 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition font-medium"
                     value={bookingToEdit.first_name || ""}
                     onChange={(e) => setBookingToEdit({ ...bookingToEdit, first_name: e.target.value })}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1">Last Name</label>
+                  <label className="text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Last Name</label>
                   <input 
                     type="text" 
                     required
-                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    className="w-full bg-slate-800/40 border border-slate-700/40 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition font-medium"
                     value={bookingToEdit.last_name || ""}
                     onChange={(e) => setBookingToEdit({ ...bookingToEdit, last_name: e.target.value })}
                   />
@@ -559,67 +557,77 @@ const handleEditSubmit = async (e) => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1">Phone Number</label>
+                  <label className="text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Phone Number</label>
                   <input 
                     type="tel" 
                     required
-                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    className="w-full bg-slate-800/40 border border-slate-700/40 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition font-mono font-medium"
                     value={bookingToEdit.phone || ""}
                     onChange={(e) => setBookingToEdit({ ...bookingToEdit, phone: e.target.value })}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1">Status</label>
-                  <select 
-                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500"
-                    value={bookingToEdit.status || "Pending"}
-                    onChange={(e) => setBookingToEdit({ ...bookingToEdit, status: e.target.value })}
-                  >
-                    <option value="Pending">Pending</option>
-                    <option value="Confirmed">Confirmed</option>
-                    <option value="Cancelled">Cancelled</option>
-                  </select>
+                  <label className="text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Status</label>
+                  <div className="relative">
+                    <select 
+                      className="w-full bg-slate-800/40 border border-slate-700/40 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500 transition font-medium appearance-none cursor-pointer"
+                      value={bookingToEdit.status || "Pending"}
+                      onChange={(e) => setBookingToEdit({ ...bookingToEdit, status: e.target.value })}
+                    >
+                      <option value="Pending" className="bg-slate-900 text-slate-200">Pending</option>
+                      <option value="Confirmed" className="bg-slate-900 text-slate-200">Confirmed</option>
+                      <option value="Cancelled" className="bg-slate-900 text-slate-200">Cancelled</option>
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 text-xs">
+                      ▼
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div>
-  <label className="block text-xs font-semibold text-slate-500 mb-1">
-    Assign Room{Number(bookingToEdit.total_room) > 1 ? "s" : ""} ({bookingToEdit.total_room || 1} needed)
-  </label>
-  <div className="space-y-2">
-    {assignedRooms.map((val, i) => (
-      <select
-        key={i}
-        value={val}
-        onChange={(e) =>
-          setAssignedRooms((prev) => prev.map((v, idx) => (idx === i ? e.target.value : v)))
-        }
-        className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500"
-      >
-        <option value="">— Select room {i + 1} —</option>
-        {optionsForSlot(i).map((r) => (
-          <option key={r.room_number} value={r.room_number}>
-            Room {r.room_number} — Floor {r.floor}
-          </option>
-        ))}
-      </select>
-    ))}
-  </div>
-</div>
 
-              <div className="flex justify-end space-x-2.5 border-t border-slate-100 pt-4 mt-6">
+              <div className="pt-2">
+                <label className="text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
+                  Assign Room{Number(bookingToEdit.total_room) > 1 ? "s" : ""} <span className="text-emerald-400 font-sans text-xs lowercase italic">({bookingToEdit.total_room || 1} needed)</span>
+                </label>
+                <div className="space-y-2">
+                  {assignedRooms.map((val, i) => (
+                    <div key={i} className="relative">
+                      <select
+                        value={val}
+                        onChange={(e) =>
+                          setAssignedRooms((prev) => prev.map((v, idx) => (idx === i ? e.target.value : v)))
+                        }
+                        className="w-full bg-slate-800/40 border border-slate-700/40 rounded-lg px-3 py-2.5 text-sm text-slate-300 focus:outline-none focus:border-emerald-500 transition font-medium appearance-none cursor-pointer"
+                      >
+                        <option value="" className="bg-slate-900 text-slate-400">— Select room {i + 1} —</option>
+                        {optionsForSlot(i).map((r) => (
+                          <option key={r.room_number} value={r.room_number} className="bg-slate-900 text-slate-200">
+                            Room {r.room_number} — Floor {r.floor}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 text-xs">
+                        ▼
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-4 mt-6 border-t border-slate-800/40 bg-slate-950/20 -mx-5 -mb-5 p-5">
+                <button 
+                  type="submit"
+                  className="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-lg text-xs transition tracking-wide shadow-lg shadow-emerald-950/20 inline-flex items-center justify-center gap-1.5"
+                >
+                  <FaSave className="text-sm" /> Save Changes
+                </button>
                 <button 
                   type="button"
                   onClick={() => setIsEditModalOpen(false)}
-                  className="px-4 py-2 text-xs font-medium text-slate-500 hover:text-slate-700 bg-slate-50 border border-slate-200 rounded-xl transition"
+                  className="py-2.5 px-6 border border-slate-700 hover:bg-slate-800 rounded-lg text-xs font-semibold text-slate-300 transition inline-flex items-center justify-center gap-1.5"
                 >
-                  Cancel
-                </button>
-                <button 
-                  type="submit"
-                  className="px-4 py-2 text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition"
-                >
-                  Save Changes
+                  <FaBan /> Cancel
                 </button>
               </div>
             </form>
@@ -627,10 +635,15 @@ const handleEditSubmit = async (e) => {
         </div>
       )}
 
+      {/* CHANGED: Passing the navigation function straight into the detail modal component */}
       <BookingDetailModal
         isOpen={isDetailModalOpen}
         booking={viewingBooking}
         onClose={() => setIsDetailModalOpen(false)}
+        onNavigateToReservation={(reservationId) => {
+          setIsDetailModalOpen(false);
+          navigate(`/admin/reservations?highlight=${reservationId}`);
+        }}
         onEdit={(b) => {
           setIsDetailModalOpen(false);
           setBookingToEdit({ ...b, raw_id: b.raw_id ?? viewingBooking?.raw_id, id: b.booking_number || b.id });

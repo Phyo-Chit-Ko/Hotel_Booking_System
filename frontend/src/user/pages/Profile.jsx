@@ -4,7 +4,7 @@ import axios from "axios";
 import "./Profile.css";
 import Swal from "sweetalert2"; // <--- Add this at the top
 import { useNavigate } from "react-router-dom";
-import { API_BASE_URL } from "../../config/api";
+
 export default function Profile() {
 
   const navigate = useNavigate();
@@ -21,7 +21,7 @@ const { user, setUser, logout } = useAuth();
 });
 //   const handleSave = async () => {
 //   try {
-//     const res = await axios.put("API_BASE_URL/api/profile/update", {
+//     const res = await axios.put("http://localhost:8000/api/profile/update", {
 //       user_id: user.user_id,
 //       name: form.name,
 //       email: form.email,
