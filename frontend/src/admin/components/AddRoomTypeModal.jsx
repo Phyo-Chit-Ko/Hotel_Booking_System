@@ -265,15 +265,18 @@ export default function AddRoomTypeModal({ isOpen, onClose, onSave, roomToEdit =
               </p>
             </div>
             <div className="flex flex-col gap-2">
-              <label className="block text-sm font-semibold text-slate-700">Extra Bed Fee</label>
-              <input type="number" name="extra_bed_fee" step="0.01" value={formData.extra_bed_fee}
-                onChange={handleChange} className={inp("extra_bed_fee")} />
-              {errors.extra_bed_fee && <p className="text-xs text-rose-500 mt-1.5 ml-1">{errors.extra_bed_fee}</p>}
+              <label className="block text-sm font-semibold text-slate-700">Extra Person Rate</label>
+              <input type="number" name="extra_person_rate" step="0.01" value={formData.extra_person_rate} onChange={handleChange}
+                placeholder="0.00" className={inp("extra_person_rate")} />
+              {errors.extra_person_rate && <p className="text-xs text-rose-500 mt-1.5 ml-1">{errors.extra_person_rate}</p>}
+            <p className="text-xs text-slate-400 mt-1 ml-1">
+              Charged per extra guest beyond standard capacity, per night.
+            </p>
             </div>
           </div>
 
           {/* Extra Person Rate */}
-          <div className="flex flex-col gap-2">
+          {/* <div className="flex flex-col gap-2">
             <label className="block text-sm font-semibold text-slate-700">Extra Person Rate</label>
             <div className="relative">
               <input type="number" name="extra_person_rate" step="0.01" value={formData.extra_person_rate} onChange={handleChange}
@@ -283,7 +286,7 @@ export default function AddRoomTypeModal({ isOpen, onClose, onSave, roomToEdit =
             <p className="text-xs text-slate-400 mt-1 ml-1">
               Charged per extra guest beyond standard capacity, per night.
             </p>
-          </div>
+          </div> */}
 
           {/* Amenities - Slim soft borders when selected */}
           <div className="flex flex-col gap-2">
