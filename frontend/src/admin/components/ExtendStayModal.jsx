@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { FaTimes, FaCalendarPlus } from "react-icons/fa";
+import { useState, useRef } from "react";
+import { FaTimes, FaCalendarPlus, FaCalendarAlt } from "react-icons/fa";
 
 const inp =
   "w-full bg-slate-800/60 border border-slate-700/50 rounded-xl px-4 py-3 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500/60 transition-all disabled:text-slate-500 disabled:bg-slate-800/30 [color-scheme:dark]";
@@ -16,6 +16,15 @@ export default function ExtendStayModal({ booking, onClose, onExtended, onRequir
   const [checkOut, setCheckOut] = useState(booking.checkOut);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const dateInputRef = useRef(null);
+
+  const openDatePicker = () => {
+    if (dateInputRef.current?.showPicker) {
+      dateInputRef.current.showPicker();
+    } else {
+      dateInputRef.current?.focus();
+    }
+  };
 
   const submit = async () => {
     setError("");
@@ -82,13 +91,20 @@ export default function ExtendStayModal({ booking, onClose, onExtended, onRequir
 
           <div>
             <label className={lbl}>New Check-Out *</label>
-            <input
-              className={inp}
-              type="date"
-              min={booking.checkOut}
-              value={checkOut}
-              onChange={(e) => setCheckOut(e.target.value)}
-            />
+            <div className="relative">
+              <input
+                ref={dateInputRef}
+                className={inp + " pr-11 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-11 [&::-webkit-calendar-picker-indicator]:h-full"}
+                type="date"
+                min={booking.checkOut}
+                value={checkOut}
+                onChange={(e) => setCheckOut(e.target.value)}
+              />
+              <FaCalendarAlt
+                onClick={openDatePicker}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-emerald-400 text-sm cursor-pointer"
+              />
+            </div>
           </div>
 
           <div className="flex gap-3 pt-2">

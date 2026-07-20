@@ -27,6 +27,7 @@ export default function ChargesLedgerModal({
   const [checkoutError, setCheckoutError] = useState("");
   const [showInvoice, setShowInvoice] = useState(false);
 
+  // Load ledger details
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -46,6 +47,14 @@ export default function ChargesLedgerModal({
   useEffect(() => {
     load();
   }, [load, refreshKey]);
+
+  // Lock background window body scroll while the modal is mounted
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, []);
 
   const handleCheckOutAnyway = async () => {
     setCheckoutError("");
@@ -74,6 +83,7 @@ export default function ChargesLedgerModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-sm">
       <div className="w-full max-w-lg bg-slate-900 text-white rounded-2xl border border-slate-800 shadow-2xl shadow-black/60 overflow-hidden max-h-[90vh] flex flex-col">
 
+        {/* Header */}
         <div className="relative bg-gradient-to-r from-slate-800 via-slate-900 to-slate-950 p-5 border-b border-slate-800 shrink-0">
           <span className="text-[10px] font-mono text-emerald-400 font-bold uppercase tracking-widest block mb-0.5">
             Ledger
@@ -91,6 +101,7 @@ export default function ChargesLedgerModal({
           </button>
         </div>
 
+        {/* Scrollable Content (Scrollbar hidden via CSS utility class) */}
         <div className="p-6 space-y-5 overflow-y-auto flex-1 no-scrollbar">
           {loading && <p className="text-sm text-slate-500 text-center py-6">Loading…</p>}
           {!loading && error && (
@@ -109,6 +120,7 @@ export default function ChargesLedgerModal({
                 </div>
               )}
 
+              {/* Charges Section */}
               <div>
                 <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Charges</h3>
                 <div className="border border-slate-700/40 rounded-xl divide-y divide-slate-800 bg-slate-800/20">
@@ -132,6 +144,7 @@ export default function ChargesLedgerModal({
                 </div>
               </div>
 
+              {/* Payments Section */}
               <div>
                 <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Payments</h3>
                 <div className="border border-slate-700/40 rounded-xl divide-y divide-slate-800 bg-slate-800/20">
@@ -152,6 +165,7 @@ export default function ChargesLedgerModal({
                 </div>
               </div>
 
+              {/* Total Due Row */}
               <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 flex justify-between items-center">
                 <span className="text-sm font-semibold text-slate-300">Balance Due</span>
                 <span className={`text-lg font-bold ${ledger.balance > 0 ? "text-amber-400" : "text-emerald-400"}`}>
@@ -159,6 +173,7 @@ export default function ChargesLedgerModal({
                 </span>
               </div>
 
+              {/* Late/Outstanding Checkout Warning Input */}
               {mode === "checkout" && (
                 <div className="space-y-3 pt-2 border-t border-slate-800">
                   {checkoutError && (
@@ -185,6 +200,7 @@ export default function ChargesLedgerModal({
           )}
         </div>
 
+        {/* Footer Buttons */}
         <div className="p-6 pt-4 border-t border-slate-800 flex gap-3 shrink-0">
           <button
             type="button"

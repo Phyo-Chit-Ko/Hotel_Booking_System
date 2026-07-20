@@ -13,13 +13,12 @@ export default function AddUser({ isOpen, onClose, onSave, editingUser = null })
   };
 
   const [formData, setFormData] = useState(initialFormState);
-  const [passwordError, setPasswordError] = useState("");
-  const [formError, setFormError] = useState("");
+  const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Sync state with editingUser prop whenever it changes or modal toggles
   useEffect(() => {
-    setPasswordError("");
-    setFormError("");
+    setErrors({});
     if (editingUser) {
       setFormData({
         name: editingUser.name || "",
@@ -38,30 +37,40 @@ export default function AddUser({ isOpen, onClose, onSave, editingUser = null })
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     
-    if (formError) setFormError("");
-    if (passwordError) setPasswordError("");
+    // Clear the field-specific error as soon as the user starts correcting it
+    if (errors[name]) {
+      setErrors(prev => {
+        const copy = { ...prev };
+        delete copy[name];
+        return copy;
+      });
+    }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setPasswordError("");
-    setFormError("");
+    setErrors({});
+    const localErrors = {};
 
+    // 1. Frontend Client-Side Pre-Validation
     if (!NAME_RE.test(formData.name.trim())) {
-      setFormError("Name must contain only letters, spaces, apostrophes, hyphens, or periods.");
-      return;
+      localErrors.name = "Name must contain only letters, spaces, apostrophes, hyphens, or periods.";
     }
     if (!EMAIL_RE.test(formData.email.trim())) {
-      setFormError("Enter a valid email address.");
-      return;
+      localErrors.email = "Enter a valid email address.";
     }
-    if (formData.phone && !PHONE_RE.test(formData.phone.trim())) {
-      setFormError("Enter a valid phone number.");
-      return;
+    // Your controller requires 'phone' to be present on creation, so let's flag it client-side too
+    if (!formData.phone || !formData.phone.trim()) {
+      localErrors.phone = "Phone number is required.";
+    } else if (!PHONE_RE.test(formData.phone.trim())) {
+      localErrors.phone = "Enter a valid phone number.";
+    }
+    if (!editingUser && !formData.password) {
+      localErrors.password = "Password is required.";
     }
 
-    if (!editingUser && !formData.password) {
-      setPasswordError("Password is required.");
+    if (Object.keys(localErrors).length > 0) {
+      setErrors(localErrors);
       return;
     }
 
@@ -70,21 +79,29 @@ export default function AddUser({ isOpen, onClose, onSave, editingUser = null })
       delete payload.password;
     }
 
-    if (editingUser) {
-      onSave({ ...payload, user_id: editingUser.user_id });
-    } else {
-      onSave(payload);
+    // 2. Submit to Parent Component and Catch Asynchronous Backend Errors
+    setIsSubmitting(true);
+    try {
+      if (editingUser) {
+        await onSave({ ...payload, user_id: editingUser.user_id });
+      } else {
+        await onSave(payload);
+      }
+      
+      // If successful, reset and close modal
+      setFormData(initialFormState);
+      onClose();
+    } catch (backendErrors) {
+      // If the parent handler catches a 422 error and passes it back, set them here
+      if (typeof backendErrors === "object" && backendErrors !== null) {
+        setErrors(backendErrors);
+      }
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setFormData(initialFormState);
-    onClose();
   };
 
   if (!isOpen) return null;
-
-  const hasNameError = formError && formError.toLowerCase().includes("name");
-  const hasEmailError = formError && formError.toLowerCase().includes("email");
-  const hasPhoneError = formError && formError.toLowerCase().includes("phone");
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
@@ -101,6 +118,7 @@ export default function AddUser({ isOpen, onClose, onSave, editingUser = null })
             </p>
           </div>
           <button 
+            type="button"
             onClick={onClose} 
             className="text-slate-400 hover:text-slate-600 bg-white shadow-sm border p-2.5 rounded-xl transition flex items-center justify-center"
           >
@@ -113,7 +131,7 @@ export default function AddUser({ isOpen, onClose, onSave, editingUser = null })
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             
             {/* Full Name */}
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1.5">
               <label className="block text-sm font-semibold text-slate-700">
                 Full Name <span className="text-rose-500">*</span>
               </label>
@@ -121,19 +139,23 @@ export default function AddUser({ isOpen, onClose, onSave, editingUser = null })
                 type="text"
                 required
                 name="name"
+                disabled={isSubmitting}
                 value={formData.name}
                 onChange={handleInputChange}
                 placeholder="e.g. Jane Doe"
                 className={`w-full px-4 py-2.5 bg-white border rounded-xl text-sm focus:outline-none focus:ring-2 transition-all font-semibold text-slate-800 ${
-                  hasNameError 
+                  errors.name 
                     ? "border-rose-300 focus:ring-rose-500/20 focus:border-rose-500" 
                     : "border-slate-200 focus:ring-slate-100 focus:border-slate-300"
                 }`}
               />
+              {errors.name && (
+                <p className="text-xs font-medium text-rose-500 px-1">{errors.name}</p>
+              )}
             </div>
 
             {/* Email Address */}
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1.5">
               <label className="block text-sm font-semibold text-slate-700">
                 Email Address <span className="text-rose-500">*</span>
               </label>
@@ -141,50 +163,61 @@ export default function AddUser({ isOpen, onClose, onSave, editingUser = null })
                 type="email"
                 required
                 name="email"
+                disabled={isSubmitting}
                 value={formData.email}
                 onChange={handleInputChange}
                 placeholder="e.g. jane@example.com"
                 className={`w-full px-4 py-2.5 bg-white border rounded-xl text-sm focus:outline-none focus:ring-2 transition-all font-semibold text-slate-800 ${
-                  hasEmailError 
+                  errors.email 
                     ? "border-rose-300 focus:ring-rose-500/20 focus:border-rose-500" 
                     : "border-slate-200 focus:ring-slate-100 focus:border-slate-300"
                 }`}
               />
+              {errors.email && (
+                <p className="text-xs font-medium text-rose-500 px-1">{errors.email}</p>
+              )}
             </div>
 
             {/* Phone Number */}
-            <div className="flex flex-col gap-2">
-              <label className="block text-sm font-semibold text-slate-700">Phone Number</label>
+            <div className="flex flex-col gap-1.5">
+              <label className="block text-sm font-semibold text-slate-700">
+                Phone Number <span className="text-rose-500">*</span>
+              </label>
               <input
                 type="text"
                 name="phone"
+                disabled={isSubmitting}
                 value={formData.phone}
                 onChange={handleInputChange}
                 placeholder="e.g. +1234567890"
                 className={`w-full px-4 py-2.5 bg-white border rounded-xl text-sm focus:outline-none focus:ring-2 transition-all font-semibold text-slate-800 ${
-                  hasPhoneError 
+                  errors.phone 
                     ? "border-rose-300 focus:ring-rose-500/20 focus:border-rose-500" 
                     : "border-slate-200 focus:ring-slate-100 focus:border-slate-300"
                 }`}
               />
+              {errors.phone && (
+                <p className="text-xs font-medium text-rose-500 px-1">{errors.phone}</p>
+              )}
             </div>
 
             {/* System Role Selection */}
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1.5">
               <label className="block text-sm font-semibold text-slate-700">System Role</label>
               <select
                 name="role"
+                disabled={isSubmitting}
                 value={formData.role}
                 onChange={handleInputChange}
                 className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-300 font-bold text-slate-700 cursor-pointer"
               >
-              
                 <option value="manager">Manager</option>
                 <option value="receptionist">Receptionist</option>
               </select>
             </div>
             
-            <div className="flex flex-col gap-2">
+            {/* Password */}
+            <div className="flex flex-col gap-1.5">
               <label className="block text-sm font-semibold text-slate-700">
                 {editingUser ? "New Password (optional)" : "Password"}{" "}
                 {!editingUser && <span className="text-rose-500">*</span>}
@@ -192,28 +225,33 @@ export default function AddUser({ isOpen, onClose, onSave, editingUser = null })
               <input
                 type="password"
                 name="password"
-                required={!editingUser}
+                disabled={isSubmitting}
                 value={formData.password}
                 onChange={handleInputChange}
                 placeholder="Min 8 characters"
                 className={`w-full px-4 py-2.5 bg-white border rounded-xl text-sm focus:outline-none focus:ring-2 transition-all font-semibold text-slate-800 ${
-                  passwordError 
+                  errors.password 
                     ? "border-rose-300 focus:ring-rose-500/20 focus:border-rose-500" 
                     : "border-slate-200 focus:ring-slate-100 focus:border-slate-300"
                 }`}
               />
-              {editingUser && (
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Leave blank to keep the current password.
-                </p>
+              {errors.password ? (
+                <p className="text-xs font-medium text-rose-500 px-1">{errors.password}</p>
+              ) : (
+                editingUser && (
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Leave blank to keep the current password.
+                  </p>
+                )
               )}
             </div>
 
-            {/* Account Status Configuration (Password ရဲ့ ညာဘက်ဘေးကို ရောက်သွားပါပြီ) */}
-            <div className="flex flex-col gap-2">
+            {/* Account Status Configuration */}
+            <div className="flex flex-col gap-1.5">
               <label className="block text-sm font-semibold text-slate-700">Account Status</label>
               <select
                 name="status"
+                disabled={isSubmitting}
                 value={formData.status}
                 onChange={handleInputChange}
                 className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-300 font-bold text-slate-700 cursor-pointer"
@@ -225,29 +263,23 @@ export default function AddUser({ isOpen, onClose, onSave, editingUser = null })
 
           </div>
 
-          {/* Validation Error Messages */}
-          {formError && (
-            <p className="text-xs font-medium text-rose-500 mt-1.5 ml-1">{formError}</p>
-          )}
-          {passwordError && (
-            <p className="text-xs font-medium text-rose-500 mt-1.5 ml-1">{passwordError}</p>
-          )}
-
           {/* Action Footer */}
           <div className="flex gap-3 justify-end pt-5 border-t border-slate-100 mt-6">
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 border border-slate-200 hover:bg-slate-50 rounded-xl text-sm font-semibold text-slate-700 transition"
+              disabled={isSubmitting}
+              className="px-5 py-2.5 border border-slate-200 hover:bg-slate-50 rounded-xl text-sm font-semibold text-slate-700 transition disabled:opacity-50"
             >
               Cancel
             </button>
           
             <button
               type="submit"
-              className="px-6 py-2.5 bg-black hover:bg-slate-900 active:scale-95 text-white text-sm font-semibold rounded-xl transition shadow-sm"
+              disabled={isSubmitting}
+              className="px-6 py-2.5 bg-black hover:bg-slate-900 active:scale-95 text-white text-sm font-semibold rounded-xl transition shadow-sm disabled:opacity-50 flex items-center gap-2"
             >
-              {editingUser ? "Update Details" : "Save User"}
+              {isSubmitting ? "Saving..." : editingUser ? "Update Details" : "Save User"}
             </button>
           </div>
         </form>

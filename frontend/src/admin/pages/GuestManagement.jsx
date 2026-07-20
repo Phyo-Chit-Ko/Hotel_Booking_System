@@ -146,16 +146,16 @@ export default function GuestManagement() {
             ) : (
               <table className="w-full table-fixed text-left text-sm text-slate-600 border-collapse">
                 <colgroup>
-                  <col style={{ width: "4%" }} />
-                  <col style={{ width: "14%" }} />
+                  <col style={{ width: "3%" }} />
                   <col style={{ width: "10%" }} />
-                  <col style={{ width: "16%" }} />
-                  <col style={{ width: "9%" }} />
-                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "12%" }} />
+                  <col style={{ width: "18%" }} />
                   <col style={{ width: "11%" }} />
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "10%" }} />
                   <col style={{ width: "8%" }} />
+                  <col style={{ width: "16%" }} />
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "7%" }} />
                 </colgroup>
                 <thead>
                   <tr className="text-slate-500 font-semibold text-xs uppercase tracking-wider border-b border-slate-200 bg-slate-50">

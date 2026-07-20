@@ -27,15 +27,16 @@ const PaymentManagement = () => {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState(null); // NEW: proof preview popup
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedMethod, setSelectedMethod] = useState("All");
   const [selectedMonth, setSelectedMonth] = useState(() => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  return `${year}-${month}`;
-});
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    return `${year}-${month}`;
+  });
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
@@ -128,42 +129,39 @@ const PaymentManagement = () => {
   return (
     <AdminLayout>
       <div className="w-full space-y-6 p-1">
-  <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex items-center justify-between">
-    
-    {/* Left Side */}
-    <div className="flex items-center gap-4">
-      {/* Icon */}
-      <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-100 text-2xl text-slate-700">
-        <FaMoneyBillWave />
-      </div>
+        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex items-center justify-between">
+          {/* Left Side */}
+          <div className="flex items-center gap-4">
+            {/* Icon */}
+            <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-100 text-2xl text-slate-700">
+              <FaMoneyBillWave />
+            </div>
 
-      {/* Text */}
-      <div>
-        <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">
-          Gross Collections
-          {selectedMethod !== "All"
-            ? ` · ${METHOD_LABELS[selectedMethod] || selectedMethod}`
-            : ""}
-        </p>
+            {/* Text */}
+            <div>
+              <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">
+                Gross Collections
+                {selectedMethod !== "All"
+                  ? ` · ${METHOD_LABELS[selectedMethod] || selectedMethod}`
+                  : ""}
+              </p>
 
-        <h3 className="text-2xl font-semibold text-slate-900 tracking-tight mt-0.5">
-          ${grossCollections.toFixed(2)}
-        </h3>
-      </div>
-    </div>
+              <h3 className="text-2xl font-semibold text-slate-900 tracking-tight mt-0.5">
+                ${grossCollections.toFixed(2)}
+              </h3>
+            </div>
+          </div>
 
-    {/* Right Side */}
-    <div className=" w-[305px] h-11">
-      <input
-        type="month"
-        value={selectedMonth}
-        onChange={(e) => setSelectedMonth(e.target.value)}
-        className=" h-11 px-3 border border-slate-200 rounded-lg text-xs text-slate-600 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 [color-scheme:light]"
-      />
-    </div>
-
-  </div>
-       
+          {/* Right Side */}
+          <div className=" w-[305px] h-11">
+            <input
+              type="month"
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className=" h-11 px-3 border border-slate-200 rounded-lg text-xs text-slate-600 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 [color-scheme:light]"
+            />
+          </div>
+        </div>
 
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-5">
           <div className="flex items-center gap-3">
@@ -214,7 +212,6 @@ const PaymentManagement = () => {
                   <th className="px-5 py-3.5 font-medium">Amount</th>
                   <th className="px-5 py-3.5 font-medium">Payment Method</th>
                   <th className="px-5 py-3.5 font-medium text-center">Proof</th>
-                  <th className="px-5 py-3.5 font-medium">Comment</th>
                   <th className="px-5 py-3.5 font-medium">Handled By</th>
                 </tr>
               </thead>
@@ -259,23 +256,18 @@ const PaymentManagement = () => {
 
                         <td className="px-5 py-4 text-center">
                           {payment.proofUrl ? (
-                            <a
-                              href={payment.proofUrl}
-                              target="_blank"
-                              rel="noreferrer"
+                            <button
+                              type="button"
+                              onClick={() => setPreviewUrl(payment.proofUrl)}
                               className="bg-blue-50 text-blue-600 px-4 py-1.5 rounded-full text-xs font-bold hover:bg-blue-100 transition"
                             >
                               View
-                            </a>
+                            </button>
                           ) : (
                             <span className="bg-slate-100 text-slate-500 px-4 py-1.5 rounded-full text-xs font-bold">
                               Missing
                             </span>
                           )}
-                        </td>
-
-                        <td className="px-5 py-4 text-slate-600 max-w-[220px] truncate" title={payment.comment || ""}>
-                          {payment.comment || "—"}
                         </td>
 
                         <td className="px-5 py-4 text-slate-500">
@@ -343,6 +335,41 @@ const PaymentManagement = () => {
           loadPayments();
         }}
       />
+
+      {/* Proof preview popup — shows the screenshot/receipt in-page instead of a new tab */}
+      {previewUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/70 backdrop-blur-sm"
+          onClick={() => setPreviewUrl(null)}
+        >
+          <div
+            className="max-w-3xl w-full bg-white rounded-2xl overflow-hidden shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+              <h3 className="text-sm font-semibold text-slate-700">Payment Proof</h3>
+              <button
+                type="button"
+                onClick={() => setPreviewUrl(null)}
+                className="text-slate-400 hover:text-slate-600 text-sm font-bold px-2"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-4 max-h-[75vh] overflow-auto flex items-center justify-center bg-slate-50">
+              {previewUrl.toLowerCase().endsWith(".pdf") ? (
+                <iframe src={previewUrl} title="Payment proof" className="w-full h-[70vh]" />
+              ) : (
+                <img
+                  src={previewUrl}
+                  alt="Payment proof"
+                  className="max-w-full max-h-[70vh] object-contain rounded-lg"
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 };

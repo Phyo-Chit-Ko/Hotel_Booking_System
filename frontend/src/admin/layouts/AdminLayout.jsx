@@ -12,7 +12,7 @@ export default function AdminLayout({ children }) {
     <div className="bg-slate-100 min-h-screen">
       {/* Global toast notifications config listener wrapper */}
       <Toaster
-        position="top-right"
+        position="top-center"
         reverseOrder={false}
         toastOptions={{
           // Optional nice custom styles to match your clean slate/blue UI layout theme

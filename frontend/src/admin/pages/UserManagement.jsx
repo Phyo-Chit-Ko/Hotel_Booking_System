@@ -38,10 +38,31 @@ export default function UserManagement() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
 
+  // Fetch users with cleanup logic
   useEffect(() => {
+    const controller = new AbortController();
+    
+    const fetchUsersFromDB = async () => {
+      try {
+        setLoading(true);
+        const response = await axios.get(API_BASE_URL, { signal: controller.signal });
+        setUsers(response.data);
+      } catch (error) {
+        if (!axios.isCancel(error)) {
+          console.error("Error retrieving users:", error);
+          toast.error("Could not load users from the server.");
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchUsersFromDB();
+
+    return () => controller.abort();
   }, []);
 
+  // Reset pagination on filter change
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, selectedRole, accountType, showDeactivated]);
@@ -52,34 +73,35 @@ export default function UserManagement() {
     setSelectedRole("All Roles");
   };
 
-  const fetchUsersFromDB = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get(API_BASE_URL);
-      setUsers(response.data);
-    } catch (error) {
-      console.error("Error retrieving users:", error);
-      toast.error("Could not load users from the server.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleSaveUser = async (formData) => {
     try {
       const response = await axios.post(API_BASE_URL, formData);
       if (response.status === 201) {
-        setUsers([...users, response.data.user]);
+        setUsers((prev) => [...prev, response.data.user]);
         toast.success("User added successfully!");
       }
       setIsPanelOpen(false);
     } catch (error) {
       console.error("API Error:", error);
+
+      // 1. Check if the error is a Laravel 422 Validation Error (e.g. duplicate email)
+      if (error.response && error.response.status === 422) {
+        const laravelErrors = error.response.data.errors;
+        const parsedErrors = {};
+
+        // Convert array strings like ["The email has already been taken."] into clean strings
+        Object.keys(laravelErrors).forEach((key) => {
+          parsedErrors[key] = laravelErrors[key][0];
+        });
+
+        // THROW the errors back down into AddUser.jsx's catch block
+        throw parsedErrors;
+      }
+
+      // 2. Fallback: Only use toast alert for non-validation/system errors (e.g. 500 server error)
       const serverMessage = error.response?.data?.message || error.message;
-      const errorsDetail = error.response?.data?.errors
-        ? " " + JSON.stringify(error.response.data.errors)
-        : "";
-      toast.error(`${serverMessage}${errorsDetail}`);
+      toast.error(serverMessage);
+      throw error;
     }
   };
 
@@ -261,7 +283,7 @@ export default function UserManagement() {
             )}
           </div>
 
-          {/* "+ Add New" Button - staff only (registered users self-register) */}
+          {/* "+ Add New" Button - staff only */}
           {accountType === "Staff" && (
             <button
               onClick={() => setIsPanelOpen(true)}
@@ -272,7 +294,7 @@ export default function UserManagement() {
           )}
         </div>
 
-        {/* Table Layout Section - Styled with rounded corners and distinct headers */}
+        {/* Table Layout Section */}
         <div className="overflow-x-auto rounded-xl border border-slate-200">
           <table className="w-full text-left border-collapse min-w-[800px]">
             <thead>
@@ -281,7 +303,7 @@ export default function UserManagement() {
                 <th className="px-6 py-3.5 text-xs font-bold text-slate-400 uppercase tracking-wider">Name</th>
                 <th className="px-6 py-3.5 text-xs font-bold text-slate-400 uppercase tracking-wider">Email</th>
                 <th className="px-6 py-3.5 text-xs font-bold text-slate-400 uppercase tracking-wider">Phone</th>
-                <th className="ppx-6 py-3.5 text-xs font-bold text-slate-400 uppercase tracking-wider">Role</th>
+                <th className="px-6 py-3.5 text-xs font-bold text-slate-400 uppercase tracking-wider">Role</th>
                 <th className="px-6 py-3.5 text-xs font-bold text-slate-400 uppercase tracking-wider">Status</th>
                 {showActions && (
                   <th className="px-6 py-3.5 text-xs font-bold text-slate-400 uppercase tracking-wider text-center w-24">Actions</th>

@@ -143,11 +143,6 @@ export default function RecordPayment({ booking, onClose, onSaved }) {
             </div>
           )}
 
-          <div>
-            <label className={lbl}>Comment</label>
-            <textarea className={inp} rows={2} placeholder="Internal note about this payment (optional)"
-              value={comment} onChange={(e) => setComment(e.target.value)} />
-          </div>
 
           {paymentMethod === "online" && (
             <div>
