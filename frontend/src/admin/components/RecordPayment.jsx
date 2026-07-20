@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { FaTimes, FaCheck, FaUpload } from "react-icons/fa";
 
-const inp = "w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:ring-4 focus:ring-yellow-500/20 focus:border-yellow-500 transition-all placeholder-slate-400 bg-slate-50/50 hover:bg-yellow-50/40 hover:border-yellow-300 focus:bg-white";
-const sel = inp + " appearance-none pr-10 bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2364748b%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:1.25rem] bg-[right_0.75rem_center] bg-no-repeat";
-const lbl = "block text-xs font-semibold text-slate-600 mb-1.5 ml-0.5";
+const inp =
+  "w-full bg-slate-800/60 border border-slate-700/50 rounded-xl px-4 py-3 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500/60 transition-all";
+const sel =
+  inp +
+  " appearance-none pr-10 bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2394a3b8%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:1.25rem] bg-[right_0.75rem_center] bg-no-repeat";
+const lbl = "block text-xs font-semibold text-slate-400 mb-1.5 ml-0.5";
 
 /**
  * Lightweight, standalone payment recorder. Unlike the payment step baked
@@ -67,38 +70,42 @@ export default function RecordPayment({ booking, onClose, onSaved }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-sm">
-      <div className="w-full max-w-md bg-white rounded-3xl border border-slate-100 shadow-2xl overflow-hidden">
+      <div className="w-full max-w-md bg-slate-900 text-white rounded-2xl border border-slate-800 shadow-2xl shadow-black/60 overflow-hidden">
 
-        <div className="px-6 pt-6 pb-4 border-b border-slate-100 flex justify-between items-start">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900 tracking-tight">Record Payment</h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              {booking.bookingNumber} · {booking.guestName}
-            </p>
-          </div>
-          <button type="button" onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 p-2 rounded-xl hover:bg-slate-50 transition">
-            <FaTimes size={16} />
+        <div className="relative bg-gradient-to-r from-slate-800 via-slate-900 to-slate-950 p-5 border-b border-slate-800">
+          <span className="text-[10px] font-mono text-emerald-400 font-bold uppercase tracking-widest block mb-0.5">
+            Payment
+          </span>
+          <h2 className="text-white text-lg font-black tracking-tight">Record Payment</h2>
+          <p className="text-xs text-slate-400 mt-0.5">
+            {booking.bookingNumber} · {booking.guestName}
+          </p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute top-5 right-5 w-7 h-7 rounded-full bg-black/30 hover:bg-black/60 text-white flex items-center justify-center transition"
+          >
+            <FaTimes className="w-3 h-3" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} noValidate className="p-6 space-y-5">
+       <form onSubmit={handleSubmit} noValidate className="p-6 space-y-5">
           {error && (
-            <div className="bg-red-50 border border-red-100 text-red-700 text-sm px-4 py-3 rounded-xl">
+            <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm px-4 py-3 rounded-xl">
               {error}
             </div>
           )}
 
-          <div className="bg-slate-900 text-white rounded-2xl p-4 space-y-1.5 text-sm">
-            <div className="flex justify-between text-slate-300">
+          <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 space-y-1.5 text-sm">
+            <div className="flex justify-between text-slate-400">
               <span>Total Amount</span>
-              <span>{fmt(booking.totalAmountRaw)}</span>
+              <span className="text-slate-200 font-medium">{fmt(booking.totalAmountRaw)}</span>
             </div>
-            <div className="flex justify-between text-slate-300">
+            <div className="flex justify-between text-slate-400">
               <span>Currently Outstanding</span>
               <span className="text-amber-400 font-semibold">{fmt(booking.remainingAmount)}</span>
             </div>
-            <div className="flex justify-between font-bold pt-1.5 border-t border-slate-800">
+            <div className="flex justify-between font-bold pt-1.5 border-t border-slate-800 text-slate-200">
               <span>Balance After This Payment</span>
               <span className={balanceAfter === 0 ? "text-emerald-400" : "text-amber-400"}>
                 {fmt(balanceAfter)}
@@ -145,14 +152,14 @@ export default function RecordPayment({ booking, onClose, onSaved }) {
           {paymentMethod === "online" && (
             <div>
               <label className={lbl}>Upload Transfer Screenshot / Receipt</label>
-              <label className="flex flex-col items-center justify-center w-full h-20 border-2 border-dashed border-slate-200 rounded-xl cursor-pointer hover:border-yellow-500 hover:bg-yellow-50/30 transition-all relative bg-slate-50/50">
+              <label className="flex flex-col items-center justify-center w-full h-20 border-2 border-dashed border-slate-700 rounded-xl cursor-pointer hover:border-emerald-500 hover:bg-emerald-500/5 transition-all relative bg-slate-800/40">
                 {paymentProof ? (
-                  <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100">
+                  <div className="flex items-center gap-2 text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/30">
                     <FaCheck size={12} />
                     <span className="text-xs font-semibold max-w-[150px] truncate">{paymentProof.name}</span>
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center gap-1 text-slate-400">
+                  <div className="flex flex-col items-center gap-1 text-slate-500">
                     <FaUpload size={14} />
                     <span className="text-xs font-medium">Upload Proof</span>
                   </div>
@@ -166,11 +173,11 @@ export default function RecordPayment({ booking, onClose, onSaved }) {
 
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose}
-              className="flex-1 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold py-3 rounded-xl text-sm transition-all">
+              className="flex-1 border border-slate-700 hover:bg-slate-800 text-slate-300 font-bold py-3 rounded-xl text-sm transition-all">
               Cancel
             </button>
             <button type="submit" disabled={saving}
-              className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-bold py-3 rounded-xl text-sm transition-all flex items-center justify-center gap-2">
+              className="flex-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 text-slate-950 font-bold py-3 rounded-xl text-sm transition-all flex items-center justify-center gap-2">
               <FaCheck size={12} /> {saving ? "Saving…" : "Record Payment"}
             </button>
           </div>

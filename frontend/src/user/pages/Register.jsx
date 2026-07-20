@@ -4,7 +4,6 @@ import axios from 'axios';
 import Swal from 'sweetalert2';
 import { NAME_RE, EMAIL_RE } from '../../utils/validators';
 import './Register.css';
-import { API_BASE_URL } from "../../config/api";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -40,7 +39,7 @@ export default function Register() {
     }
 
     try {
-      await axios.post('API_BASE_URL/api/register', formData);
+      await axios.post('http://localhost:8000/api/register', formData);
       await Swal.fire({
         icon: "success",
         title: "Registration Successful!",

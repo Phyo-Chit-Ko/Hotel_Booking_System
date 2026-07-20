@@ -72,33 +72,35 @@ export default function ChargesLedgerModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-sm">
-      <div className="w-full max-w-lg bg-white rounded-3xl border border-slate-100 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
-        <div className="px-6 pt-6 pb-4 border-b border-slate-100 flex justify-between items-start">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900 tracking-tight">Check Balance</h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              {booking.bookingNumber} · {booking.guestName} · Room {booking.roomNumber}
-            </p>
-          </div>
+      <div className="w-full max-w-lg bg-slate-900 text-white rounded-2xl border border-slate-800 shadow-2xl shadow-black/60 overflow-hidden max-h-[90vh] flex flex-col">
+
+        <div className="relative bg-gradient-to-r from-slate-800 via-slate-900 to-slate-950 p-5 border-b border-slate-800 shrink-0">
+          <span className="text-[10px] font-mono text-emerald-400 font-bold uppercase tracking-widest block mb-0.5">
+            Ledger
+          </span>
+          <h2 className="text-white text-lg font-black tracking-tight">Check Balance</h2>
+          <p className="text-xs text-slate-400 mt-0.5">
+            {booking.bookingNumber} · {booking.guestName} · Room {booking.roomNumber}
+          </p>
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 p-2 rounded-xl hover:bg-slate-50 transition"
+            className="absolute top-5 right-5 w-7 h-7 rounded-full bg-black/30 hover:bg-black/60 text-white flex items-center justify-center transition"
           >
-            <FaTimes size={16} />
+            <FaTimes className="w-3 h-3" />
           </button>
         </div>
 
-        <div className="p-6 space-y-5 overflow-y-auto flex-1">
-          {loading && <p className="text-sm text-slate-400 text-center py-6">Loading…</p>}
+        <div className="p-6 space-y-5 overflow-y-auto flex-1 no-scrollbar">
+          {loading && <p className="text-sm text-slate-500 text-center py-6">Loading…</p>}
           {!loading && error && (
-            <div className="bg-red-50 border border-red-100 text-red-700 text-sm px-4 py-3 rounded-xl">{error}</div>
+            <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm px-4 py-3 rounded-xl">{error}</div>
           )}
 
           {!loading && !error && ledger && (
             <>
               {ledger.movedFrom && (
-                <div className="bg-blue-50 border border-blue-100 text-blue-700 text-xs px-4 py-3 rounded-xl flex items-center gap-2">
+                <div className="bg-blue-500/10 border border-blue-500/30 text-blue-400 text-xs px-4 py-3 rounded-xl flex items-center gap-2">
                   <FaExchangeAlt size={12} className="flex-shrink-0" />
                   <span>
                     Moved from Room {ledger.movedFrom.roomNumber} (Reservation #{ledger.movedFrom.reservationId})
@@ -109,19 +111,19 @@ export default function ChargesLedgerModal({
 
               <div>
                 <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Charges</h3>
-                <div className="border border-slate-100 rounded-xl divide-y divide-slate-100">
+                <div className="border border-slate-700/40 rounded-xl divide-y divide-slate-800 bg-slate-800/20">
                   {ledger.charges.length === 0 && (
-                    <p className="text-sm text-slate-400 px-4 py-3">No charges recorded.</p>
+                    <p className="text-sm text-slate-500 px-4 py-3">No charges recorded.</p>
                   )}
                   {ledger.charges.map((c) => (
                     <div key={`charge-${c.id}`} className="flex justify-between items-center px-4 py-2.5 text-sm">
                       <div>
-                        <p className="text-slate-800 font-medium">{c.description}</p>
-                        <p className="text-[11px] text-slate-400 uppercase tracking-wide">
+                        <p className="text-slate-200 font-medium">{c.description}</p>
+                        <p className="text-[11px] text-slate-500 uppercase tracking-wide">
                           {c.chargeType.replace("_", " ")}
                         </p>
                       </div>
-                      <span className={`font-mono font-semibold ${c.amount < 0 ? "text-red-500" : "text-slate-900"}`}>
+                      <span className={`font-mono font-semibold ${c.amount < 0 ? "text-red-400" : "text-slate-200"}`}>
                         {c.amount < 0 ? "-" : ""}
                         {fmt(Math.abs(c.amount))}
                       </span>
@@ -132,45 +134,45 @@ export default function ChargesLedgerModal({
 
               <div>
                 <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Payments</h3>
-                <div className="border border-slate-100 rounded-xl divide-y divide-slate-100">
+                <div className="border border-slate-700/40 rounded-xl divide-y divide-slate-800 bg-slate-800/20">
                   {ledger.payments.length === 0 && (
-                    <p className="text-sm text-slate-400 px-4 py-3">No payments recorded yet.</p>
+                    <p className="text-sm text-slate-500 px-4 py-3">No payments recorded yet.</p>
                   )}
                   {ledger.payments.map((p) => (
                     <div key={`payment-${p.id}`} className="flex justify-between items-center px-4 py-2.5 text-sm">
                       <div>
-                        <p className="text-slate-800 font-medium">{p.description || "Payment"}</p>
-                        <p className="text-[11px] text-slate-400 uppercase tracking-wide">
+                        <p className="text-slate-200 font-medium">{p.description || "Payment"}</p>
+                        <p className="text-[11px] text-slate-500 uppercase tracking-wide">
                           {(p.method || "").replace("_", " ")} · {p.date}
                         </p>
                       </div>
-                      <span className="font-mono font-semibold text-emerald-600">-{fmt(p.amount)}</span>
+                      <span className="font-mono font-semibold text-emerald-400">-{fmt(p.amount)}</span>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="bg-slate-900 text-white rounded-2xl p-4 flex justify-between items-center">
-                <span className="text-sm font-semibold">Balance Due</span>
+              <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 flex justify-between items-center">
+                <span className="text-sm font-semibold text-slate-300">Balance Due</span>
                 <span className={`text-lg font-bold ${ledger.balance > 0 ? "text-amber-400" : "text-emerald-400"}`}>
                   {fmt(ledger.balance)}
                 </span>
               </div>
 
               {mode === "checkout" && (
-                <div className="space-y-3 pt-2 border-t border-slate-100">
+                <div className="space-y-3 pt-2 border-t border-slate-800">
                   {checkoutError && (
-                    <div className="bg-red-50 border border-red-100 text-red-700 text-sm px-4 py-3 rounded-xl">
+                    <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm px-4 py-3 rounded-xl">
                       {checkoutError}
                     </div>
                   )}
                   {ledger.balance > 0 && (
                     <div>
-                      <label className="block text-xs font-semibold text-slate-600 mb-1.5 ml-0.5">
+                      <label className="block text-xs font-semibold text-slate-400 mb-1.5 ml-0.5">
                         Reason for checking out with a balance *
                       </label>
                       <input
-                        className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:ring-4 focus:ring-yellow-500/20 focus:border-yellow-500 bg-slate-50/50"
+                        className="w-full bg-slate-800/60 border border-slate-700/50 rounded-xl px-4 py-3 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500/60"
                         placeholder="e.g. Guest will settle balance by mail"
                         value={overrideReason}
                         onChange={(e) => setOverrideReason(e.target.value)}
@@ -183,11 +185,11 @@ export default function ChargesLedgerModal({
           )}
         </div>
 
-        <div className="p-6 pt-4 border-t border-slate-100 flex gap-3">
+        <div className="p-6 pt-4 border-t border-slate-800 flex gap-3 shrink-0">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold py-3 rounded-xl text-sm transition-all"
+            className="flex-1 border border-slate-700 hover:bg-slate-800 text-slate-300 font-bold py-3 rounded-xl text-sm transition-all"
           >
             Close
           </button>
@@ -195,7 +197,7 @@ export default function ChargesLedgerModal({
             <button
               type="button"
               onClick={() => setShowInvoice(true)}
-              className="flex-1 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold py-3 rounded-xl text-sm transition-all flex items-center justify-center gap-2"
+              className="flex-1 border border-slate-700 hover:bg-slate-800 text-slate-300 font-bold py-3 rounded-xl text-sm transition-all flex items-center justify-center gap-2"
             >
               <FaPrint size={12} /> Print Invoice
             </button>
@@ -204,7 +206,7 @@ export default function ChargesLedgerModal({
             <button
               type="button"
               onClick={() => onMakePayment(booking)}
-              className="flex-1 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-700 font-bold py-3 rounded-xl text-sm transition-all flex items-center justify-center gap-2"
+              className="flex-1 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 font-bold py-3 rounded-xl text-sm transition-all flex items-center justify-center gap-2"
             >
               <FaMoneyBillWave size={12} /> Make Payment
             </button>
@@ -214,7 +216,7 @@ export default function ChargesLedgerModal({
               type="button"
               onClick={handleCheckOutAnyway}
               disabled={checkoutSaving || loading}
-              className="flex-1 bg-slate-900 hover:bg-slate-800 disabled:opacity-60 text-white font-bold py-3 rounded-xl text-sm transition-all flex items-center justify-center gap-2"
+              className="flex-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 text-slate-950 font-bold py-3 rounded-xl text-sm transition-all flex items-center justify-center gap-2"
             >
               <FaSignOutAlt size={12} />
               {checkoutSaving ? "Checking out…" : ledger?.balance > 0 ? "Check Out Anyway" : "Confirm Check-Out"}

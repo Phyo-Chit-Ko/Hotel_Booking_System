@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom"; // Import useSearchParams
 import axios from "axios";
 import { useAuth } from "../../context/AuthContext";
-import { API_BASE_URL } from "../../config/api";
+
 export default function GoogleSuccess() {
     const navigate = useNavigate();
     const { setUser } = useAuth();
@@ -22,7 +22,7 @@ useEffect(() => {
     }
 
     // 2. Fetch the user details
-    axios.get("API_BASE_URL/api/user", {
+    axios.get("http://localhost:8000/api/user", {
         headers: {
             Authorization: `Bearer ${token}`
         }

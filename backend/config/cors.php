@@ -20,17 +20,10 @@ return [
     'allowed_methods' => ['*'],
 
     // React development servers
-    // 'allowed_origins' => [
-    //     'http://localhost:5173',
-    //     'http://localhost:5174',
-    // ],
-    'allowed_origins' => array_filter(array_merge(
-        [
-            'http://localhost:5173',
-            'http://localhost:5174',
-        ],
-        array_filter(explode(',', env('FRONTEND_URL', '')))
-    )),
+    'allowed_origins' => [
+        'http://localhost:5173',
+        'http://localhost:5174',
+    ],
 
     'allowed_origins_patterns' => [],
 

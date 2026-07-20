@@ -3,14 +3,13 @@ import AdminLayout from "../layouts/AdminLayout";
 import AddRoomTypeModal from "../../admin/components/AddRoomTypeModal";
 import axios from "axios";
 import Swal from "sweetalert2";
-import { API_BASE_URL } from "../../config/api";
 import {
   FaPlus, FaSearch, FaEdit, FaTrash, FaTimes, FaImage,
   FaThLarge, FaCheckCircle, FaBan, FaBed, FaDollarSign,
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
  
-// const BACKEND_URL = "http://localhost:8000";
+const BACKEND_URL = "http://localhost:8000";
  
 const STATUS_META = {
   Active:   { badge: "bg-emerald-50 text-emerald-700 border-emerald-100", dot: "bg-emerald-500", ring: "ring-emerald-300" },
@@ -285,7 +284,7 @@ export default function RoomTypeManagement() {
                       <td className="px-5 py-3 text-sm">
                         <div className={`w-10 h-10 rounded-lg overflow-hidden bg-slate-50 ring-2 ${meta.ring} ring-offset-1 ring-offset-white shadow-sm flex items-center justify-center`}>
                           {room.image ? (
-                            <img src={`${API_BASE_URL}/storage/${room.image}`} alt={room.name} className="w-full h-full object-cover" />
+                            <img src={`${BACKEND_URL}/storage/${room.image}`} alt={room.name} className="w-full h-full object-cover" />
                           ) : (
                             <FaImage className="text-slate-300 w-4 h-4" />
                           )}

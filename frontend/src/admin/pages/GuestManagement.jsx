@@ -1,10 +1,9 @@
 import { useEffect, useState, useMemo } from "react";
 import AdminLayout from "../layouts/AdminLayout";
-import { FaSearch } from "react-icons/fa";
+import { FaSearch, FaTimes } from "react-icons/fa";
 import axios from "axios";
-import { API_BASE_URL } from "../../config/api";
 
-// const BACKEND_URL = "http://localhost:8000";
+const BACKEND_URL = "http://localhost:8000";
 
 export default function GuestManagement() {
   const [guests, setGuests] = useState([]);
@@ -16,9 +15,11 @@ export default function GuestManagement() {
   const [idType, setIdType] = useState("");
   const [vip, setVip] = useState("");
 
-  // 1. Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 6;
+
+  // Image preview modal state
+  const [previewImage, setPreviewImage] = useState(null); // { url, label }
 
   const fetchGuests = async () => {
     setLoading(true);
@@ -36,13 +37,8 @@ export default function GuestManagement() {
         idNumber: g.id_number,
         docFront: g.id_front_path ? "View" : "Missing",
         docBack: g.id_back_path ? "View" : "Missing",
-
-        // Absolute URLs pointing straight to your Laravel server assets
-        // docFrontUrl: g.id_front_path ? `${BACKEND_URL}/storage/${g.id_front_path}` : null,
-        // docBackUrl: g.id_back_path ? `${BACKEND_URL}/storage/${g.id_back_path}` : null,
-        docFrontUrl: g.id_front_path ? `${API_BASE_URL}/storage/${g.id_front_path}` : null,
-        docBackUrl: g.id_back_path ? `${API_BASE_URL}/storage/${g.id_back_path}` : null,
-
+        docFrontUrl: g.id_front_path ? `${BACKEND_URL}/storage/${g.id_front_path}` : null,
+        docBackUrl: g.id_back_path ? `${BACKEND_URL}/storage/${g.id_back_path}` : null,
         vip: !!g.is_vip,
       }));
 
@@ -59,7 +55,6 @@ export default function GuestManagement() {
     fetchGuests();
   }, []);
 
-  // 2. Reset page to 1 when filters or search change
   useEffect(() => {
     setCurrentPage(1);
   }, [search, nationality, idType, vip]);
@@ -75,7 +70,6 @@ export default function GuestManagement() {
     });
   }, [guests, search, nationality, idType, vip]);
 
-  // 3. Calculate total pages and slice the data for the current page
   const totalPages = Math.max(1, Math.ceil(filteredGuests.length / itemsPerPage));
   const paginatedGuests = useMemo(() => {
     return filteredGuests.slice(
@@ -91,7 +85,6 @@ export default function GuestManagement() {
           {/* Filters Area */}
           <div className="flex items-center gap-3">
             <div className="relative w-[355px] h-11">
-              
               <input
                 type="text"
                 value={search}
@@ -99,7 +92,6 @@ export default function GuestManagement() {
                 placeholder="Search Guest Name.."
                 className="w-full h-full border border-slate-300 rounded-xl pl-11 pr-4 text-sm text-slate-700 bg-white shadow-sm focus:outline-none  focus:ring-amber-500 box-border"
               />
-              
             </div>
 
             <div className="h-11">
@@ -144,7 +136,7 @@ export default function GuestManagement() {
           </div>
 
           {/* Table Area */}
-          <div className="overflow-x-auto border border-slate-100 rounded-xl">
+          <div className="border border-slate-100 rounded-xl">
             {loading ? (
               <p className="p-6 text-slate-500 text-sm">Loading guests...</p>
             ) : error ? (
@@ -152,10 +144,22 @@ export default function GuestManagement() {
             ) : paginatedGuests.length === 0 ? (
               <p className="p-6 text-slate-500 text-sm">No guests found.</p>
             ) : (
-              <table className="w-full text-left text-sm text-slate-600 border-collapse">
+              <table className="w-full table-fixed text-left text-sm text-slate-600 border-collapse">
+                <colgroup>
+                  <col style={{ width: "4%" }} />
+                  <col style={{ width: "14%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "16%" }} />
+                  <col style={{ width: "9%" }} />
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "11%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "8%" }} />
+                </colgroup>
                 <thead>
                   <tr className="text-slate-500 font-semibold text-xs uppercase tracking-wider border-b border-slate-200 bg-slate-50">
-                    <th className="px-5 py-3.5">Guest ID</th>
+                    <th className="px-5 py-3.5">ID</th>
                     <th className="px-5 py-3.5">Guest Name</th>
                     <th className="px-5 py-3.5">Phone</th>
                     <th className="px-5 py-3.5">Email</th>
@@ -174,23 +178,21 @@ export default function GuestManagement() {
                     return (
                       <tr key={guest.id} className="hover:bg-slate-50/70 transition-colors">
                         <td className="px-5 py-4 text-slate-500 font-medium font-mono">{rowNumber}</td>
-                        <td className="px-5 py-4 font-semibold text-slate-900">{guest.name}</td>
-                        <td className="px-5 py-4 text-slate-600">{guest.phone}</td>
-                        <td className="px-5 py-4 text-slate-600">{guest.email}</td>
-                        <td className="px-5 py-4 text-slate-700">{guest.nationality}</td>
-                        <td className="px-5 py-4 text-slate-600">{guest.idType}</td>
-                        <td className="px-5 py-4 text-slate-700 font-mono tracking-tight">{guest.idNumber}</td>
-
+                        <td className="px-5 py-4 font-semibold text-slate-900 truncate" title={guest.name}>{guest.name}</td>
+                        <td className="px-5 py-4 text-slate-600 truncate" title={guest.phone}>{guest.phone}</td>
+                        <td className="px-5 py-4 text-slate-600 truncate" title={guest.email}>{guest.email}</td>
+                        <td className="px-5 py-4 text-slate-700 truncate" title={guest.nationality}>{guest.nationality}</td>
+                        <td className="px-5 py-4 text-slate-600 truncate" title={guest.idType}>{guest.idType}</td>
+                        <td className="px-5 py-4 text-slate-700 font-mono tracking-tight truncate" title={guest.idNumber}>{guest.idNumber}</td>
                         <td className="px-5 py-4 text-center">
                           {guest.docFront === "View" ? (
-                            <a
-                              href={guest.docFrontUrl}
-                              target="_blank"
-                              rel="noreferrer"
+                            <button
+                              type="button"
+                              onClick={() => setPreviewImage({ url: guest.docFrontUrl, label: `${guest.name} — ID Front` })}
                               className="bg-blue-50 text-blue-600 px-4 py-1.5 rounded-full text-xs font-bold hover:bg-blue-100 transition"
                             >
                               View
-                            </a>
+                            </button>
                           ) : (
                             <span className="bg-slate-100 text-slate-500 px-4 py-1.5 rounded-full text-xs font-bold">
                               Missing
@@ -200,14 +202,13 @@ export default function GuestManagement() {
 
                         <td className="px-5 py-4 text-center">
                           {guest.docBack === "View" ? (
-                            <a
-                              href={guest.docBackUrl}
-                              target="_blank"
-                              rel="noreferrer"
+                            <button
+                              type="button"
+                              onClick={() => setPreviewImage({ url: guest.docBackUrl, label: `${guest.name} — ID Back` })}
                               className="bg-blue-50 text-blue-600 px-4 py-1.5 rounded-full text-xs font-bold hover:bg-blue-100 transition"
                             >
                               View
-                            </a>
+                            </button>
                           ) : (
                             <span className="bg-slate-100 text-slate-500 px-4 py-1.5 rounded-full text-xs font-bold">
                               Missing
@@ -234,7 +235,7 @@ export default function GuestManagement() {
             )}
           </div>
 
-          {/* 4. Pagination Controls Footer */}
+          {/* Pagination Controls Footer */}
           {!loading && !error && filteredGuests.length > 0 && (
             <div className="flex items-center justify-between px-1 pt-2">
               <p className="text-xs text-slate-400">
@@ -274,6 +275,37 @@ export default function GuestManagement() {
           )}
         </div>
       </div>
+
+      {/* Image Preview Modal */}
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/70 backdrop-blur-sm"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div
+            className="w-full max-w-2xl bg-slate-900 rounded-2xl border border-slate-800 shadow-2xl shadow-black/60 overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="relative bg-gradient-to-r from-slate-800 via-slate-900 to-slate-950 p-4 border-b border-slate-800 flex items-center justify-between">
+              <p className="text-sm font-semibold text-slate-200">{previewImage.label}</p>
+              <button
+                type="button"
+                onClick={() => setPreviewImage(null)}
+                className="w-7 h-7 rounded-full bg-black/30 hover:bg-black/60 text-white flex items-center justify-center transition"
+              >
+                <FaTimes className="w-3 h-3" />
+              </button>
+            </div>
+            <div className="p-4 max-h-[75vh] overflow-auto flex items-center justify-center bg-slate-950/40">
+              <img
+                src={previewImage.url}
+                alt={previewImage.label}
+                className="max-w-full max-h-[70vh] rounded-lg object-contain"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 }

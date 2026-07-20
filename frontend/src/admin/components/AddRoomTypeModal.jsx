@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { FaTimes, FaChevronDown, FaImage, FaSpinner } from "react-icons/fa";
-import { API_BASE_URL } from "../../config/api";
 
-// const BACKEND_URL = "http://localhost:8000";
+const BACKEND_URL = "http://localhost:8000";
 
 const initialFormState = {
   name:               "",
@@ -39,7 +38,7 @@ export default function AddRoomTypeModal({ isOpen, onClose, onSave, roomToEdit =
       bathtub:           room.bathtub   === 1 || room.bathtub   === true,
       image:             null,
     });
-    setImagePreview(room.image ? `${API_BASE_URL}/storage/${room.image}` : null);
+    setImagePreview(room.image ? `${BACKEND_URL}/storage/${room.image}` : null);
     setRoomCount(room.num_of_rooms ?? room.numOfRooms ?? 0);
   };
 

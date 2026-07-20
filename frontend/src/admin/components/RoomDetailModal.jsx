@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { FaTimes, FaImage, FaMugHot, FaBath, FaUserCircle, FaCalendarAlt, FaUsers } from "react-icons/fa";
 import { STATUS_META, FALLBACK_STATUS_META } from "../constants/roomStatus";
-import { API_BASE_URL as BACKEND_URL} from "../../config/api";
-// const BACKEND_URL = "http://localhost:8000";
+
+const BACKEND_URL = "http://localhost:8000";
 
 // Unit Inspector-style stat row (ported from the now-retired Available_rooms.jsx
 // "Unit Inspector" panel so the eye-icon modal shares the same visual language).
@@ -78,7 +78,7 @@ export default function RoomDetailModal({ isOpen, onClose, roomNumber }) {
             {/* Image banner */}
             <div className="relative h-44 bg-gradient-to-br from-slate-800 to-slate-950 shrink-0">
               {type?.image ? (
-                <img src={`${API_BASE_URL}/storage/${type.image}`} alt={type.name} className="absolute inset-0 w-full h-full object-cover" />
+                <img src={`${BACKEND_URL}/storage/${type.image}`} alt={type.name} className="absolute inset-0 w-full h-full object-cover" />
               ) : (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5">
                   <FaImage className="text-slate-600 w-9 h-9" />

@@ -4,7 +4,6 @@ import AddUser from "../components/AddUser";
 import axios from "axios";
 import Swal from "sweetalert2";
 import { toast } from "react-hot-toast";
-import { API_BASE_URL } from "../../config/api";
 import {
   FaPlus,
   FaSearch,
@@ -16,7 +15,7 @@ import {
   FaEyeSlash,
 } from "react-icons/fa";
 
-// const API_BASE_URL = "http://localhost:8000/api/users";
+const API_BASE_URL = "http://localhost:8000/api/users";
 
 const ROLE_PRIORITY = {
   admin: 1,

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { FaTimes, FaUser, FaEnvelope, FaPhone, FaCalendarAlt, FaGlobe, FaDollarSign, FaBed, FaWallet, FaRegCommentDots, FaCloudUploadAlt } from "react-icons/fa";
 import Swal from "sweetalert2";
-import { API_BASE_URL } from "../../config/api";
+
 export default function BookingModal({ isOpen, onClose, selectedRoom }) {
   // 1. Initialize state for all form fields
   const [formData, setFormData] = useState({
@@ -102,9 +102,9 @@ export default function BookingModal({ isOpen, onClose, selectedRoom }) {
       const bookingId = selectedRoom?.booking_id || selectedRoom?.raw_id;
       
       // FIXED: Added absolute backend URL prefix domain
-      // const baseUrl = "http://localhost:8000"; 
-      // const url = isEditMode ? `${baseUrl}/api/bookings/${bookingId}` : `${baseUrl}/api/bookings`;
-      const url = isEditMode ? `${API_BASE_URL}/api/bookings/${bookingId}` : `${API_BASE_URL}/api/bookings`;
+      const baseUrl = "http://localhost:8000"; 
+      const url = isEditMode ? `${baseUrl}/api/bookings/${bookingId}` : `${baseUrl}/api/bookings`;
+
       const response = await fetch(url, {
         method: "POST", // Always POST when transporting multi-part files via Form Data
         headers: {

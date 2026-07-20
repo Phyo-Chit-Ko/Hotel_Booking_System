@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { FaCalendarPlus } from "react-icons/fa";
+import { FaTimes, FaCalendarPlus } from "react-icons/fa";
 
 const inp =
-  "w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:ring-4 focus:ring-yellow-500/20 focus:border-yellow-500 transition-all bg-slate-50/50 disabled:text-slate-400";
-const lbl = "block text-xs font-semibold text-slate-600 mb-1.5 ml-0.5";
+  "w-full bg-slate-800/60 border border-slate-700/50 rounded-xl px-4 py-3 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500/60 transition-all disabled:text-slate-500 disabled:bg-slate-800/30 [color-scheme:dark]";
+const lbl = "block text-xs font-semibold text-slate-400 mb-1.5 ml-0.5";
 
 /**
  * Extend Stay — separate from Edit and from Move Room. On success, appends
@@ -52,51 +52,63 @@ export default function ExtendStayModal({ booking, onClose, onExtended, onRequir
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-sm">
-      <div className="w-full max-w-sm bg-white rounded-3xl border border-slate-100 shadow-2xl p-6 space-y-4">
-        <div>
-          <h2 className="text-lg font-bold text-slate-900 tracking-tight">Extend Stay</h2>
-          <p className="text-xs text-slate-500 mt-0.5">
+      <div className="w-full max-w-sm bg-slate-900 text-white rounded-2xl border border-slate-800 shadow-2xl shadow-black/60 overflow-hidden">
+        <div className="relative bg-gradient-to-r from-slate-800 via-slate-900 to-slate-950 p-5 border-b border-slate-800">
+          <span className="text-[10px] font-mono text-emerald-400 font-bold uppercase tracking-widest block mb-0.5">
+            Extend Stay
+          </span>
+          <h2 className="text-white text-lg font-black tracking-tight">Extend Stay</h2>
+          <p className="text-xs text-slate-400 mt-0.5">
             {booking.bookingNumber} · {booking.guestName} · Room {booking.roomNumber}
           </p>
-        </div>
-
-        {error && (
-          <div className="bg-red-50 border border-red-100 text-red-700 text-sm px-4 py-3 rounded-xl">{error}</div>
-        )}
-
-        <div>
-          <label className={lbl}>Current Check-Out</label>
-          <input className={inp} value={booking.checkOut} disabled />
-        </div>
-
-        <div>
-          <label className={lbl}>New Check-Out *</label>
-          <input
-            className={inp}
-            type="date"
-            min={booking.checkOut}
-            value={checkOut}
-            onChange={(e) => setCheckOut(e.target.value)}
-          />
-        </div>
-
-        <div className="flex gap-3 pt-2">
           <button
             type="button"
             onClick={onClose}
-            disabled={saving}
-            className="flex-1 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold py-3 rounded-xl text-sm disabled:opacity-60"
+            className="absolute top-5 right-5 w-7 h-7 rounded-full bg-black/30 hover:bg-black/60 text-white flex items-center justify-center transition"
           >
-            Cancel
+            <FaTimes className="w-3 h-3" />
           </button>
-          <button
-            type="button"
-            onClick={submit}
-            disabled={saving}
-            className="flex-1 bg-slate-900 hover:bg-slate-800 disabled:opacity-60 text-white font-bold py-3 rounded-xl text-sm flex items-center justify-center gap-2"
-          >
-            <FaCalendarPlus size={12} /> {saving ? "Extending…" : "Extend Stay"}
-          </button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm px-4 py-3 rounded-xl">{error}</div>
+          )}
+
+          <div>
+            <label className={lbl}>Current Check-Out</label>
+            <input className={inp} value={booking.checkOut} disabled />
+          </div>
+
+          <div>
+            <label className={lbl}>New Check-Out *</label>
+            <input
+              className={inp}
+              type="date"
+              min={booking.checkOut}
+              value={checkOut}
+              onChange={(e) => setCheckOut(e.target.value)}
+            />
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="flex-1 border border-slate-700 hover:bg-slate-800 text-slate-300 font-bold py-3 rounded-xl text-sm transition-all disabled:opacity-60"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={submit}
+              disabled={saving}
+              className="flex-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 text-slate-950 font-bold py-3 rounded-xl text-sm transition-all flex items-center justify-center gap-2"
+            >
+              <FaCalendarPlus size={12} /> {saving ? "Extending…" : "Extend Stay"}
+            </button>
+          </div>
         </div>
       </div>
     </div>

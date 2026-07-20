@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { FaTimes, FaCheck } from "react-icons/fa";
 
-const inp = "w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:ring-4 focus:ring-yellow-500/20 focus:border-yellow-500 transition-all placeholder-slate-400 bg-slate-50/50 hover:bg-yellow-50/40 hover:border-yellow-300 focus:bg-white";
-const lbl = "block text-xs font-semibold text-slate-600 mb-1.5 ml-0.5";
+const inp =
+  "w-full bg-slate-800/60 border border-slate-700/50 rounded-xl px-4 py-3 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500/60 transition-all";
+const lbl = "block text-xs font-semibold text-slate-400 mb-1.5 ml-0.5";
 
 /**
  * "Edit" — guest name, phone, special requests, and now guest counts
@@ -78,32 +79,33 @@ export default function EditReservationModal({ booking, onClose, onSaved }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-sm">
-      <div className="w-full max-w-md bg-white rounded-3xl border border-slate-100 shadow-2xl overflow-hidden">
-        <div className="px-6 pt-6 pb-4 border-b border-slate-100 flex justify-between items-start">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900 tracking-tight">Edit Reservation</h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              {booking.bookingNumber} · Room {booking.roomNumber}
-            </p>
-          </div>
+      <div className="w-full max-w-md bg-slate-900 text-white rounded-2xl border border-slate-800 shadow-2xl shadow-black/60 overflow-hidden">
+        <div className="relative bg-gradient-to-r from-slate-800 via-slate-900 to-slate-950 p-5 border-b border-slate-800">
+          <span className="text-[10px] font-mono text-emerald-400 font-bold uppercase tracking-widest block mb-0.5">
+            Edit
+          </span>
+          <h2 className="text-white text-lg font-black tracking-tight">Edit Reservation</h2>
+          <p className="text-xs text-slate-400 mt-0.5">
+            {booking.bookingNumber} · Room {booking.roomNumber}
+          </p>
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 p-2 rounded-xl hover:bg-slate-50 transition"
+            className="absolute top-5 right-5 w-7 h-7 rounded-full bg-black/30 hover:bg-black/60 text-white flex items-center justify-center transition"
           >
-            <FaTimes size={16} />
+            <FaTimes className="w-3 h-3" />
           </button>
         </div>
 
         {loading ? (
-          <p className="text-sm text-slate-400 text-center py-10">Loading…</p>
+          <p className="text-sm text-slate-500 text-center py-10">Loading…</p>
         ) : (
-          <form onSubmit={handleSubmit} noValidate className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} noValidate className="p-6 space-y-4">
             {error && (
-              <div className="bg-red-50 border border-red-100 text-red-700 text-sm px-4 py-3 rounded-xl">{error}</div>
+              <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm px-4 py-3 rounded-xl">{error}</div>
             )}
             {note && (
-              <div className="bg-amber-50 border border-amber-100 text-amber-700 text-sm px-4 py-3 rounded-xl">{note}</div>
+              <div className="bg-amber-500/10 border border-amber-500/30 text-amber-400 text-sm px-4 py-3 rounded-xl">{note}</div>
             )}
 
             <div className="grid grid-cols-2 gap-3">
@@ -144,7 +146,7 @@ export default function EditReservationModal({ booking, onClose, onSaved }) {
                 />
               </div>
             </div>
-            <p className="text-[11px] text-slate-400 -mt-2 ml-0.5">
+            <p className="text-[11px] text-slate-500 -mt-2 ml-0.5">
               Increasing guest count adds an extra-person charge for the remaining nights only.
             </p>
 
@@ -163,14 +165,14 @@ export default function EditReservationModal({ booking, onClose, onSaved }) {
                 type="button"
                 onClick={onClose}
                 disabled={saving}
-                className="flex-1 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold py-3 rounded-xl text-sm transition-all disabled:opacity-60"
+                className="flex-1 border border-slate-700 hover:bg-slate-800 text-slate-300 font-bold py-3 rounded-xl text-sm transition-all disabled:opacity-60"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={saving}
-                className="flex-1 bg-slate-900 hover:bg-slate-800 disabled:opacity-60 text-white font-bold py-3 rounded-xl text-sm transition-all flex items-center justify-center gap-2"
+                className="flex-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 text-slate-950 font-bold py-3 rounded-xl text-sm transition-all flex items-center justify-center gap-2"
               >
                 <FaCheck size={12} /> {saving ? "Saving…" : "Save Changes"}
               </button>

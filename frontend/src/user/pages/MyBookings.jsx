@@ -4,7 +4,7 @@ import Swal from "sweetalert2";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import "./MyBookings.css";
-import { API_BASE_URL } from "../../config/api";
+
 export default function MyBookings() {
 
   const { user } = useAuth();
@@ -25,7 +25,7 @@ export default function MyBookings() {
 
     if (userId) {
 
-      axios.get(`API_BASE_URL/api/my-bookings/${userId}`)
+      axios.get(`http://localhost:8000/api/my-bookings/${userId}`)
         .then(res => {
 
           console.log("API RESPONSE:", res.data);
@@ -104,7 +104,7 @@ export default function MyBookings() {
     try {
       // Send the necessary fields to satisfy Laravel's validation
       await axios.put(
-        `API_BASE_URL/api/bookings/${bookingId}`,
+        `http://localhost:8000/api/bookings/${bookingId}`,
         {
           first_name: selectedBooking.first_name,
           last_name: selectedBooking.last_name,

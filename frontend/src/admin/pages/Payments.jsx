@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from "react";
 import AdminLayout from "../layouts/AdminLayout";
 import AddPaymentModal from "../components/AddPaymentModal";
 import { useAuth } from "../../context/AuthContext";
-import { API_BASE_URL } from "../../config/api";
 import {
   FaSearch,
   FaMoneyBillWave,
@@ -12,7 +11,7 @@ import {
   FaPlus,
 } from "react-icons/fa";
 
-// const BACKEND_URL = "http://localhost:8000";
+const BACKEND_URL = "http://localhost:8000";
 
 const METHOD_LABELS = {
   cash: "Cash",
@@ -60,8 +59,7 @@ const PaymentManagement = () => {
       const mapped = (data.payments || []).map((p) => ({
         ...p,
         amount: Number(p.amount || 0),
-        // proofUrl: p.proofPath ? `${BACKEND_URL}/storage/${p.proofPath}` : null,
-        proofUrl: p.proofPath ? `${API_BASE_URL}/storage/${p.proofPath}` : null,
+        proofUrl: p.proofPath ? `${BACKEND_URL}/storage/${p.proofPath}` : null,
       }));
       setPayments(mapped);
     } catch (err) {
