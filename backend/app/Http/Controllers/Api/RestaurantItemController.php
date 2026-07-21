@@ -44,7 +44,7 @@ class RestaurantItemController extends Controller
 
             'item_name' => 'required|string|max:255',
 
-            'category'  => ['required', 'string', Rule::in(['Food', 'Snack', 'Drink', 'Dessert'])],
+            'category'  => ['required', 'string', Rule::in(['Food', 'Snack', 'Fruit', 'Drink', 'Dessert'])],
 
             'price'     => 'required|numeric|min:0',
 
@@ -78,7 +78,7 @@ class RestaurantItemController extends Controller
 
             'item_name' => 'sometimes|string|max:255',
 
-            'category'  => ['sometimes', 'string', Rule::in(['Food', 'Snack', 'Drink', 'Dessert'])],
+            'category'  => ['sometimes', 'string', Rule::in(['Food', 'Snack', 'Fruit', 'Drink', 'Dessert'])],
 
             'price'     => 'sometimes|numeric|min:0',
 

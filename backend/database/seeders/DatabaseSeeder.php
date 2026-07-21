@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             RoomTypeSeeder::class, // must run before RoomSeeder (rooms reference room_type_id)
             RoomSeeder::class,
+            RestaurantItemSeeder::class,
             UserSeeder::class,
         ]);
 
