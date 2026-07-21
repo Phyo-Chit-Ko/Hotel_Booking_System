@@ -61,7 +61,7 @@ export default function Home() {
         <div className="reviews-grid">
           <div className="review-card">
             <p>"An absolute oasis in the heart of Mandalay. The staff service is impeccable."</p>
-            <h4>— Sarah Jenkins</h4>
+            <h4>— Mr.Phyo Chit</h4>
           </div>
           <div className="review-card">
             <p>"The pool view at sunset is breathtaking. Would definitely stay here again."</p>
@@ -69,7 +69,7 @@ export default function Home() {
           </div>
            <div className="review-card">
             <p>"The pool view at sunset is breathtaking. Would definitely stay here again."</p>
-            <h4>— Kenji Tanaka</h4>
+            <h4>-Mr.Shine Htet Thar</h4>
           </div>
           
         </div>

@@ -1,34 +1,43 @@
 .profile-wrapper {
   display: flex;
+  justify-content: center; /* Centers the whole side-by-side block */
+  align-items: center;     /* Centers vertically */
   min-height: 100vh;
   width: 100%;
   background: linear-gradient(135deg, #0b1220, #111c33);
   font-family: "Segoe UI", sans-serif;
+  gap: 40px;               /* Adds space between Left and Right */
+  padding: 20px;
 }
-
-/* LEFT PANEL */
+ 
 .profile-left {
-  width: 35%;
-  padding: 60px;
+  width: 350px;            /* Fixed width instead of percentage */
+  padding: 20px;
   color: white;
   display: flex;
   flex-direction: column;
-  justify-content: center;
 }
-
+ 
+.profile-right {
+  flex: 0;                 /* Stops it from stretching */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+ 
 .brand-box h1 {
   font-size: 44px;
   font-weight: 700;
   color: #d4af37;
   margin-bottom: 10px;
 }
-
+ 
 .brand-box p {
   color: #cbd5e1;
   font-size: 16px;
   opacity: 0.9;
 }
-
+ 
 .side-info {
   margin-top: 40px;
   display: flex;
@@ -37,33 +46,33 @@
   color: #94a3b8;
   font-size: 14px;
 }
-
-/* RIGHT SIDE */
+ 
+/* RIGHT SIDE
 .profile-right {
   flex: 1;
   display: flex;
   justify-content: center;
   align-items: center;
   padding: 20px;
-}
-
+} */
+ 
 /* MAIN CARD */
 .profile-card {
   width: 440px;
   padding: 28px;
-
+ 
   border-radius: 22px;
-
+ 
   background: rgba(255, 255, 255, 0.07);
   backdrop-filter: blur(18px);
-
+ 
   border: 1px solid rgba(255, 255, 255, 0.12);
-
+ 
   box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
-
+ 
   color: white;
 }
-
+ 
 /* HEADER ROW */
 .header-row {
   display: flex;
@@ -71,173 +80,173 @@
   justify-content: space-between;
   margin-bottom: 12px;
 }
-
+ 
 /* BACK BUTTON (SMART DESIGN) */
 .back-btn {
   width: 100px;
   height: 34px;
-
+ 
   display: flex;
   align-items: center;
   justify-content: center;
-
+ 
   border-radius: 8px;
-
+ 
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.15);
-
+ 
   color: white;
   font-size: 14px;
-
+ 
   cursor: pointer;
 }
-
+ 
 .back-btn:hover {
   background: rgba(255, 255, 255, 0.12);
   transform: translateX(-2px);
 }
-
+ 
 .back-btn:hover {
   background: rgba(255, 255, 255, 0.15);
   transform: translateX(-3px);
 }
-
+ 
 /* TOP BAR (AVATAR + TEXT CENTER FIX) */
 .top-bar {
   display: flex;
   align-items: center;
   gap: 14px;
 }
-
+ 
 /* AVATAR (FIXED PERFECT CENTER) */
 .avatar {
   width: 58px;
   height: 58px;
-
+ 
   display: flex;
   align-items: center;
   justify-content: center;
-
+ 
   font-size: 26px;
-
+ 
   background: linear-gradient(135deg, #d4af37, #f5d76e);
   border-radius: 50%;
   color: #111;
-
+ 
   box-shadow: 0 10px 25px rgba(212, 175, 55, 0.4);
 }
-
+ 
 /* TEXT */
 .top-bar h2 {
   margin: 0;
   font-size: 20px;
 }
-
+ 
 .top-bar span {
   font-size: 13px;
   color: #cbd5e1;
 }
-
+ 
 /* GOLD LINE */
 .gold-line {
   height: 2px;
   margin: 18px 0;
-
+ 
   background: linear-gradient(to right, #d4af37, transparent);
   border-radius: 10px;
 }
-
+ 
 /* FORM */
 .form {
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
-
+ 
 /* LABEL (ONLY INSIDE CARD = NO ADMIN CONFLICT) */
 .profile-card label {
   font-size: 12px;
   color: #cbd5e1;
   letter-spacing: 1px;
 }
-
+ 
 /* INPUT */
 .input-box input {
   width: 100%;
   padding: 12px 14px;
-
+ 
   border-radius: 12px;
   border: 1px solid rgba(255,255,255,0.15);
-
+ 
   background: rgba(0,0,0,0.25);
   color: white;
-
+ 
   outline: none;
   transition: 0.3s;
 }
-
+ 
 .input-box input:focus {
   border-color: #d4af37;
   box-shadow: 0 0 10px rgba(212,175,55,0.2);
 }
-
+ 
 /* PASSWORD BOX */
 .password-box {
   position: relative;
 }
-
+ 
 .eye-icon {
   position: absolute;
   right: 12px;
   top: 50%;
   transform: translateY(-50%);
-
+ 
   cursor: pointer;
   font-size: 18px;
   opacity: 0.8;
 }
-
+ 
 .eye-icon:hover {
   opacity: 1;
 }
-
+ 
 /* BUTTON AREA */
 .actions {
   margin-top: 18px;
   display: flex;
   gap: 10px;
 }
-
+ 
 /* BUTTON BASE */
 .btn {
   flex: 1;
   padding: 11px;
-
+ 
   border-radius: 12px;
   border: none;
-
+ 
   font-weight: 600;
   cursor: pointer;
-
+ 
   transition: 0.3s;
 }
-
+ 
 /* EDIT */
 .edit {
   background: linear-gradient(135deg, #d4af37, #f5d76e);
   color: #111;
 }
-
+ 
 .edit:hover {
   transform: translateY(-2px);
 }
-
+ 
 /* SAVE */
 .save {
   background: #22c55e;
   color: white;
 }
-
+ 
 .save:hover {
   transform: translateY(-2px);
 }
@@ -245,22 +254,22 @@
     background: #c79b56;
     color: white;
 }
-
+ 
 .btn.booking:hover {
     background: #a97d3c;
     transform: translateY(-2px);
 }
-
+ 
 /* LOGOUT */
 .logout {
   background: #ef4444;
   color: white;
 }
-
+ 
 .logout:hover {
   transform: translateY(-2px);
 }
-
+ 
 /* FOOTER */
 .security-note {
   margin-top: 18px;
@@ -272,45 +281,28 @@
   opacity: 0.9;
 }
 @media (max-width: 768px) {
-
   .profile-wrapper {
-
     flex-direction: column; /* Stack left and right panels vertically */
-
     overflow-y: auto;       /* Allow scrolling if the content is too long */
-
   }
  
   .profile-left {
-
     width: 100%;            /* Take full width */
-
     padding: 30px;          /* Less padding on small screens */
-
     text-align: center;
-
   }
  
   .profile-card {
-
     width: 90%;             /* Use percentage instead of fixed pixels */
-
     max-width: 400px;       /* Keeps it from getting too wide */
-
     margin: 20px auto;      /* Center it */
-
   }
  
   .actions {
-
     flex-direction: column; /* Stack buttons vertically on mobile */
-
   }
-
 }
  
-
-
 /* Base style for both buttons */
 .swal-btn-custom {
   padding: 10px 24px !important;
@@ -337,3 +329,23 @@
 .swal-btn-custom:hover {
   filter: brightness(1.1);
 }
+.eye-icon {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+ 
+  /* Style the SVG color */
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+ 
+  transition: color 0.3s ease;
+}
+ 
+.eye-icon:hover {
+  color: #d4af37; /* Gold color on hover */
+}
+ 

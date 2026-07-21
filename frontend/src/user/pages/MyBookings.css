@@ -4,8 +4,8 @@
     padding: 40px;
     background: linear-gradient(
         135deg,
-        #151414,
-        #282218
+        #242321,
+        #251a1a
     );
 }
  
@@ -346,23 +346,38 @@
  
     }
  
- 
-    .booking-header {
- 
-        flex-direction:column;
- 
-        gap:15px;
- 
-        align-items:flex-start;
- 
-    }
- 
 }
-/* Action Area */
-.booking-actions {
+   /* Update Header to use flex-start and space-between */
+.booking-header {
+    display: flex;
+    justify-content: space-between; /* Pushes Back left, Right-Actions right */
+    align-items: center;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #eee;
+    margin-bottom: 25px;
+}
+ 
+/* This container groups Status + Cancel on the right */
+.right-actions {
     display: flex;
     align-items: center;
     gap: 15px;
+}
+ 
+/* Ensure Back Button is styled as you like */
+.back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #1e293b;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.3s;
 }
  
  
@@ -643,7 +658,7 @@
     background:#1e293b;
     color:#fff;
     border:none;
-    border-radius:8px;
+    border-radius:30px;
     padding:10px 18px;
     font-size:15px;
     font-weight:600;
@@ -660,5 +675,7 @@
 .back-btn:active{
     transform:scale(0.98);
 }
+ 
+ 
  
  
