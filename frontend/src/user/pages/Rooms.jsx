@@ -3,7 +3,7 @@ import axios from "axios";
 import "./Rooms.css";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import Swal from "sweetalert2"; // Ensure you have this installed
+import Swal from "sweetalert2";
 import { formatCurrency } from "../../utils/currency";
 
 const BACKEND_URL = "http://localhost:8000";
@@ -50,7 +50,7 @@ function computeNights(checkIn, checkOut) {
 }
 
 export default function Rooms() {
-  const navigate = useNavigate(); // Hook for navigation
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [showForm, setShowForm] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState(null);
@@ -61,6 +61,7 @@ export default function Rooms() {
   const [isLoadingRooms, setIsLoadingRooms] = useState(true);
   const [roomsError, setRoomsError] = useState(false);
   const [errors, setErrors] = useState({});
+  const [formError, setFormError] = useState(""); // Top-level banner error state
 
   const { todayStr, tomorrowStr } = getLocalStatusDates();
 
@@ -118,8 +119,8 @@ export default function Rooms() {
     child: "",
     total_room: "",
     bed_preference: "",
-    check_in_date: todayStr,     // Default to today
-    check_out_date: tomorrowStr, // Default to tomorrow
+    check_in_date: todayStr,
+    check_out_date: tomorrowStr,
     special_requests: "",
     payment_method: "",
     room_type_id: "",
@@ -128,11 +129,12 @@ export default function Rooms() {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     
+    // Clear top error message when user makes changes
+    if (formError) setFormError("");
+
     setFormData((prev) => {
       const updated = { ...prev, [name]: value };
       
-      // If check-in date changes and becomes greater than or equal to current check-out date, 
-      // automatically move checkout to the next day relative to the new check-in date.
       if (name === "check_in_date") {
         if (!updated.check_out_date || updated.check_out_date <= value) {
           const checkInDateObj = new Date(value);
@@ -154,6 +156,7 @@ export default function Rooms() {
     const file = e.target.files[0];
     if (!file) return;
 
+    if (formError) setFormError("");
     setPaymentFile(file);
     if (errors.payment_screenshot) {
       setErrors((prev) => ({ ...prev, payment_screenshot: "" }));
@@ -190,6 +193,7 @@ export default function Rooms() {
     setPaymentFile(null);
     setFilePreview(null);
     setErrors({});
+    setFormError("");
   };
 
   const validateForm = () => {
@@ -260,6 +264,9 @@ export default function Rooms() {
 
   const checkAvailability = async () => {
     if (!formData.check_in_date || !formData.check_out_date || !selectedRoom) return true;
+    
+    setFormError("");
+
     try {
       const res = await axios.get("/api/rooms/available", {
         params: { check_in: formData.check_in_date, check_out: formData.check_out_date },
@@ -267,12 +274,11 @@ export default function Rooms() {
       const availableOfType = (res.data.rooms || []).filter(
         (r) => r.room_type_id === selectedRoom.id
       );
+
       if (availableOfType.length < Number(formData.total_room || 1)) {
-        Swal.fire({
-          icon: "info",
-          title: "We're so sorry!",
-          text: `Only ${availableOfType.length} ${selectedRoom.title} room(s) are available for the dates you selected. Please choose different dates or a different room type.`,
-        });
+        setFormError(
+          `Only ${availableOfType.length} ${selectedRoom.title} room(s) are available for the selected dates. Please select different dates or fewer rooms.`
+        );
         return false;
       }
       return true;
@@ -283,6 +289,7 @@ export default function Rooms() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setFormError("");
 
     if (!validateForm()) return;
     if (!(await checkAvailability())) return;
@@ -316,13 +323,18 @@ export default function Rooms() {
 
       if (!response.ok) {
         if (result.errors) {
-          const errorMessages = Object.values(result.errors).flat().join("\n");
-          throw new Error(errorMessages);
+          const backendErrors = {};
+          Object.keys(result.errors).forEach((key) => {
+            backendErrors[key] = result.errors[key][0];
+          });
+          setErrors(backendErrors);
+          setFormError(result.message || "Please fix the highlighted errors below.");
+        } else {
+          setFormError(result.message || "Server error occurred. Please try again.");
         }
-        throw new Error(result.message || "Server responded with status: " + response.status);
+        return;
       }
 
-      console.log("Success:", result);
       Swal.fire({
         icon: "success",
         title: "Booking saved successfully!",
@@ -332,18 +344,12 @@ export default function Rooms() {
       resetForm();
     } catch (err) {
       console.error("Fetch error details:", err);
-      Swal.fire({
-        icon: "error",
-        title: "Submission Failed",
-        text: err.message,
-      });
+      setFormError(err.message || "Submission failed. Please check your network connection.");
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Determine the minimum allowed date for checkout based on what check-in is selected.
-  // Must be at least 1 day after check-in, or tomorrow (if check-in isn't filled yet).
   let minCheckoutDate = tomorrowStr;
   if (formData.check_in_date) {
     const nextDay = new Date(formData.check_in_date);
@@ -414,10 +420,11 @@ export default function Rooms() {
                           ...prev,
                           room_type_id: room.id,
                           email: user.email || "",
-                          check_in_date: todayStr,     // Ensure defaults reset on open
-                          check_out_date: tomorrowStr, // Ensure defaults reset on open
+                          check_in_date: todayStr,
+                          check_out_date: tomorrowStr,
                         }));
                         setErrors({});
+                        setFormError("");
                         setShowForm(true);
                       }}
                     >
@@ -435,6 +442,33 @@ export default function Rooms() {
         <div className="modal-overlay">
           <div className="reservation-form">
             <h2>Book {selectedRoom?.title}</h2>
+
+            {/* Top Banner Error Display */}
+            {formError && (
+              <div style={{
+                backgroundColor: "#fde8e8",
+                color: "#9b1c1c",
+                border: "1px solid #f8b4b4",
+                padding: "12px 16px",
+                borderRadius: "6px",
+                marginBottom: "16px",
+                fontSize: "14px",
+                fontWeight: "500",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center"
+              }}>
+                <span>⚠️ {formError}</span>
+                <button 
+                  type="button" 
+                  onClick={() => setFormError("")}
+                  style={{ background: "none", border: "none", color: "#9b1c1c", cursor: "pointer", fontSize: "16px" }}
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} noValidate>
               <div className="form-columns">
                 <div className="form-col form-col-main">
@@ -530,7 +564,7 @@ export default function Rooms() {
                       <input
                         type="date"
                         name="check_in_date"
-                        min={todayStr} // Disables past days
+                        min={todayStr}
                         value={formData.check_in_date}
                         onChange={handleInputChange}
                       />
@@ -541,7 +575,7 @@ export default function Rooms() {
                       <input
                         type="date"
                         name="check_out_date"
-                        min={minCheckoutDate} // Disables past days & today (or days before check-in)
+                        min={minCheckoutDate}
                         value={formData.check_out_date}
                         onChange={handleInputChange}
                       />

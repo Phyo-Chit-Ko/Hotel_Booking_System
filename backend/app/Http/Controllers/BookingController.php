@@ -224,11 +224,28 @@ class BookingController extends Controller
         }
 
         DB::transaction(function () use ($booking, $validated) {
-            BookingRoomAssignment::where('booking_id', $booking->booking_id)->delete();
-            foreach ($validated['room_numbers'] as $rn) {
-                BookingRoomAssignment::create(['booking_id' => $booking->booking_id, 'room_number' => $rn]);
-            }
-        });
+    // Get rooms currently assigned to this booking before we wipe them
+    $previousRoomNumbers = BookingRoomAssignment::where('booking_id', $booking->booking_id)
+        ->pluck('room_number')
+        ->toArray();
+
+    BookingRoomAssignment::where('booking_id', $booking->booking_id)->delete();
+
+    foreach ($validated['room_numbers'] as $rn) {
+        BookingRoomAssignment::create(['booking_id' => $booking->booking_id, 'room_number' => $rn]);
+    }
+
+    // Mark newly assigned rooms as Reserved
+    Room::whereIn('room_number', $validated['room_numbers'])
+        ->update(['status' => 'Reserved']);
+
+    // Free up rooms that were previously assigned but are no longer part of this booking
+    $releasedRoomNumbers = array_diff($previousRoomNumbers, $validated['room_numbers']);
+    if (!empty($releasedRoomNumbers)) {
+        Room::whereIn('room_number', $releasedRoomNumbers)
+            ->update(['status' => 'Available']);
+    }
+});
 
         return response()->json([
             'message'     => 'Rooms assigned.',
