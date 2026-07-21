@@ -13,7 +13,9 @@ import {
   FaSearch,
   FaTrash,
 } from "react-icons/fa";
- 
+import { formatCurrency } from "../../utils/currency";
+import { authHeaders as getAuthHeaders } from "../../utils/apiHeaders";
+
 export default function RestaurantManagement() {
   const { user } = useAuth();
   const canWrite = (user?.role || "").toLowerCase() === "manager";
@@ -42,15 +44,6 @@ export default function RestaurantManagement() {
   const activeMenuItemsCount = menuItems.filter(
     (item) => item.status === "Available"
   ).length;
- 
-  const getAuthHeaders = (extra = {}) => {
-    const token = sessionStorage.getItem("auth_token");
-    return {
-      Accept: "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...extra,
-    };
-  };
  
   useEffect(() => {
     fetchItemsFromDB();
@@ -292,11 +285,7 @@ export default function RestaurantManagement() {
               F&B Room Charge Total
             </p>
             <p className="text-xl font-semibold text-slate-800 leading-tight">
-              $
-              {foodRevenue.toLocaleString(undefined, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
+              {formatCurrency(foodRevenue)}
             </p>
           </div>
         </div>
@@ -426,7 +415,7 @@ export default function RestaurantManagement() {
  
                         {/* Price Base */}
                         <td className="px-6 py-4 text-sm font-bold text-slate-800">
-                          ${Number(item.price).toFixed(2)}
+                          {formatCurrency(item.price)}
                         </td>
  
                         {/* Status Pill */}
@@ -610,7 +599,7 @@ export default function RestaurantManagement() {
  
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                    Price ($)
+                    Price (MMK)
                   </label>
                   <input
                     type="number"

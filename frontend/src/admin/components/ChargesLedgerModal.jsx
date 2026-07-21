@@ -1,15 +1,17 @@
 import { useState, useEffect, useCallback } from "react";
 import { FaTimes, FaMoneyBillWave, FaExchangeAlt, FaSignOutAlt, FaPrint } from "react-icons/fa";
 import InvoiceView from "./InvoiceView";
-
-const fmt = (n) => `$${(parseFloat(n) || 0).toFixed(2)}`;
+import { formatCurrency as fmt } from "../../utils/currency";
+import { authHeaders } from "../../utils/apiHeaders";
+import Swal from "sweetalert2";
 
 /**
  * "Check Balance" modal — the itemized charges/payments ledger for a
  * reservation (GET /api/reservations/{id}/ledger). Always available from
  * the Balance column, and reused as the checkout-gating surface: pass
- * mode="checkout" to show the "Check Out Anyway" control (requires a reason
- * once balance > 0).
+ * mode="checkout" to enable the checkout confirm button — which stays
+ * disabled and shows an error alert until the balance (room charges + extra
+ * charges) is fully paid. There is no override.
  */
 export default function ChargesLedgerModal({
   booking,
@@ -22,9 +24,7 @@ export default function ChargesLedgerModal({
   const [ledger, setLedger] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [overrideReason, setOverrideReason] = useState("");
   const [checkoutSaving, setCheckoutSaving] = useState(false);
-  const [checkoutError, setCheckoutError] = useState("");
   const [showInvoice, setShowInvoice] = useState(false);
 
   // Load ledger details
@@ -33,7 +33,7 @@ export default function ChargesLedgerModal({
     setError("");
     try {
       const res = await fetch(`/api/reservations/${booking.id}/ledger`, {
-        headers: { Accept: "application/json" },
+        headers: authHeaders(),
       });
       if (!res.ok) throw new Error("Failed to load charges.");
       setLedger(await res.json());
@@ -56,24 +56,33 @@ export default function ChargesLedgerModal({
     };
   }, []);
 
-  const handleCheckOutAnyway = async () => {
-    setCheckoutError("");
-    if ((ledger?.balance || 0) > 0 && !overrideReason.trim()) {
-      setCheckoutError("Enter a reason to check out with an outstanding balance.");
+  const handleConfirmCheckout = async () => {
+    if ((ledger?.balance || 0) > 0) {
+      Swal.fire({
+        icon: "error",
+        title: "Balance not fully settled",
+        text: `Cannot check out — ${fmt(ledger.balance)} is still outstanding. Record the remaining payment first.`,
+      });
       return;
     }
     setCheckoutSaving(true);
     try {
       const res = await fetch(`/api/reservations/${booking.id}/check-out`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ reason: overrideReason }),
+        headers: authHeaders({ "Content-Type": "application/json" }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Failed to check out.");
+      if (!res.ok) {
+        Swal.fire({
+          icon: "error",
+          title: "Cannot check out",
+          text: data.message || "Failed to check out.",
+        });
+        return;
+      }
       onCheckedOut(data.booking);
     } catch (err) {
-      setCheckoutError(err.message);
+      Swal.fire({ icon: "error", title: "Cannot check out", text: err.message });
     } finally {
       setCheckoutSaving(false);
     }
@@ -173,27 +182,10 @@ export default function ChargesLedgerModal({
                 </span>
               </div>
 
-              {/* Late/Outstanding Checkout Warning Input */}
-              {mode === "checkout" && (
-                <div className="space-y-3 pt-2 border-t border-slate-800">
-                  {checkoutError && (
-                    <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm px-4 py-3 rounded-xl">
-                      {checkoutError}
-                    </div>
-                  )}
-                  {ledger.balance > 0 && (
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-400 mb-1.5 ml-0.5">
-                        Reason for checking out with a balance *
-                      </label>
-                      <input
-                        className="w-full bg-slate-800/60 border border-slate-700/50 rounded-xl px-4 py-3 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500/60"
-                        placeholder="e.g. Guest will settle balance by mail"
-                        value={overrideReason}
-                        onChange={(e) => setOverrideReason(e.target.value)}
-                      />
-                    </div>
-                  )}
+              {/* Outstanding balance blocks checkout entirely — no override */}
+              {mode === "checkout" && ledger.balance > 0 && (
+                <div className="bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs px-4 py-3 rounded-xl">
+                  Checkout is blocked until the balance is fully paid. Use "Make Payment" below to record the remaining {fmt(ledger.balance)}.
                 </div>
               )}
             </>
@@ -230,12 +222,13 @@ export default function ChargesLedgerModal({
           {mode === "checkout" && (
             <button
               type="button"
-              onClick={handleCheckOutAnyway}
-              disabled={checkoutSaving || loading}
-              className="flex-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 text-slate-950 font-bold py-3 rounded-xl text-sm transition-all flex items-center justify-center gap-2"
+              onClick={handleConfirmCheckout}
+              disabled={checkoutSaving || loading || ledger?.balance > 0}
+              title={ledger?.balance > 0 ? "Settle the outstanding balance before checking out" : undefined}
+              className="flex-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed text-slate-950 font-bold py-3 rounded-xl text-sm transition-all flex items-center justify-center gap-2"
             >
               <FaSignOutAlt size={12} />
-              {checkoutSaving ? "Checking out…" : ledger?.balance > 0 ? "Check Out Anyway" : "Confirm Check-Out"}
+              {checkoutSaving ? "Checking out…" : "Confirm Check-Out"}
             </button>
           )}
         </div>

@@ -16,6 +16,9 @@ import {
   FaMoneyBillWave,
   FaExclamationTriangle,
 } from "react-icons/fa";
+import { formatCurrency } from "../../utils/currency";
+import { authHeaders } from "../../utils/apiHeaders";
+import Swal from "sweetalert2";
 
 export default function ReservationManagement() {
   const getTodayDateString = () => {
@@ -47,7 +50,6 @@ export default function ReservationManagement() {
   const [paymentBooking, setPaymentBooking] = useState(null);
   const [checkoutBooking, setCheckoutBooking] = useState(null);
   const [checkoutSaving, setCheckoutSaving] = useState(false);
-  const [checkoutError, setCheckoutError] = useState("");
   const [moveRoomBooking, setMoveRoomBooking] = useState(null);
   const [moveRoomPrefill, setMoveRoomPrefill] = useState(null);
   const [extendBooking, setExtendBooking] = useState(null);
@@ -68,7 +70,7 @@ export default function ReservationManagement() {
     setLoading(true);
     setLoadError("");
     try {
-      const res = await fetch("/api/reservations", { headers: { Accept: "application/json" } });
+      const res = await fetch("/api/reservations", { headers: authHeaders() });
       if (!res.ok) throw new Error("Failed to load reservations");
       const data = await res.json();
       setBookings(data.bookings || []);
@@ -204,7 +206,6 @@ export default function ReservationManagement() {
   };
 
   const handleCheckOutClick = (booking) => {
-    setCheckoutError("");
     if (booking.remainingAmount > 0) {
       setLedgerMode("checkout");
       setLedgerBooking(booking);
@@ -248,18 +249,29 @@ export default function ReservationManagement() {
 
   const performCheckOut = async () => {
     if (!checkoutBooking) return;
+    if (checkoutBooking.remainingAmount > 0) {
+      Swal.fire({
+        icon: "error",
+        title: "Balance not fully settled",
+        text: `Cannot check out — ${formatCurrency(checkoutBooking.remainingAmount)} is still outstanding. Record the remaining payment first.`,
+      });
+      return;
+    }
     setCheckoutSaving(true);
-    setCheckoutError("");
     try {
       const res = await fetch(`/api/reservations/${checkoutBooking.id}/check-out`, {
         method: "PATCH",
-        headers: { Accept: "application/json" },
+        headers: authHeaders(),
       });
-      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || "Failed to check out");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        Swal.fire({ icon: "error", title: "Cannot check out", text: data.message || "Failed to check out." });
+        return;
+      }
       setCheckoutBooking(null);
       await loadBookings();
     } catch (err) {
-      setCheckoutError(err.message);
+      Swal.fire({ icon: "error", title: "Cannot check out", text: err.message });
     } finally {
       setCheckoutSaving(false);
     }
@@ -592,7 +604,7 @@ export default function ReservationManagement() {
       <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px", color: "#0f172a" }}>{booking.status}</td>
       <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px", fontWeight: 600, color: "#0f172a" }}>{booking.totalAmount}</td>
       <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px", fontWeight: 600, color: "#0f172a" }}>
-        {booking.guestType === "Primary" ? `$${(booking.remainingAmount || 0).toFixed(2)}` : "—"}
+        {booking.guestType === "Primary" ? formatCurrency(booking.remainingAmount) : "—"}
       </td>
       {/* <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px", color: "#0f172a" }}>{booking.comments || "—"}</td> */}
       <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px", color: "#0f172a" }}>{booking.handledBy || "—"}</td>
@@ -610,10 +622,10 @@ export default function ReservationManagement() {
     <td style={{ border: "1px solid #94a3b8", padding: "6px 8px", color: "#0f172a" }} />
     <td style={{ border: "1px solid #94a3b8", padding: "6px 8px", color: "#0f172a" }} />
     <td style={{ border: "1px solid #94a3b8", padding: "6px 8px", color: "#0f172a" }}>
-      ${filteredBookings.filter((b) => b.guestType === "Primary").reduce((sum, b) => sum + (b.totalAmountRaw || 0), 0).toFixed(2)}
+      {formatCurrency(filteredBookings.filter((b) => b.guestType === "Primary").reduce((sum, b) => sum + (b.totalAmountRaw || 0), 0))}
     </td>
     <td style={{ border: "1px solid #94a3b8", padding: "6px 8px", color: "#0f172a" }}>
-      ${filteredBookings.filter((b) => b.guestType === "Primary").reduce((sum, b) => sum + (b.remainingAmount || 0), 0).toFixed(2)}
+      {formatCurrency(filteredBookings.filter((b) => b.guestType === "Primary").reduce((sum, b) => sum + (b.remainingAmount || 0), 0))}
     </td>
     <td colSpan={2} style={{ border: "1px solid #94a3b8", padding: "6px 8px", color: "#0f172a" }} />
   </tr>
@@ -723,22 +735,16 @@ export default function ReservationManagement() {
                 </p>
               </div>
 
-              {checkoutError && (
-                <div className="bg-red-50 border border-red-100 text-red-700 text-sm px-4 py-3 rounded-xl">
-                  {checkoutError}
-                </div>
-              )}
-
               {checkoutBooking.remainingAmount > 0 ? (
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3">
                   <FaExclamationTriangle className="text-amber-500 mt-0.5 flex-shrink-0" size={16} />
                   <div>
                     <p className="text-sm font-semibold text-amber-800">
-                      Outstanding balance: ${checkoutBooking.remainingAmount.toFixed(2)}
+                      Outstanding balance: {formatCurrency(checkoutBooking.remainingAmount)}
                     </p>
                     <p className="text-xs text-amber-700 mt-1">
-                      This guest hasn't fully paid. You can record a payment now, or check out
-                      anyway and settle the balance later.
+                      Checkout is blocked until this guest's room charges and extra charges are
+                      fully paid. Record the remaining payment to proceed.
                     </p>
                   </div>
                 </div>
@@ -770,14 +776,11 @@ export default function ReservationManagement() {
                   <button
                     type="button"
                     onClick={performCheckOut}
-                    disabled={checkoutSaving}
-                    className="flex-1 bg-slate-900 hover:bg-slate-800 disabled:opacity-60 text-white font-bold py-3 rounded-xl text-sm transition-all focus:outline-none focus:ring-0"
+                    disabled={checkoutSaving || checkoutBooking.remainingAmount > 0}
+                    title={checkoutBooking.remainingAmount > 0 ? "Settle the outstanding balance before checking out" : undefined}
+                    className="flex-1 bg-slate-900 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl text-sm transition-all focus:outline-none focus:ring-0"
                   >
-                    {checkoutSaving
-                      ? "Checking out…"
-                      : checkoutBooking.remainingAmount > 0
-                      ? "Check Out Anyway"
-                      : "Confirm Check-Out"}
+                    {checkoutSaving ? "Checking out…" : "Confirm Check-Out"}
                   </button>
                 </div>
               </div>

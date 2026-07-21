@@ -56,7 +56,7 @@ class PaymentController extends Controller
                     'date'           => now()->toDateString(),
                     'transaction_no' => $validated['transactionNo'] ?? null,
                     'comment'        => $validated['comment'] ?? null,
-                    'handled_by'     => $request->user()?->user_id ?? 1,
+                    'handled_by'     => $request->user()->user_id,
                 ];
 
                 if ($request->hasFile('paymentProof')) {

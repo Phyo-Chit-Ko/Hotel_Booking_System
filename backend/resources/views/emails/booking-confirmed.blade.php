@@ -42,18 +42,18 @@
                 <tr><td class="label">Room Number</td><td>{{ $reservation->room_number }}</td></tr>
                 <tr><td class="label">Bed Type</td><td>{{ $reservation->room->bed_type ?? '' }}</td></tr>
                 <tr><td class="label">Nights</td><td>{{ $reservation->nights }}</td></tr>
-                <tr><td class="label">Total Amount</td><td>${{ number_format((float) $reservation->total_amount, 2) }}</td></tr>
-                <tr><td class="label">Deposit Paid</td><td>${{ number_format((float) $reservation->deposit_amount, 2) }}</td></tr>
-                <tr><td class="label">Balance Due at Check-in</td><td>${{ number_format((float) $reservation->total_amount - (float) $reservation->deposit_amount, 2) }}</td></tr>
+                <tr><td class="label">Total Amount</td><td>{{ number_format((float) $reservation->total_amount, 2) }} MMK</td></tr>
+                <tr><td class="label">Deposit Paid</td><td>{{ number_format((float) $reservation->deposit_amount, 2) }} MMK</td></tr>
+                <tr><td class="label">Balance Due at Check-in</td><td>{{ number_format((float) $reservation->total_amount - (float) $reservation->deposit_amount, 2) }} MMK</td></tr>
             </table>
         </div>
     @endforeach
 
     <h3>Payment Summary</h3>
     <table>
-        <tr><td class="label">Total Amount</td><td>${{ number_format((float) $totalAmount, 2) }}</td></tr>
-        <tr><td class="label">Deposit Paid</td><td>${{ number_format((float) $totalDeposit, 2) }}</td></tr>
-        <tr><td class="label">Balance Due at Check-in</td><td>${{ number_format((float) $totalAmount - (float) $totalDeposit, 2) }}</td></tr>
+        <tr><td class="label">Total Amount</td><td>{{ number_format((float) $totalAmount, 2) }} MMK</td></tr>
+        <tr><td class="label">Deposit Paid</td><td>{{ number_format((float) $totalDeposit, 2) }} MMK</td></tr>
+        <tr><td class="label">Balance Due at Check-in</td><td>{{ number_format((float) $totalAmount - (float) $totalDeposit, 2) }} MMK</td></tr>
     </table>
 
     <h3>Hotel Policies</h3>

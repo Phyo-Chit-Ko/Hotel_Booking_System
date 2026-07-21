@@ -6,6 +6,7 @@ import {
   FaUtensils,
   FaChevronDown,
 } from "react-icons/fa";
+import { formatCurrency } from "../../utils/currency";
  
 const initialFormState = {
   room_number: "",
@@ -363,7 +364,7 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
                       className="w-full flex items-center justify-between px-4 py-3 text-left text-sm hover:bg-slate-50 transition"
                     >
                       <span className="font-medium text-slate-700">{food.name}</span>
-                      <span className="font-bold text-slate-900">${food.price.toFixed(2)}</span>
+                      <span className="font-bold text-slate-900">{formatCurrency(food.price)}</span>
                     </button>
                   ))}
                 </div>
@@ -445,7 +446,7 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
                   </div>
      
                   <div>
-                    <label className="block text-[11px] font-medium text-slate-500 mb-1">Rate ($)</label>
+                    <label className="block text-[11px] font-medium text-slate-500 mb-1">Rate (MMK)</label>
                     <input
                       type="number"
                       step="0.01"
@@ -466,7 +467,7 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
             {/* Grand Total - Always visible */}
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-slate-500">Calculated Grand Total:</span>
-              <span className="text-base font-extrabold text-slate-900">${calculatedTotal.toFixed(2)}</span>
+              <span className="text-base font-extrabold text-slate-900">{formatCurrency(calculatedTotal)}</span>
             </div>
           </div>
  

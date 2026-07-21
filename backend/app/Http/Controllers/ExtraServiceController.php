@@ -146,7 +146,7 @@ class ExtraServiceController extends Controller
         $rate = (float) $validatedData['rate'];
         $validatedData['total'] = $quantity * $rate;
 
-        $validatedData['created_by'] = Auth::id() ?? 2;
+        $validatedData['created_by'] = Auth::id();
 
         // FIX: If frontend sends it as a string instead of an array, don't double-json_encode it
         $foodInput = $request->input('food_items');

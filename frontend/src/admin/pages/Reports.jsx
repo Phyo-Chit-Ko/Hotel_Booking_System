@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import AdminLayout from "../layouts/AdminLayout";
 import { toast } from "react-hot-toast";
-import { FaMoon, FaBed, FaUserSlash, FaDollarSign, FaSync, FaPlay } from "react-icons/fa";
+import { FaMoon, FaBed, FaUserSlash, FaMoneyBillWave, FaSync, FaPlay } from "react-icons/fa";
 import axios from "axios";
+import { formatCurrency } from "../../utils/currency";
 // Base URL is already set globally in main.jsx — use relative paths here.
 
 const Reports = () => {
@@ -45,9 +46,6 @@ const Reports = () => {
 
   const latest = reports[0];
 
-  const formatCurrency = (val) =>
-    `$${Number(val || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
   const getStatusStyle = (status) =>
     status === "success"
       ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
@@ -60,7 +58,7 @@ const Reports = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
           <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex items-center gap-4">
             <div className="p-3.5 bg-amber-50 rounded-xl border border-amber-100 text-xl text-amber-600">
-              <FaDollarSign />
+              <FaMoneyBillWave />
             </div>
             <div>
               <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Total Revenue</p>

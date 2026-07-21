@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { FaUserPlus, FaCalendarAlt, FaDollarSign, FaTimes, FaClipboardList } from "react-icons/fa";
+import { FaUserPlus, FaCalendarAlt, FaMoneyBillWave, FaTimes, FaClipboardList } from "react-icons/fa";
 import Swal from "sweetalert2";
+import { formatCurrency } from "../../utils/currency";
 
 export default function MakeWalkInReservation({ selectedRoom, onClose, onSaveSuccess }) {
   // Form state structured to align cleanly with your Laravel migration schema
@@ -102,7 +103,7 @@ if (onSaveSuccess) onSaveSuccess();
 
       {/* Booking Constraints Banner */}
       <div className="grid grid-cols-2 gap-4 bg-slate-50 px-6 py-3 border-b border-slate-100 text-xs font-bold text-slate-600">
-        <div>Base Cost: <span className="text-amber-600">${selectedRoom?.rate?.toFixed(2)}/night</span></div>
+        <div>Base Cost: <span className="text-amber-600">{formatCurrency(selectedRoom?.rate)}/night</span></div>
         <div className="text-right">Capacity Cap: <span className="text-slate-900">{selectedRoom?.capacity} Guests</span></div>
       </div>
 
@@ -182,7 +183,7 @@ if (onSaveSuccess) onSaveSuccess();
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-0.5">
-                <FaDollarSign size={10} className="opacity-60" /> Deposit Amount ($) *
+                <FaMoneyBillWave size={10} className="opacity-60" /> Deposit Amount (MMK) *
               </label>
               <input
                 type="number" step="0.01" min="0" required name="deposit_amount" value={formData.deposit_amount} onChange={handleInputChange}

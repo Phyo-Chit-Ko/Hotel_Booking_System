@@ -3,6 +3,7 @@ import axios from "axios";
 import Swal from "sweetalert2";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { formatCurrency } from "../../utils/currency";
 import "./MyBookings.css";
 
 export default function MyBookings() {
@@ -333,7 +334,7 @@ export default function MyBookings() {
                   </label>
 
                   <p>
-                    ${booking.deposit}
+                    {formatCurrency(booking.deposit)}
                   </p>
 
                 </div>
@@ -392,7 +393,7 @@ export default function MyBookings() {
                 <div className="refund-info">
                   <p>Days left: <b>{refund.daysLeft} days</b></p>
                   <p>Refund: <b>{refund.refundPercent}%</b></p>
-                  <p>Refund Amount: <b>${refund.refundAmount}</b></p>
+                  <p>Refund Amount: <b>{formatCurrency(refund.refundAmount)}</b></p>
                 </div>
               );
             })()}

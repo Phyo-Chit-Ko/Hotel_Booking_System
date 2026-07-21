@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { FaTimes, FaCheck } from "react-icons/fa";
+import { formatCurrency } from "../../utils/currency";
+import { authHeaders } from "../../utils/apiHeaders";
 
 const inp =
   "w-full bg-slate-800/60 border border-slate-700/50 rounded-xl px-4 py-3 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500/60 transition-all";
@@ -27,7 +29,7 @@ export default function EditReservationModal({ booking, onClose, onSaved }) {
 
   useEffect(() => {
     let active = true;
-    fetch(`/api/reservations/${booking.id}/detail`, { headers: { Accept: "application/json" } })
+    fetch(`/api/reservations/${booking.id}/detail`, { headers: authHeaders() })
       .then((r) => r.json())
       .then((d) => {
         if (!active) return;
@@ -53,7 +55,7 @@ export default function EditReservationModal({ booking, onClose, onSaved }) {
     try {
       const res = await fetch(`/api/reservations/${booking.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        headers: authHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           guestName: `${firstName} ${lastName}`.trim(),
           guestPhone: phone,
@@ -66,7 +68,7 @@ export default function EditReservationModal({ booking, onClose, onSaved }) {
       if (!res.ok) throw new Error(data.message || "Failed to update reservation.");
       if (data.chargeAdded?.amount > 0) {
         setNote(
-          `Added a $${data.chargeAdded.amount.toFixed(2)} extra-person charge for ${data.chargeAdded.nights} remaining night(s).`
+          `Added a ${formatCurrency(data.chargeAdded.amount)} extra-person charge for ${data.chargeAdded.nights} remaining night(s).`
         );
       }
       onSaved(data.booking);

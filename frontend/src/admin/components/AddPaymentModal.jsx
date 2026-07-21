@@ -1,5 +1,6 @@
 import React, { useState, useRef } from "react";
 import { FaTimes, FaMoneyBillWave, FaHashtag, FaFileAlt, FaCloudUploadAlt } from "react-icons/fa";
+import { authHeaders } from "../../utils/apiHeaders";
 
 /**
  * Posts directly to POST /api/payments — the same endpoint RecordPayment.jsx
@@ -52,7 +53,7 @@ export default function AddPaymentModal({ isOpen, onClose, onSave }) {
 
       const res = await fetch("/api/payments", {
         method: "POST",
-        headers: { Accept: "application/json" },
+        headers: authHeaders(),
         body: payload,
       });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || "Failed to record payment");
@@ -111,9 +112,9 @@ export default function AddPaymentModal({ isOpen, onClose, onSave }) {
 
             {/* Amount */}
             <div className="flex flex-col">
-              <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Amount (USD)</label>
+              <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Amount (MMK)</label>
               <div className="relative flex items-center bg-slate-50 rounded-xl border border-slate-200/80 focus-within:ring-2 focus-within:ring-amber-500/20 focus-within:border-amber-500">
-                <span className="absolute left-4 font-bold text-slate-400 text-sm">$</span>
+                <span className="absolute left-4 font-bold text-slate-400 text-sm">Ks</span>
                 <input
                   type="number"
                   step="0.01"
@@ -121,7 +122,7 @@ export default function AddPaymentModal({ isOpen, onClose, onSave }) {
                   value={formData.amount}
                   onChange={handleChange}
                   placeholder="0.00"
-                  className="w-full bg-transparent pl-9 pr-4 py-3 text-sm font-semibold text-amber-600 outline-none"
+                  className="w-full bg-transparent pl-11 pr-4 py-3 text-sm font-semibold text-amber-600 outline-none"
                   required
                 />
               </div>
@@ -139,8 +140,8 @@ export default function AddPaymentModal({ isOpen, onClose, onSave }) {
                 >
                   <option value="cash">Cash</option>
                   <option value="credit_card">Credit Card</option>
-                  <option value="bank_transfer">Direct Bank Account</option>
-                  <option value="online">Mobile Bank Transfer</option>
+                  <option value="bank_transfer">Bank Transfer</option>
+                  <option value="online">Mobile Wallet (K-Pay/Wave Pay)</option>
                 </select>
               </div>
             </div>

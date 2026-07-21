@@ -5,9 +5,10 @@ import axios from "axios";
 import Swal from "sweetalert2";
 import {
   FaPlus, FaSearch, FaEdit, FaTrash, FaTimes, FaImage,
-  FaThLarge, FaCheckCircle, FaBan, FaBed, FaDollarSign,
+  FaThLarge, FaCheckCircle, FaBan, FaBed, FaMoneyBillWave,
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
+import { formatCurrency } from "../../utils/currency";
  
 const BACKEND_URL = "http://localhost:8000";
  
@@ -149,7 +150,7 @@ export default function RoomTypeManagement() {
     { key: "Active", label: "Active", value: roomTypes.filter((r) => r.status === "Active").length, icon: FaCheckCircle, chip: "bg-emerald-50 text-emerald-600" },
     { key: "Inactive", label: "Inactive", value: roomTypes.filter((r) => r.status === "Inactive").length, icon: FaBan, chip: "bg-slate-100 text-slate-500" },
     { key: "Rooms", label: "Rooms Assigned", value: totalRoomsAssigned, icon: FaBed, chip: "bg-blue-50 text-blue-600" },
-    { key: "AvgPrice", label: "Avg Base Price", value: `$${avgBasePrice.toFixed(0)}`, icon: FaDollarSign, chip: "bg-violet-50 text-violet-600" },
+    { key: "AvgPrice", label: "Avg Base Price", value: formatCurrency(avgBasePrice), icon: FaMoneyBillWave, chip: "bg-violet-50 text-violet-600" },
   ];
  
   return (
@@ -313,7 +314,7 @@ export default function RoomTypeManagement() {
                           {room.maximum_capacity ?? room.capacity} Pax
                         </span>
                       </td>
-                      <td className="px-5 py-3 text-sm text-slate-800 font-semibold">${room.base_price}</td>
+                      <td className="px-5 py-3 text-sm text-slate-800 font-semibold">{formatCurrency(room.base_price)}</td>
                       <td className="px-5 py-3 text-sm">
                         <div className="flex gap-1 flex-wrap">
                           {room.breakfast === 1 || room.breakfast === true ? (

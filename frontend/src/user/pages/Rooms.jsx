@@ -4,6 +4,7 @@ import "./Rooms.css";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import Swal from "sweetalert2"; // Ensure you have this installed
+import { formatCurrency } from "../../utils/currency";
 
 const BACKEND_URL = "http://localhost:8000";
 
@@ -78,7 +79,7 @@ export default function Rooms() {
           .map((r, idx) => {
             const features = [
               { icon: "👥", label: `${r.capacity} std / ${r.maximum_capacity ?? r.capacity} max guests` },
-              { icon: "💵", label: `$${Number(r.base_price).toFixed(0)} / night` },
+              { icon: "💵", label: `${formatCurrency(r.base_price, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} / night` },
             ];
             if (r.breakfast) features.push({ icon: "🍳", label: "Free Breakfast" });
             if (r.bathtub) features.push({ icon: "🛁", label: "Luxury Bathtub" });
@@ -563,13 +564,13 @@ export default function Rooms() {
                     <label>Deposit (50% of Room Charges)</label>
                     <input
                       type="text"
-                      value={`$${((computeNights(formData.check_in_date, formData.check_out_date) * (Number(formData.total_room) || 0) * (selectedRoom?.basePrice || 0)) / 2).toFixed(2)}`}
+                      value={formatCurrency((computeNights(formData.check_in_date, formData.check_out_date) * (Number(formData.total_room) || 0) * (selectedRoom?.basePrice || 0)) / 2)}
                       readOnly
                       className="read-only"
                     />
                     {computeNights(formData.check_in_date, formData.check_out_date) > 0 && Number(formData.total_room) > 0 && (
                       <p className="field-hint">
-                        {formData.total_room} room(s) × {computeNights(formData.check_in_date, formData.check_out_date)} night(s) × ${selectedRoom?.basePrice?.toFixed(2)} ÷ 2
+                        {formData.total_room} room(s) × {computeNights(formData.check_in_date, formData.check_out_date)} night(s) × {formatCurrency(selectedRoom?.basePrice)} ÷ 2
                       </p>
                     )}
                   </div>

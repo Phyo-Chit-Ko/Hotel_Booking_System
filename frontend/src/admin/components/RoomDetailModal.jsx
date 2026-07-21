@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { FaTimes, FaImage, FaMugHot, FaBath, FaUserCircle, FaCalendarAlt, FaUsers } from "react-icons/fa";
 import { STATUS_META, FALLBACK_STATUS_META } from "../constants/roomStatus";
+import { formatCurrency } from "../../utils/currency";
 
 const BACKEND_URL = "http://localhost:8000";
 
@@ -147,7 +148,7 @@ export default function RoomDetailModal({ isOpen, onClose, roomNumber }) {
                 <StatRow label="Class Type" value={`${type?.name || "Unknown Type"}${type?.code ? ` (${type.code})` : ""}`} />
                 <StatRow
                   label="Base Cost"
-                  value={type?.base_price ? `$${type.base_price}/night` : "—"}
+                  value={type?.base_price ? `${formatCurrency(type.base_price)}/night` : "—"}
                   valueClassName="text-amber-400"
                 />
                 <StatRow
@@ -156,7 +157,7 @@ export default function RoomDetailModal({ isOpen, onClose, roomNumber }) {
                 />
                 <StatRow label="Floor" value={room.floor === "0" || room.floor === 0 ? "Ground Floor" : `Floor ${room.floor}`} />
                 <StatRow label="Bed Type" value={room.bed_type || "—"} />
-                <StatRow label="Extra Person Rate" value={`$${type?.extra_person_rate ?? "0.00"}`} />
+                <StatRow label="Extra Person Rate" value={formatCurrency(type?.extra_person_rate ?? 0)} />
                 <StatRow
                   label="Amenities"
                   value={

@@ -1,7 +1,6 @@
 import React from "react";
 import { FaArrowLeft, FaFilePdf } from "react-icons/fa";
-
-const fmtMoney = (n) => `$${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+import { formatCurrency as fmtMoney } from "../../utils/currency";
 
 // Builds the report's headers/rows from the SAME `data` object the Dashboard
 // page already fetched from /api/dashboard/stats — no separate mock data.

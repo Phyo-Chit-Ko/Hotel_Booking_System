@@ -219,7 +219,7 @@ class Reservation extends Model
             'rawStatus'     => $this->reservation_status,
             'movedToRoom'   => $this->roomMoveTo?->newReservation?->room_number,
             'handledBy'     => $this->createdBy?->name,
-            'totalAmount'   => '$' . number_format((float) $this->total_amount, 2),
+            'totalAmount'   => number_format((float) $this->total_amount, 2) . ' MMK',
             // Numeric (unformatted) counterparts — used by the payment /
             // checkout UI for math and > 0 comparisons instead of parsing
             // the display string above.

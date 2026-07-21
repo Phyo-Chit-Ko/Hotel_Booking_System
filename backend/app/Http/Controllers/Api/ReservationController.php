@@ -209,7 +209,7 @@ class ReservationController extends Controller
                 'total_amount'        => $totalAmount,
                 'deposit_amount'      => 0,
                 'reservation_status'  => $validated['reservationStatus'],
-                'created_by'          => $request->user()?->user_id ?? 2, // swap for auth()->id()
+                'created_by'          => $request->user()->user_id,
             ]);
 
             $this->seedInitialCharges($reservation, $nights, $roomCharge, $extraPersonCharge, $taxAmount);
@@ -290,9 +290,11 @@ class ReservationController extends Controller
 }
 
     /**
-     * Confirm check-out for a checked-in reservation. Gated on the live
-     * ledger balance: if there's a remaining balance, a non-empty `reason`
-     * must be supplied to override, and it's persisted for audit.
+     * Confirm check-out for a checked-in reservation. Hard-gated on the live
+     * ledger balance — room charges, extra charges, and taxes must all be
+     * fully paid first. There is no override: front desk must record the
+     * remaining payment (or dispute/adjust the charge) before checkout can
+     * proceed.
      */
     public function checkOut(Request $request, $id)
     {
@@ -305,21 +307,15 @@ class ReservationController extends Controller
         }
 
         $balance = $reservation->remaining_amount;
-        $reason  = trim((string) $request->input('reason', ''));
 
-        if ($balance > 0 && $reason === '') {
+        if ($balance > 0) {
             return response()->json([
-                'message' => 'There is an outstanding balance. Enter a reason to check out anyway.',
+                'message' => 'Cannot check out — there is an outstanding balance of ' . number_format($balance, 2) . ' MMK. Record the remaining payment before checking out.',
                 'balance' => $balance,
             ], 422);
         }
 
         $reservation->reservation_status = 'Checked-Out';
-
-        if ($balance > 0) {
-            $reservation->checkout_override_reason = $reason;
-            $reservation->checkout_override_by = $request->user()?->user_id;
-        }
 
         // If the guest is leaving before the planned check-out date, correct
         // check_out_date (and nights, so it stays consistent with the date
@@ -809,7 +805,7 @@ public function moveRoom(Request $request, $id)
                 'total_amount'        => (float) $reservation->total_amount + $newRoomCharge + $newExtraCharge + $newTax,
                 'deposit_amount'      => 0,
                 'reservation_status'  => 'Checked-In',
-                'created_by'          => $request->user()?->user_id ?? 2,
+                'created_by'          => $request->user()->user_id,
             ]);
 
             $this->seedInitialCharges($newReservation, $newNights, $newRoomCharge, $newExtraCharge, $newTax);
@@ -837,7 +833,7 @@ public function moveRoom(Request $request, $id)
             RoomMove::create([
                 'old_reservation_id' => $reservation->reservation_id,
                 'new_reservation_id' => $newReservation->reservation_id,
-                'moved_by'           => $request->user()?->user_id,
+                'moved_by'           => $request->user()->user_id,
                 'moved_at'           => $today->toDateTimeString(),
                 'reason'             => $validated['reason'],
             ]);
@@ -882,7 +878,7 @@ public function moveRoom(Request $request, $id)
             'reservation_id' => $reservation->reservation_id,
             'old_room_num'   => $oldRoomNum,
             'new_room_num'   => $newRoom->room_number,
-            'transferred_by' => $request->user()?->user_id,
+            'transferred_by' => $request->user()->user_id,
             'transfer_date'  => now()->toDateString(),
             'reason'         => $validated['reason'],
         ]);

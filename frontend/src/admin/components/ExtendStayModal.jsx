@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { FaTimes, FaCalendarPlus, FaCalendarAlt } from "react-icons/fa";
+import { authHeaders } from "../../utils/apiHeaders";
 
 const inp =
   "w-full bg-slate-800/60 border border-slate-700/50 rounded-xl px-4 py-3 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500/60 transition-all disabled:text-slate-500 disabled:bg-slate-800/30 [color-scheme:dark]";
@@ -36,7 +37,7 @@ export default function ExtendStayModal({ booking, onClose, onExtended, onRequir
     try {
       const res = await fetch(`/api/reservations/${booking.id}/extend`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        headers: authHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ checkOut }),
       });
       const data = await res.json();

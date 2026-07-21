@@ -368,7 +368,7 @@ class BookingController extends Controller
         }
 
         // 4. Update the Booking record
-        $validated['handled_by'] = Auth::id() ?? $booking->handled_by;
+        $validated['handled_by'] = Auth::id();
         $booking->update($validated);
 
         // 5. Run Conversion Transaction if confirmed

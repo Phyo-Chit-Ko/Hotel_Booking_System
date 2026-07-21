@@ -100,7 +100,7 @@ class DashboardController extends Controller
         $recentPayments = Payment::with('reservation')->latest('created_at')->limit(10)->get()
             ->map(fn ($p) => [
                 'id'   => "payment-{$p->payment_id}",
-                'text' => 'Payment of $' . number_format((float) $p->amount, 2) . ' recorded for Room ' . ($p->reservation->room_number ?? '—'),
+                'text' => 'Payment of ' . number_format((float) $p->amount, 2) . ' MMK recorded for Room ' . ($p->reservation->room_number ?? '—'),
                 'at'   => $p->created_at,
             ]);
 

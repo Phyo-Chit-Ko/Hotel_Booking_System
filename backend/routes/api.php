@@ -89,34 +89,42 @@ Route::get('/my-bookings/{user_id}', [BookingController::class, 'myBookings']);
 // Secured — was previously unprotected, now requires an authenticated user
 Route::middleware('auth:sanctum')->put('/profile/update', [ProfileController::class, 'update']);
 
-Route::get('/guests/search', [GuestController::class, 'search']);
-Route::post('/guests', [GuestController::class, 'store']);
-Route::patch('/guests/{id}', [GuestController::class, 'update']);
-Route::delete('/guests/{id}', [GuestController::class, 'destroy']);
-Route::get('/guests', [GuestController::class, 'index']);
-Route::get('/reservations', [ReservationController::class, 'index']);
-Route::post('/reservations', [ReservationController::class, 'store']);
-Route::delete('/reservations/{id}', [ReservationController::class, 'destroy']);
+// Staff-only: guests, reservations, payments, and extra-charge services are
+// all managed from the authenticated admin area (receptionist/manager/admin).
+// None of this is reachable by the public booking site, so it requires a
+// valid Sanctum session — this is also what lets controllers safely trust
+// $request->user() for handled_by/created_by attribution instead of
+// guessing a fallback user id.
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/guests/search', [GuestController::class, 'search']);
+    Route::post('/guests', [GuestController::class, 'store']);
+    Route::patch('/guests/{id}', [GuestController::class, 'update']);
+    Route::delete('/guests/{id}', [GuestController::class, 'destroy']);
+    Route::get('/guests', [GuestController::class, 'index']);
+    Route::get('/reservations', [ReservationController::class, 'index']);
+    Route::post('/reservations', [ReservationController::class, 'store']);
+    Route::delete('/reservations/{id}', [ReservationController::class, 'destroy']);
 
-Route::get('/payments', [PaymentController::class, 'index']);
-Route::post('/payments', [PaymentController::class, 'store']);
+    Route::get('/payments', [PaymentController::class, 'index']);
+    Route::post('/payments', [PaymentController::class, 'store']);
 
-Route::get('/reservations/{reservation}/guests', [ReservationGuestController::class, 'index']);
-Route::post('/reservations/{reservation}/guests', [ReservationGuestController::class, 'store']);
-Route::delete('/reservations/{reservation}/guests/{guest}', [ReservationGuestController::class, 'destroy']);
+    Route::get('/reservations/{reservation}/guests', [ReservationGuestController::class, 'index']);
+    Route::post('/reservations/{reservation}/guests', [ReservationGuestController::class, 'store']);
+    Route::delete('/reservations/{reservation}/guests/{guest}', [ReservationGuestController::class, 'destroy']);
 
-Route::get('/services', [ExtraServiceController::class, 'index']);
-Route::post('/services', [ExtraServiceController::class, 'store']);
-Route::put('/services/{id}', [ExtraServiceController::class, 'update']);
-Route::delete('/services/{id}', [ExtraServiceController::class, 'destroy']);
+    Route::get('/services', [ExtraServiceController::class, 'index']);
+    Route::post('/services', [ExtraServiceController::class, 'store']);
+    Route::put('/services/{id}', [ExtraServiceController::class, 'update']);
+    Route::delete('/services/{id}', [ExtraServiceController::class, 'destroy']);
 
-Route::get('/reservations/{id}/detail', [ReservationController::class, 'detail']);
-Route::get('/reservations/{id}/ledger', [ReservationController::class, 'ledger']);
-Route::patch('/reservations/{id}', [ReservationController::class, 'edit']);
-Route::post('/reservations/{id}/check-in', [ReservationController::class, 'checkIn']);
-Route::patch('/reservations/{id}/check-out', [ReservationController::class, 'checkOut']);
-Route::patch('/reservations/{id}/extend', [ReservationController::class, 'extend']);
-Route::patch('/reservations/{id}/move-room', [ReservationController::class, 'moveRoom']);
+    Route::get('/reservations/{id}/detail', [ReservationController::class, 'detail']);
+    Route::get('/reservations/{id}/ledger', [ReservationController::class, 'ledger']);
+    Route::patch('/reservations/{id}', [ReservationController::class, 'edit']);
+    Route::post('/reservations/{id}/check-in', [ReservationController::class, 'checkIn']);
+    Route::patch('/reservations/{id}/check-out', [ReservationController::class, 'checkOut']);
+    Route::patch('/reservations/{id}/extend', [ReservationController::class, 'extend']);
+    Route::patch('/reservations/{id}/move-room', [ReservationController::class, 'moveRoom']);
+});
 
 Route::get('/restaurant-items', [RestaurantItemController::class, 'index']);
 

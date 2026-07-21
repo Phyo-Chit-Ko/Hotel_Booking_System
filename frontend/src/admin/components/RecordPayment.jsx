@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { FaTimes, FaCheck, FaUpload } from "react-icons/fa";
+import { formatCurrency as fmt } from "../../utils/currency";
+import { authHeaders } from "../../utils/apiHeaders";
 
 const inp =
   "w-full bg-slate-800/60 border border-slate-700/50 rounded-xl px-4 py-3 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500/60 transition-all";
@@ -29,7 +31,6 @@ export default function RecordPayment({ booking, onClose, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const fmt = (n) => `$${(parseFloat(n) || 0).toFixed(2)}`;
   const amountNum = parseFloat(amount) || 0;
   const balanceAfter = Math.max(0, (booking.remainingAmount || 0) - amountNum);
 
@@ -54,7 +55,7 @@ export default function RecordPayment({ booking, onClose, onSaved }) {
 
       const res = await fetch("/api/payments", {
         method: "POST",
-        headers: { Accept: "application/json" },
+        headers: authHeaders(),
         body: payload,
       });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || "Failed to record payment");
@@ -131,7 +132,7 @@ export default function RecordPayment({ booking, onClose, onSaved }) {
             <label className={lbl}>Payment Method *</label>
             <select className={sel} value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
               <option value="cash">Cash</option>
-              <option value="online">Mobile Bank Transfer</option>
+              <option value="online">Mobile Wallet (K-Pay/Wave Pay)</option>
             </select>
           </div>
 

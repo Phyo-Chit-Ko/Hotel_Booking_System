@@ -10,6 +10,8 @@ import {
   FaWallet,
   FaPlus,
 } from "react-icons/fa";
+import { formatCurrency } from "../../utils/currency";
+import { authHeaders as getAuthHeaders } from "../../utils/apiHeaders";
 
 const BACKEND_URL = "http://localhost:8000";
 
@@ -17,7 +19,7 @@ const METHOD_LABELS = {
   cash: "Cash",
   credit_card: "Credit Card",
   bank_transfer: "Bank Transfer",
-  online: "Online",
+  online: "Mobile Wallet (K-Pay/Wave Pay)",
 };
 
 const PaymentManagement = () => {
@@ -40,14 +42,6 @@ const PaymentManagement = () => {
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
-
-  const getAuthHeaders = () => {
-    const token = sessionStorage.getItem("auth_token");
-    return {
-      Accept: "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    };
-  };
 
   const loadPayments = useCallback(async () => {
     setLoading(true);
@@ -147,7 +141,7 @@ const PaymentManagement = () => {
               </p>
 
               <h3 className="text-2xl font-semibold text-slate-900 tracking-tight mt-0.5">
-                ${grossCollections.toFixed(2)}
+                {formatCurrency(grossCollections)}
               </h3>
             </div>
           </div>
@@ -184,7 +178,7 @@ const PaymentManagement = () => {
               >
                 <option value="All">All Methods</option>
                 <option value="cash">Cash</option>
-                <option value="online">Online</option>
+                <option value="online">Mobile Wallet (K-Pay/Wave Pay)</option>
               </select>
             </div>
 
@@ -245,7 +239,7 @@ const PaymentManagement = () => {
                         </td>
 
                         <td className="px-5 py-4 font-mono font-semibold text-slate-900">
-                          ${Number(payment.amount || 0).toFixed(2)}
+                          {formatCurrency(payment.amount)}
                         </td>
 
                         <td className="px-5 py-4">

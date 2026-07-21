@@ -17,6 +17,9 @@ import {
   FaMoon,
   FaReceipt
 } from "react-icons/fa";
+import { formatCurrency } from "../../utils/currency";
+import { authHeaders } from "../../utils/apiHeaders";
+import Swal from "sweetalert2";
 
 // Matched perfectly with BookingDetail's cell aesthetic
 function DataCell({ label, value, icon: Icon, spanClass = "col-span-1" }) {
@@ -55,7 +58,7 @@ export default function ReservationDetailModal({
     }
     let cancelled = false;
     setLoading(true);
-    fetch(`/api/reservations/${booking.id}/detail`, { headers: { Accept: "application/json" } })
+    fetch(`/api/reservations/${booking.id}/detail`, { headers: authHeaders() })
       .then((r) => r.json())
       .then((data) => {
         if (!cancelled) setDetail(data.reservation || null);
@@ -75,6 +78,18 @@ export default function ReservationDetailModal({
 
   const canAct = booking.rawStatus !== "Checked-Out" && booking.rawStatus !== "Moved";
   const isPaid = !(booking.remainingAmount > 0);
+
+  const handleCheckOutAttempt = () => {
+    if (booking.remainingAmount > 0) {
+      Swal.fire({
+        icon: "error",
+        title: "Balance not fully settled",
+        text: `Cannot check out — ${formatCurrency(booking.remainingAmount)} still due (room charges + extra charges). Record the remaining payment first.`,
+      });
+      return;
+    }
+    onCheckOutClick(booking);
+  };
 
   return (
     /* Uniform Blur and Overlay setup matched perfectly with Booking Detail */
@@ -141,17 +156,17 @@ export default function ReservationDetailModal({
                 <DataCell icon={FaMoon} label="Nights" value={detail?.nights ?? booking.nights} />
                 <DataCell icon={FaUser} label="Guests" value={`${detail?.adults || 0} A / ${detail?.children || 0} C`} />
                 
-                <DataCell label="Room Charge" value={detail ? `$${Number(detail.roomCharge).toFixed(2)}` : "—"} />
-                <DataCell label="Extra Guest" value={detail ? `$${Number(detail.extraPersonCharge).toFixed(2)}` : "—"} />
-                <DataCell label="Tax" value={detail ? `$${Number(detail.taxAmount).toFixed(2)}` : "—"} />
-                
-                <DataCell label="Total Amount" value={detail ? `$${Number(detail.totalAmount).toFixed(2)}` : booking.totalAmount} valueClassName="text-emerald-400" />
+                <DataCell label="Room Charge" value={detail ? formatCurrency(detail.roomCharge) : "—"} />
+                <DataCell label="Extra Guest" value={detail ? formatCurrency(detail.extraPersonCharge) : "—"} />
+                <DataCell label="Tax" value={detail ? formatCurrency(detail.taxAmount) : "—"} />
+
+                <DataCell label="Total Amount" value={detail ? formatCurrency(detail.totalAmount) : booking.totalAmount} valueClassName="text-emerald-400" />
                 <DataCell icon={FaUser} label="Handled By" value={booking.handledBy || "—"} />
 
                 <div className="flex justify-between items-center p-2 bg-slate-800/40 rounded-lg border border-slate-700/30 text-xs">
                   <span className="text-slate-400 font-medium">Balance Status</span>
                   <span className={`font-bold ${isPaid ? "text-emerald-400" : "text-amber-400"}`}>
-                    {booking.remainingAmount > 0 ? `$${Number(booking.remainingAmount).toFixed(2)} due` : "Fully Paid"}
+                    {booking.remainingAmount > 0 ? `${formatCurrency(booking.remainingAmount)} due` : "Fully Paid"}
                   </span>
                 </div>
 
@@ -203,6 +218,7 @@ export default function ReservationDetailModal({
                   </div>
                 </div>
               )}
+
             </div>
 
             {/* Interface Footer Actions Container matching Booking Detail's style exactly */}
@@ -221,7 +237,7 @@ export default function ReservationDetailModal({
                 {(booking.status === "Occupied" || booking.status === "Check-Out") && (
                   <button
                     type="button"
-                    onClick={() => onCheckOutClick(booking)}
+                    onClick={handleCheckOutAttempt}
                     className="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-lg text-xs transition tracking-wide shadow-lg shadow-amber-950/20 inline-flex items-center justify-center gap-1.5"
                   >
                     <FaDoorOpen className="w-3.5 h-3.5" /> CHECK-OUT GUEST

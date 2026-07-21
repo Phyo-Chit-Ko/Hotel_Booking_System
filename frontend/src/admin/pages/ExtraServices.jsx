@@ -4,6 +4,7 @@ import { FaPlus, FaSearch, FaTrash, FaEdit, FaTshirt, FaUtensils, FaCar } from "
 import AddExtraChargeModal from "../../admin/components/AddExtraChargeModal";
 import axios from "axios";
 import Swal from "sweetalert2";
+import { formatCurrency } from "../../utils/currency";
 
 const ExtraServices = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -204,8 +205,8 @@ const ExtraServices = () => {
                           </div>
                         </td>
                         <td className="px-5 py-4 text-center font-mono text-slate-700">{item.quantity}</td>
-                        <td className="px-5 py-4 font-mono text-slate-600">${Number(item.rate).toFixed(2)}</td>
-                        <td className="px-5 py-4 font-mono font-bold text-slate-900">${Number(item.total).toFixed(2)}</td>
+                        <td className="px-5 py-4 font-mono text-slate-600">{formatCurrency(item.rate)}</td>
+                        <td className="px-5 py-4 font-mono font-bold text-slate-900">{formatCurrency(item.total)}</td>
                         <td className="px-5 py-4 text-slate-500">{item.handled_by || "—"}</td>
                         <td className="px-5 py-4 text-center">
                           <div className="flex justify-center items-center gap-1">

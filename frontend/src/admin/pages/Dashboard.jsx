@@ -7,6 +7,7 @@ import {
   FaTimes, FaClipboardList,
   FaChartLine, FaPercentage
 } from "react-icons/fa";
+import { formatCurrency as fmtMoney } from "../../utils/currency";
  
 const CHANNEL_COLORS = ["bg-slate-900", "bg-amber-500", "bg-slate-300", "bg-emerald-500", "bg-sky-500"];
 const CHANNEL_HEX = ["#0f172a", "#f59e0b", "#cbd5e1", "#10b981", "#0ea5e9"];
@@ -52,7 +53,6 @@ function buildWavePath(points) {
   return d;
 }
  
-const fmtMoney = (n) => `$${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmtChange = (n, suffix = "%") => (n > 0 ? "+" : "") + n + suffix;
  
 export default function Dashboard() {

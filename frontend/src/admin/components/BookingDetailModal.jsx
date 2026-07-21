@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { FaTimes, FaCalendarAlt, FaUserCircle, FaReceipt, FaEye, FaEyeSlash } from "react-icons/fa";
+import { formatCurrency } from "../../utils/currency";
 
 function StatRow({ label, value, valueClassName = "text-slate-200", spanAll = false, gridCols = "col-span-3" }) {
   return (
@@ -142,7 +143,7 @@ export default function BookingDetailModal({ isOpen, onClose, booking, onEdit, o
                   <StatRow label="Total Rooms" value={b.total_room} />
 
                   <StatRow label="Guests" value={`${b.adult || 0} A / ${b.child || 0} C`} />
-                  <StatRow label="Deposit" value={`$${Number(b.amount || 0).toFixed(2)}`} valueClassName="text-amber-400" />
+                  <StatRow label="Deposit" value={formatCurrency(b.amount)} valueClassName="text-amber-400" />
                   
                   <StatRow 
                     label="Attachment" 
