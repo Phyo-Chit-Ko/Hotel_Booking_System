@@ -20,34 +20,53 @@ class UserController extends Controller
      * Store a newly created resource in storage.
      * (Create Mode: အကောင့်အသစ်ဆောက်ချိန်)
      */
-    public function store(Request $request)
-    {
-        // ဖိုင်တစ်ခုတည်းနဲ့ ပြီးအောင် Validation ကို ဒီမှာပဲ တန်းစစ်လိုက်ပါတယ်
-        // password_confirmation စစ်တဲ့ 'confirmed' ကို ဖြုတ်ထားပြီးသားဖြစ်လို့ password တစ်ခုပဲ လိုပါတော့တယ်
-        $request->validate([
-            'name'     => 'required|string|max:255',
-            'email'    => 'required|string|email|max:255|unique:users',
-            'phone'    => 'required|string|max:20',
-            'role'     => 'required|string',
-            'status'   => 'required|string',
-            'password' => 'required|string|min:8', 
-        ]);
+   public function store(Request $request)
+{
+    // 1. Define Validation Rules
+    $rules = [
+        'name'     => 'required|string|max:255',
+        'email'    => 'required|string|email|max:255|unique:users',
+        'phone'    => 'required|string|regex:/^09\d{7,9}$/',
+        'role'     => 'required|string',
+        'status'   => 'required|string',
+        'password' => 'required|string|min:8', 
+    ];
 
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'phone' => $request->phone,
-            'role' => $request->role,
-            'status' => $request->status,
-            'password' => $request->password, // Model Cast ကနေ auto hash လုပ်ပေးမှာပါ
-            'must_change_password' => true,
-        ]);
+    // 2. Define Custom Messages
+    $messages = [
+        'name.required'     => 'Please enter the user name.',
+        'email.required'    => 'Please enter an email address.',
+        'email.email'       => 'Please enter a valid email address.',
+        'email.unique'      => 'This email address is already registered.',
+        
+        // Custom message for the phone regex format error
+        'phone.required'    => 'Please enter a phone number.',
+        'phone.regex'       => 'Phone number must start with "09" followed by 7 to 9 digits (e.g., 09123456789).',
+        
+        'role.required'     => 'Please select a user role.',
+        'status.required'   => 'Please select a status.',
+        'password.required' => 'Please enter a password.',
+        'password.min'      => 'Password must be at least 8 characters long.',
+    ];
 
-        return response()->json([
-            'message' => 'User created successfully',
-            'user' => $user
-        ], 201);
-    }
+    // 3. Pass rules and custom messages into validate()
+    $request->validate($rules, $messages);
+
+    $user = User::create([
+        'name'                 => $request->name,
+        'email'                => $request->email,
+        'phone'                => $request->phone,
+        'role'                 => $request->role,
+        'status'               => $request->status,
+        'password'             => $request->password, // Model casting handles auto-hashing
+        'must_change_password' => true,
+    ]);
+
+    return response()->json([
+        'message' => 'User created successfully',
+        'user'    => $user
+    ], 201);
+}
 
     /**
      * Display the specified resource.
@@ -80,7 +99,7 @@ class UserController extends Controller
         $request->validate([
             'name'     => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email,' . $id . ',user_id',
-            'phone'    => 'nullable|string|max:20',
+            'phone' => 'required|string|regex:/^09\d{7,9}$/',
             'role'     => 'required|string',
             'status'   => 'required|string',
             'password' => 'nullable|string|min:8', 

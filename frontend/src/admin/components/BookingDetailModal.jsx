@@ -160,10 +160,23 @@ export default function BookingDetailModal({ isOpen, onClose, booking, onEdit, o
                     } 
                   />
 
-                  <StatRow label="Handled By" value={b.handledBy} />
+                  {isCancelled ? (
+                    <StatRow
+                      label="Cancelled At"
+                      value={b.created_at ? new Date(b.created_at).toLocaleDateString() : "—"}
+                      valueClassName="text-rose-400"
+                    />
+                  ) : (
+                    <StatRow label="Handled By" value={b.handledBy} />
+                  )}
                   <StatRow label="Live Status" value={b.status} valueClassName={statusColor} />
-                  <StatRow label="Created At" value={b.created_at} valueClassName="text-slate-400 font-mono" />
-                  
+                 {!isCancelled && (
+                    <StatRow
+                      label="Created At"
+                      value={b.created_at ? new Date(b.created_at).toLocaleDateString() : null}
+                      valueClassName="text-slate-400 font-mono"
+                    />
+                  )}
                   <StatRow label="Special Requests" value={b.special_requests || "None specified."} spanAll gridCols={spanValue} />
                 </div>
 

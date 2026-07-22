@@ -209,9 +209,9 @@ export default function Rooms() {
     }
 
     if (!formData.phone.trim()) {
-      newErrors.phone = "Phone number is required.";
-    } else if (!/^[0-9+\-\s()]{6,20}$/.test(formData.phone)) {
-      newErrors.phone = "Enter a valid phone number.";
+      newErrors.phone = "Please enter a phone number.";
+    } else if (!/^09\d{7,9}$/.test(formData.phone)) {
+      newErrors.phone = 'Phone number must start with "09" followed by 7 to 9 digits (e.g., 09123456789).';
     }
 
     if (!formData.adult || Number(formData.adult) < 1) {
@@ -320,7 +320,6 @@ export default function Rooms() {
       });
 
       const result = await response.json();
-
       if (!response.ok) {
         if (result.errors) {
           const backendErrors = {};
@@ -328,7 +327,6 @@ export default function Rooms() {
             backendErrors[key] = result.errors[key][0];
           });
           setErrors(backendErrors);
-          setFormError(result.message || "Please fix the highlighted errors below.");
         } else {
           setFormError(result.message || "Server error occurred. Please try again.");
         }

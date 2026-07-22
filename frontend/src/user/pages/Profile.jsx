@@ -213,22 +213,26 @@ const { user, setUser, logout } = useAuth();
     className="btn booking"
     onClick={() => navigate("/my-bookings")}
   >
-    📋
+    {/* 📋 */}
+    My Bookings
   </button>
  
   {!editing ? (
     <button className="btn edit" onClick={() => setEditing(true)}>
-      ✏
+      {/* ✏ */}
+      Edit Profile
     </button>
   ) : (
     <button className="btn save" onClick={handleSave}>
-      💾
+      {/* 💾 */}
+      Save
     </button>
   )}
  
   {/* Changed "Logout" text to a power-off/exit icon */}
   <button className="btn logout" onClick={handleLogout}>
-    ⏻
+    {/* ⏻ */}
+    Logout
   </button>
 </div>
  

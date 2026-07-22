@@ -12,16 +12,20 @@ import { formatCurrency as fmtMoney } from "../../utils/currency";
 const CHANNEL_COLORS = ["bg-slate-900", "bg-amber-500", "bg-slate-300", "bg-emerald-500", "bg-sky-500"];
 const CHANNEL_HEX = ["#0f172a", "#f59e0b", "#cbd5e1", "#10b981", "#0ea5e9"];
  
-const getCurrentWeekString = () => {
-  const now = new Date();
-  const oneJan = new Date(now.getFullYear(), 0, 1);
-  const numberOfDays = Math.floor((now - oneJan) / (24 * 60 * 60 * 1000));
-  const resultWeek = Math.ceil((now.getDay() + 1 + numberOfDays) / 7);
-  return `${now.getFullYear()}-W${String(resultWeek).padStart(2, '0')}`;
+/**
+ * Standard ISO 8601 Week String Generator (YYYY-Www)
+ */
+const getISOWeekString = (date = new Date()) => {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
 };
  
 function toPoints(values, { width = 600, height = 160, topPad = 20, bottomPad = 10 } = {}) {
-  if (!values.length) return [];
+  if (!values || !values.length) return [];
   const min = Math.min(...values);
   const max = Math.max(...values);
   const span = max - min || 1;
@@ -35,7 +39,7 @@ function toPoints(values, { width = 600, height = 160, topPad = 20, bottomPad = 
 }
  
 function buildWavePath(points) {
-  if (points.length === 0) return "";
+  if (!points || points.length === 0) return "";
   if (points.length === 1) return `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
  
   let d = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
@@ -53,13 +57,27 @@ function buildWavePath(points) {
   return d;
 }
  
-const fmtChange = (n, suffix = "%") => (n > 0 ? "+" : "") + n + suffix;
+const fmtChange = (n, suffix = "%") => {
+  if (n === null || n === undefined) return "0" + suffix;
+  return (n > 0 ? "+" : "") + n + suffix;
+};
+ 
+// Safe date label formatter (prevents Invalid Date on cross-browser rendering)
+const formatDateLabel = (dateStr) => {
+  if (!dateStr) return "";
+  const parts = dateStr.split("-");
+  if (parts.length === 3) {
+    const d = new Date(parts[0], parts[1] - 1, parts[2]);
+    return d.toLocaleDateString(undefined, { day: "2-digit", month: "short" });
+  }
+  return dateStr;
+};
  
 export default function Dashboard() {
   const [viewState, setViewState] = useState("dashboard");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedType, setSelectedType] = useState("ops_brief");
-  const [selectedWeek, setSelectedWeek] = useState(getCurrentWeekString());
+  const [selectedWeek, setSelectedWeek] = useState(getISOWeekString());
  
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -70,49 +88,71 @@ export default function Dashboard() {
     let active = true;
     setLoading(true);
     setError("");
-   
+ 
     axios
       .get("/api/dashboard/stats", { params: { week: selectedWeek } })
       .then((res) => { if (active) setData(res.data); })
-      .catch(() => { if (active) setError("Failed to load dashboard data for the selected week."); })
+      .catch((err) => {
+        if (active) setError(err.response?.data?.message || "Failed to load dashboard metrics for the selected week.");
+      })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [selectedWeek]);
  
   const stats = useMemo(() => {
-    if (!data) return [];
+    if (!data || !data.stats) return [];
     const s = data.stats;
+ 
+    // 1. Revenue
+    const revVal = typeof s.total_revenue === "object" ? s.total_revenue?.value ?? 0 : s.total_revenue ?? 0;
+    const revChange = typeof s.total_revenue === "object" ? s.total_revenue?.change ?? 0 : 0;
+ 
+    // 2. Occupancy Rate
+    const occupancyVal = typeof s.occupancy_rate === "object" ? s.occupancy_rate?.value ?? 0 : s.occupancy_rate ?? 0;
+    const occupancyChange = typeof s.occupancy_rate === "object" ? s.occupancy_rate?.change ?? 0 : 0;
+ 
+    // 3. Active Check-Ins
+    let checkInsVal = "0";
+    let checkInsChange = 0;
+ 
+    if (s.active_check_ins !== undefined) {
+      checkInsVal = typeof s.active_check_ins === "object" ? String(s.active_check_ins?.value ?? 0) : String(s.active_check_ins);
+      checkInsChange = typeof s.active_check_ins === "object" ? s.active_check_ins?.change ?? 0 : 0;
+    } else if (s.daily_check_in) {
+      checkInsVal = `${s.daily_check_in.completed}/${s.daily_check_in.due}`;
+    }
+ 
     return [
       {
         title: "Weekly Total Revenue",
-        value: fmtMoney(s.total_revenue.value),
-        change: fmtChange(s.total_revenue.change),
-        isPositive: s.total_revenue.change >= 0,
+        value: fmtMoney(revVal),
+        change: fmtChange(revChange),
+        isPositive: revChange >= 0,
         icon: <FaCoins className="text-xl text-amber-600" />,
       },
       {
         title: "Weekly Occupancy Rate",
-        value: `${s.occupancy_rate.value}%`,
-        change: fmtChange(s.occupancy_rate.change),
-        isPositive: s.occupancy_rate.change >= 0,
+        value: `${occupancyVal}%`,
+        change: fmtChange(occupancyChange),
+        isPositive: occupancyChange >= 0,
         icon: <FaBed className="text-xl text-amber-600" />,
       },
       {
         title: "Weekly Active Check-Ins",
-        value: String(s.active_check_ins.value),
-        change: `${s.active_check_ins.change > 0 ? "+" : ""}${s.active_check_ins.change} entries`,
-        isPositive: s.active_check_ins.change >= 0,
+        value: checkInsVal,
+        change: `${checkInsChange > 0 ? "+" : ""}${checkInsChange} entries`,
+        isPositive: checkInsChange >= 0,
         icon: <FaUserCheck className="text-xl text-amber-600" />,
       },
     ];
   }, [data]);
  
   const revenuePoints = useMemo(
-    () => (data ? toPoints(data.chart_series.map((d) => d.revenue)) : []),
+    () => (data?.chart_series ? toPoints(data.chart_series.map((d) => d.revenue || 0)) : []),
     [data]
   );
   const occupancyPoints = useMemo(
-    () => (data ? toPoints(data.chart_series.map((d) => d.occupancy_rate)) : []),
+    () => (data?.chart_series ? toPoints(data.chart_series.map((d) => d.occupancy_rate || 0)) : []),
     [data]
   );
   const revenuePath = useMemo(() => buildWavePath(revenuePoints), [revenuePoints]);
@@ -126,10 +166,10 @@ export default function Dashboard() {
  
   const channels = (data?.distribution_channels || []).map((c, i) => ({
     name: c.name,
-    percentValue: c.percent,
-    value: `${c.percent}%`,
-    countValue: c.count,
-    count: `${c.count} Booking${c.count === 1 ? "" : "s"}`,
+    percentValue: c.percent || 0,
+    value: `${c.percent || 0}%`,
+    countValue: c.count || 0,
+    count: `${c.count || 0} Booking${c.count === 1 ? "" : "s"}`,
     color: CHANNEL_COLORS[i % CHANNEL_COLORS.length],
     hex: CHANNEL_HEX[i % CHANNEL_HEX.length],
   }));
@@ -167,7 +207,7 @@ export default function Dashboard() {
       ) : (
         <div className="w-full h-[calc(100vh-110px)] flex flex-col gap-5 overflow-hidden p-1">
  
-          {/* Cleaned up header block */}
+          {/* Header Block */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-200 shrink-0">
             <div>
               <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">
@@ -179,7 +219,6 @@ export default function Dashboard() {
             </div>
  
             <div className="flex items-center gap-3">
-              {/* Native styled single inputs replace the wrapped double calendar indicators */}
               <input
                 type="week"
                 value={selectedWeek}
@@ -217,7 +256,7 @@ export default function Dashboard() {
             ))}
           </div>
  
-          {/* UI Grid System Data Framework */}
+          {/* Performance Chart Frame */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 flex-1 min-h-0">
             <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm lg:col-span-2 flex flex-col justify-between min-h-0">
               <div className="flex justify-between items-center pb-3 shrink-0">
@@ -240,7 +279,7 @@ export default function Dashboard() {
                 </div>
  
                 <div className="relative w-full h-full min-h-0 pt-4">
-                  {!loading && data && (
+                  {!loading && data?.chart_series && (
                     <svg className="w-full h-full overflow-visible" viewBox="0 0 600 160" preserveAspectRatio="none">
                       <defs>
                         <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
@@ -255,13 +294,16 @@ export default function Dashboard() {
  
                 <div className="flex justify-between text-xs text-slate-500 font-medium pt-2 border-t border-slate-200 shrink-0">
                   {(data?.chart_series || []).map((d) => (
-                    <span key={d.date}>{new Date(d.date).toLocaleDateString(undefined, { day: "2-digit", month: "short" })}</span>
+                    <span key={d.date}>
+                      {formatDateLabel(d.date)}
+                    </span>
                   ))}
                 </div>
               </div>
             </div>
  
             <div className="grid grid-rows-2 gap-5 min-h-0">
+              {/* Channel Mix Donut */}
               <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between min-h-0">
                 <div className="shrink-0">
                   <h3 className="text-base font-semibold text-slate-900 tracking-tight">Distribution</h3>
@@ -319,6 +361,7 @@ export default function Dashboard() {
                 </div>
               </div>
  
+              {/* Activity Log */}
               <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between min-h-0">
                 <div className="shrink-0">
                   <h3 className="text-base font-semibold text-slate-900">Live Activity Log</h3>
@@ -339,7 +382,7 @@ export default function Dashboard() {
         </div>
       )}
  
-      {/* Overlay Configuration Modal */}
+      {/* Report Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs" onClick={() => setIsModalOpen(false)} />

@@ -14,6 +14,7 @@ import { useAuth } from "../../context/AuthContext";
 const RECEPTIONIST_RESTRICTED_PATHS = [
   "/admin/user_management",
   "/admin/restaurant",
+  "/admin/reports",
 ];
 
 export default function Sidebar({ isOpen = false, onClose }) {

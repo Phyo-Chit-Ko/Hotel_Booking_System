@@ -42,6 +42,7 @@ class Booking extends Model
         // preventing "format() on string/object" errors in your Controller index method.
         'check_in_date'  => 'datetime',
         'check_out_date' => 'datetime',
+        'created_at'     => 'datetime',
     ];
 
     /**

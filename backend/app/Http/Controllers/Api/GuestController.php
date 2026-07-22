@@ -13,34 +13,34 @@ use Illuminate\Http\Request;
 class GuestController extends Controller
 {
     public function index(Request $request)
-{
-    $query = Guest::query();
+    {
+        $query = Guest::query();
 
-    if ($request->filled('search')) {
-        $search = $request->search;
-        $query->where(function ($q) use ($search) {
-            $q->where('first_name', 'like', "%{$search}%")
-              ->orWhere('last_name', 'like', "%{$search}%")
-              ->orWhere('email', 'like', "%{$search}%");
-        });
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('first_name', 'like', "%{$search}%")
+                  ->orWhere('last_name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('nationality')) {
+            $query->where('nationality', $request->nationality);
+        }
+
+        if ($request->filled('id_type')) {
+            $query->where('id_type', $request->id_type);
+        }
+
+        if ($request->filled('vip')) {
+            $query->where('is_vip', $request->vip === 'true' || $request->vip === '1');
+        }
+
+        $guests = $query->orderByDesc('guest_id')->get();
+
+        return response()->json($guests);
     }
-
-    if ($request->filled('nationality')) {
-        $query->where('nationality', $request->nationality);
-    }
-
-    if ($request->filled('id_type')) {
-        $query->where('id_type', $request->id_type);
-    }
-
-    if ($request->filled('vip')) {
-        $query->where('is_vip', $request->vip === 'true' || $request->vip === '1');
-    }
-
-    $guests = $query->orderByDesc('guest_id')->get();
-
-    return response()->json($guests);
-}
 
     public function search(Request $request)
     {
@@ -70,6 +70,12 @@ class GuestController extends Controller
             'idFront'     => ['nullable', 'file', 'image', 'max:5120'],
             'idBack'      => ['nullable', 'file', 'image', 'max:5120'],
             'isVip'       => ['nullable', 'boolean'],
+        ], [
+            'idNumber.regex' => match ($request->input('idType')) {
+                'NRC' => 'Invalid NRC format. Please select region, township, type, and enter exactly 6 digits.',
+                'Passport' => 'Invalid Passport format. Must be 6 to 12 alphanumeric characters with no spaces or symbols.',
+                default => 'The ID number format is invalid.',
+            },
         ]);
 
         $guestData = [
@@ -115,6 +121,12 @@ class GuestController extends Controller
             'idType'      => ['sometimes', 'string', 'in:Passport,NRC,Driver\'s License,National ID'],
             'idNumber'    => ['sometimes', 'string', 'max:100', ValidationPatterns::idNumberRule($request->input('idType', $guest->id_type))],
             'isVip'       => ['nullable', 'boolean'],
+        ], [
+            'idNumber.regex' => match ($request->input('idType', $guest->id_type)) {
+                'NRC' => 'Invalid NRC format. Please select region, township, type, and enter exactly 6 digits.',
+                'Passport' => 'Invalid Passport format. Must be 6 to 12 alphanumeric characters with no spaces or symbols.',
+                default => 'The ID number format is invalid.',
+            },
         ]);
 
         if (array_key_exists('idNumber', $validated) && $validated['idNumber'] !== $guest->id_number) {
@@ -168,21 +180,21 @@ class GuestController extends Controller
      * single delete here cleans up both tables for the "new guest"
      * abandonment case.
      */
-   public function destroy($id)
-{
-    $guest = Guest::where('guest_id', $id)->firstOrFail();
+    public function destroy($id)
+    {
+        $guest = Guest::where('guest_id', $id)->firstOrFail();
 
-    $hasCompletedBooking = Reservation::where('guest_id', $guest->guest_id)
-            ->whereHas('payments')->exists()
-        || Reservation::whereHas('additionalGuests', fn ($q) => $q->where('guest_id', $guest->guest_id))
-            ->whereHas('payments')->exists();
+        $hasCompletedBooking = Reservation::where('guest_id', $guest->guest_id)
+                ->whereHas('payments')->exists()
+            || Reservation::whereHas('additionalGuests', fn ($q) => $q->where('guest_id', $guest->guest_id))
+                ->whereHas('payments')->exists();
 
-    if ($hasCompletedBooking) {
-        return response()->json(['message' => 'Cannot delete a guest with a completed booking.'], 422);
+        if ($hasCompletedBooking) {
+            return response()->json(['message' => 'Cannot delete a guest with a completed booking.'], 422);
+        }
+
+        $guest->delete();
+
+        return response()->json(['message' => 'Guest deleted.']);
     }
-
-    $guest->delete();
-
-    return response()->json(['message' => 'Guest deleted.']);
-}
 }

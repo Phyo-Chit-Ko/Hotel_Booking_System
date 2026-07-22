@@ -78,14 +78,7 @@ export default function RoomDetailModal({ isOpen, onClose, roomNumber }) {
           <>
             {/* Image banner */}
             <div className="relative h-44 bg-gradient-to-br from-slate-800 to-slate-950 shrink-0">
-              {type?.image ? (
-                <img src={`${BACKEND_URL}/storage/${type.image}`} alt={type.name} className="absolute inset-0 w-full h-full object-cover" />
-              ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5">
-                  <FaImage className="text-slate-600 w-9 h-9" />
-                  <span className="text-slate-500 text-xs font-medium">No photo available</span>
-                </div>
-              )}
+              
 
               <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-black/50 to-transparent pointer-events-none" />
 

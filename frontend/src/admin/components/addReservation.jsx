@@ -70,8 +70,9 @@ export default function AddReservation({
   const [guestResults, setGuestResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [availableRooms, setAvailableRooms] = useState([]);
-  const [saving, setSaving] = useState(false);
+ const [saving, setSaving] = useState(false);
   const [stepError, setStepError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
 
   // Tracks records that THIS session created (vs. an existing guest picked
   // from search, or a reservation that already had a payment). Only records
@@ -180,7 +181,12 @@ export default function AddReservation({
     (charges || []).filter((c) => types.includes(c.chargeType)).reduce((s, c) => s + c.amount, 0);
 
   const set   = (key, val) => setForm((p) => ({ ...p, [key]: val }));
-  const field = (key) => (e) => set(key, e.target.value);
+  const field = (key) => (e) => {
+    set(key, e.target.value);
+    if (fieldErrors[key]) setFieldErrors((p) => ({ ...p, [key]: undefined }));
+  };
+  const inpErr = (key) =>
+    inp + (fieldErrors[key] ? " border-red-400 focus:ring-red-500/20 focus:border-red-500 bg-red-50/30" : "");
 
   const handleGuestSearch = async (query) => {
     set("guestSearch", query);
@@ -258,28 +264,37 @@ export default function AddReservation({
   // to persist any corrections made to the existing guest's details).
   const submitStep1 = async () => {
     setStepError("");
+    setFieldErrors({});
 
     // Fields are only editable (and thus only need validating) when we're
     // not just reusing an already-picked existing guest profile untouched.
     if (isCheckin || !form.guestId) {
-      if (!NAME_RE.test(form.firstName.trim()) || !NAME_RE.test(form.lastName.trim())) {
-        setStepError("First/last name must contain only letters, spaces, apostrophes, hyphens, or periods.");
-        return;
+      const errors = {};
+
+      if (!NAME_RE.test(form.firstName.trim())) {
+        errors.firstName = "Only letters, spaces, apostrophes, hyphens, or periods allowed.";
+      }
+      if (!NAME_RE.test(form.lastName.trim())) {
+        errors.lastName = "Only letters, spaces, apostrophes, hyphens, or periods allowed.";
       }
       if (!PHONE_RE.test(form.phone.trim())) {
-        setStepError("Enter a valid phone number.");
-        return;
+        errors.phone = "Enter a valid phone number.";
       }
       if (form.email && !EMAIL_RE.test(form.email.trim())) {
-        setStepError("Enter a valid email address.");
-        return;
+        errors.email = "Enter a valid email address.";
       }
       if (form.nationality && !NATIONALITY_RE.test(form.nationality.trim())) {
-        setStepError("Nationality must contain only letters.");
-        return;
+        errors.nationality = "Nationality must contain only letters.";
       }
       const idError = validateIdNumber(form.idType, form.idNumber);
-      if (idError) { setStepError(idError); return; }
+      if (idError) {
+        errors.idNumber = idError;
+      }
+
+      if (Object.keys(errors).length > 0) {
+        setFieldErrors(errors);
+        return;
+      }
     }
 
     if (isCheckin) {
@@ -352,15 +367,14 @@ export default function AddReservation({
   const submitStep2 = async () => {
     setStepError("");
 
-    if (mode === "checkin") {
-      const requiredAdults = Math.max(0, (parseInt(form.adults) || 0) - 1);
-      const isRowComplete = (g) => g.guestId || (g.firstName && g.lastName && g.phone && g.idNumber);
-      const providedAdults = additionalGuests.filter((g) => g.guestType === "Adult" && isRowComplete(g)).length;
-      if (providedAdults < requiredAdults) {
-        setStepError(`Add a guest profile for each additional adult before checking in (${providedAdults}/${requiredAdults} completed).`);
-        return;
-      }
-    }
+   if (mode === "checkin") {
+  const requiredAdults = Math.max(0, (parseInt(form.adults) || 0) - 1);
+  const adultRowCount = additionalGuests.filter((g) => g.guestType === "Adult").length;
+  if (adultRowCount < requiredAdults) {
+    setStepError(`Add a guest profile for each additional adult before checking in (${adultRowCount}/${requiredAdults} completed).`);
+    return;
+  }
+}
 
     setSaving(true);
     try {
@@ -415,49 +429,56 @@ export default function AddReservation({
       }
 
       // persist any additional guests sharing this room
-      for (const g of additionalGuests) {
-        if (g.saved) continue;
-        if (!g.guestId && (!g.firstName || !g.lastName || !g.phone || !g.idNumber)) {
-          throw new Error("Please complete all required fields for each added guest, or remove them.");
-        }
-        if (!g.guestId) {
-          if (!NAME_RE.test(g.firstName.trim()) || !NAME_RE.test(g.lastName.trim())) {
-            throw new Error(`Guest "${g.firstName} ${g.lastName}": name must contain only letters.`);
-          }
-          if (!PHONE_RE.test(g.phone.trim())) {
-            throw new Error(`Guest "${g.firstName} ${g.lastName}": invalid phone number.`);
-          }
-          const idErr = validateIdNumber(g.idType, g.idNumber);
-          if (idErr) throw new Error(`Guest "${g.firstName} ${g.lastName}": ${idErr}`);
-        }
+      // persist any additional guests sharing this room
+for (const g of additionalGuests) {
+  if (g.saved) continue;
 
-        const gPayload = new FormData();
-        if (g.guestId) {
-          gPayload.append("guestId", g.guestId);
-        } else {
-          gPayload.append("firstName", g.firstName);
-          gPayload.append("lastName", g.lastName);
-          gPayload.append("phone", g.phone);
-          if (g.email) gPayload.append("email", g.email);
-          if (g.nationality) gPayload.append("nationality", g.nationality);
-          if (g.gender) gPayload.append("gender", g.gender);
-          gPayload.append("idType", g.idType);
-          gPayload.append("idNumber", g.idNumber);
-          if (g.idFront) gPayload.append("idFront", g.idFront);
-          if (g.idBack) gPayload.append("idBack", g.idBack);
-        }
-        gPayload.append("guestType", g.guestType);
+  if (!g.guestId) {
+    const errors = {};
+    if (!g.firstName?.trim()) errors.firstName = "First name is required.";
+    else if (!NAME_RE.test(g.firstName.trim())) errors.firstName = "Only letters, spaces, apostrophes, hyphens, or periods allowed.";
 
-        const gRes = await fetch(`/api/reservations/${reservationIdLocal}/guests`, {
-          method: "POST", headers: authHeaders(), body: gPayload,
-        });
-        if (!gRes.ok) throw new Error((await gRes.json().catch(() => ({}))).message || "Failed to add additional guest");
-        const gData = await gRes.json();
+    if (!g.lastName?.trim()) errors.lastName = "Last name is required.";
+    else if (!NAME_RE.test(g.lastName.trim())) errors.lastName = "Only letters, spaces, apostrophes, hyphens, or periods allowed.";
 
-        setAdditionalGuests((prev) => prev.map((row) => (row.localId === g.localId
-          ? { ...row, saved: true, savedGuestId: gData.guest.guest_id, createdThisSession: gData.guestCreated }
-          : row)));
-      }
+    if (!g.idNumber?.trim()) {
+      errors.idNumber = "ID number is required.";
+    } else {
+      const idErr = validateIdNumber(g.idType, g.idNumber);
+      if (idErr) errors.idNumber = idErr;
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setGuestRowErrors(g.localId, errors);
+      throw new Error("Please fix the highlighted fields for each added guest.");
+    }
+  }
+
+  const gPayload = new FormData();
+  if (g.guestId) {
+    gPayload.append("guestId", g.guestId);
+  } else {
+    gPayload.append("firstName", g.firstName);
+    gPayload.append("lastName", g.lastName);
+    if (g.nationality) gPayload.append("nationality", g.nationality);
+    if (g.gender) gPayload.append("gender", g.gender);
+    gPayload.append("idType", g.idType);
+    gPayload.append("idNumber", g.idNumber);
+    if (g.idFront) gPayload.append("idFront", g.idFront);
+    if (g.idBack) gPayload.append("idBack", g.idBack);
+  }
+  gPayload.append("guestType", g.guestType);
+
+  const gRes = await fetch(`/api/reservations/${reservationIdLocal}/guests`, {
+    method: "POST", headers: authHeaders(), body: gPayload,
+  });
+  if (!gRes.ok) throw new Error((await gRes.json().catch(() => ({}))).message || "Failed to add additional guest");
+  const gData = await gRes.json();
+
+  setAdditionalGuests((prev) => prev.map((row) => (row.localId === g.localId
+    ? { ...row, saved: true, savedGuestId: gData.guest.guest_id, createdThisSession: gData.guestCreated }
+    : row)));
+}
 
       setCurrentStep(3);
     } catch (err) {
@@ -560,26 +581,32 @@ export default function AddReservation({
       setGuestCreatedThisSession(false);
       setReservationCreatedThisSession(false);
       setStepError("");
+      setFieldErrors({});
       setSaving(false);
       onClose();
     }
   };
 
-  const makeGuestRow = () => ({
-    localId: `g_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-    guestId: null, guestSearch: "", guestResults: [],
-    firstName: "", lastName: "", phone: "", email: "", nationality: "", gender: "",
-    idType: "Passport", idNumber: "", guestType: "Adult",
-    idFront: null, idBack: null,
-    nrcRegionCode: "", nrcTownship: "", nrcCitizenType: "N", nrcNumber: "",
-    saved: false, savedGuestId: null, createdThisSession: false, error: "",
-  });
+ const makeGuestRow = () => ({
+  localId: `g_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+  guestId: null, guestSearch: "", guestResults: [],
+  firstName: "", lastName: "", nationality: "", gender: "",
+  idType: "NRC", idNumber: "", guestType: "Adult",   // ← changed from "Passport"
+  idFront: null, idBack: null,
+  nrcRegionCode: "", nrcTownship: "", nrcCitizenType: "N", nrcNumber: "",
+  saved: false, savedGuestId: null, createdThisSession: false,
+  fieldErrors: {},
+});
+const addGuestRow    = () => setAdditionalGuests((p) => [...p, makeGuestRow()]);
+const removeGuestRow = (localId) => setAdditionalGuests((p) => p.filter((g) => g.localId !== localId));
 
-  const addGuestRow    = () => setAdditionalGuests((p) => [...p, makeGuestRow()]);
-  const removeGuestRow = (localId) => setAdditionalGuests((p) => p.filter((g) => g.localId !== localId));
-  const updateGuestRow = (localId, key, val) =>
-    setAdditionalGuests((p) => p.map((g) => (g.localId === localId ? { ...g, [key]: val, error: "" } : g)));
+const updateGuestRow = (localId, key, val) =>
+  setAdditionalGuests((p) => p.map((g) => (g.localId === localId
+    ? { ...g, [key]: val, fieldErrors: { ...g.fieldErrors, [key]: undefined } }
+    : g)));
 
+const setGuestRowErrors = (localId, errors) =>
+  setAdditionalGuests((p) => p.map((g) => (g.localId === localId ? { ...g, fieldErrors: errors } : g)));
   const searchGuestForRow = async (localId, query) => {
     updateGuestRow(localId, "guestSearch", query);
     if (query.length < 2) { updateGuestRow(localId, "guestResults", []); return; }
@@ -708,21 +735,26 @@ export default function AddReservation({
 
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div><label className={lbl}>First Name *</label>
-        <input className={inp} placeholder="John" value={form.firstName} onChange={field("firstName")} required disabled={!isCheckin && !!form.guestId} /></div>
+        <input className={inpErr("firstName")} placeholder="John" value={form.firstName} onChange={field("firstName")} required disabled={!isCheckin && !!form.guestId} />
+        {fieldErrors.firstName && <p className="text-xs text-red-600 mt-1 ml-0.5">{fieldErrors.firstName}</p>}</div>
       <div><label className={lbl}>Last Name *</label>
-        <input className={inp} placeholder="Smith" value={form.lastName} onChange={field("lastName")} required disabled={!isCheckin && !!form.guestId} /></div>
+        <input className={inpErr("lastName")} placeholder="Smith" value={form.lastName} onChange={field("lastName")} required disabled={!isCheckin && !!form.guestId} />
+        {fieldErrors.lastName && <p className="text-xs text-red-600 mt-1 ml-0.5">{fieldErrors.lastName}</p>}</div>
     </div>
 
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div><label className={lbl}>Phone Number *</label>
-        <input className={inp} type="tel" placeholder="+1 (555) 000-0000" value={form.phone} onChange={field("phone")} required disabled={!isCheckin && !!form.guestId} /></div>
+        <input className={inpErr("phone")} type="tel" placeholder="+1 (555) 000-0000" value={form.phone} onChange={field("phone")} required disabled={!isCheckin && !!form.guestId} />
+        {fieldErrors.phone && <p className="text-xs text-red-600 mt-1 ml-0.5">{fieldErrors.phone}</p>}</div>
       <div><label className={lbl}>Email Address</label>
-        <input className={inp} type="email" placeholder="john.smith@example.com" value={form.email} onChange={field("email")} disabled={!isCheckin && !!form.guestId} /></div>
+        <input className={inpErr("email")} type="email" placeholder="john.smith@example.com" value={form.email} onChange={field("email")} disabled={!isCheckin && !!form.guestId} />
+        {fieldErrors.email && <p className="text-xs text-red-600 mt-1 ml-0.5">{fieldErrors.email}</p>}</div>
     </div>
 
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div><label className={lbl}>Nationality</label>
-        <input className={inp} placeholder="e.g. Canadian, Japanese" value={form.nationality} onChange={field("nationality")} disabled={!isCheckin && !!form.guestId} /></div>
+        <input className={inpErr("nationality")} placeholder="e.g. Canadian, Japanese" value={form.nationality} onChange={field("nationality")} disabled={!isCheckin && !!form.guestId} />
+        {fieldErrors.nationality && <p className="text-xs text-red-600 mt-1 ml-0.5">{fieldErrors.nationality}</p>}</div>
       <div><label className={lbl}>Gender</label>
         <select className={sel} value={form.gender} onChange={field("gender")} disabled={!isCheckin && !!form.guestId}>
           <option value="">— Select —</option>
@@ -768,7 +800,8 @@ export default function AddReservation({
 
       {form.idType !== "NRC" && (
         <div className="md:col-span-2"><label className={lbl}>Identification Document Number *</label>
-          <input className={inp} placeholder="Document serial identifier..." value={form.idNumber} onChange={field("idNumber")} required disabled={!isCheckin && !!form.guestId} /></div>
+          <input className={inpErr("idNumber")} placeholder="Document serial identifier..." value={form.idNumber} onChange={field("idNumber")} required disabled={!isCheckin && !!form.guestId} />
+          {fieldErrors.idNumber && <p className="text-xs text-red-600 mt-1 ml-0.5">{fieldErrors.idNumber}</p>}</div>
       )}
     </div>
 
@@ -915,127 +948,178 @@ export default function AddReservation({
                     )}
 
                     <div className="space-y-4">
-                      {additionalGuests.map((g, idx) => (
-                        <div key={g.localId} className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 relative">
-                          <button type="button" onClick={() => removeGuestRow(g.localId)} disabled={g.saved}
-                            className="absolute top-3 right-3 text-slate-400 hover:text-red-500 disabled:opacity-30">
-                            <FaTimes size={14} />
-                          </button>
+                     {additionalGuests.map((g, idx) => (
+  <div key={g.localId} className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 relative">
+    <button type="button" onClick={() => removeGuestRow(g.localId)} disabled={g.saved}
+      className="absolute top-3 right-3 text-slate-400 hover:text-red-500 disabled:opacity-30">
+      <FaTimes size={14} />
+    </button>
 
-                          <div className="flex items-center justify-between mb-3 pr-6">
-                            <span className="text-xs font-bold text-slate-500">Guest #{idx + 2}</span>
-                            {g.saved && <span className="text-[10px] font-bold text-emerald-600">✓ Saved</span>}
-                          </div>
+    <div className="flex items-center justify-between mb-3 pr-6">
+      <span className="text-xs font-bold text-slate-500">Guest #{idx + 2}</span>
+      {g.saved && <span className="text-[10px] font-bold text-emerald-600">✓ Saved</span>}
+    </div>
 
-                          {g.error && <p className="text-xs text-red-600 mb-2">{g.error}</p>}
+    <div className="relative mb-3">
+      <FaSearch size={12} className="text-slate-400 pointer-events-none"
+        style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)" }} />
+      <input className={inp + " py-2.5"} style={{ paddingLeft: "38px" }}
+        placeholder="Search existing guest…" value={g.guestSearch} disabled={g.saved}
+        onChange={(e) => searchGuestForRow(g.localId, e.target.value)} />
+      {g.guestResults?.length > 0 && (
+        <div className="mt-1 border border-slate-100 rounded-xl overflow-hidden shadow-lg bg-white max-h-40 overflow-y-auto absolute w-full z-10">
+          {g.guestResults.map((res) => (
+            <button key={res.guest_id} type="button" onClick={() => selectGuestForRow(g.localId, res)}
+              className="w-full text-left px-3 py-2 hover:bg-yellow-50/50 text-xs flex justify-between border-b border-slate-50 last:border-0">
+              <span className="font-semibold text-slate-800">{res.first_name} {res.last_name}</span>
+              <span className="text-slate-500">{res.phone}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
 
-                          <div className="relative mb-3">
-                            <FaSearch size={12} className="text-slate-400 pointer-events-none"
-                              style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)" }} />
-                            <input className={inp + " py-2.5"} style={{ paddingLeft: "38px" }}
-                              placeholder="Search existing guest…" value={g.guestSearch} disabled={g.saved}
-                              onChange={(e) => searchGuestForRow(g.localId, e.target.value)} />
-                            {g.guestResults?.length > 0 && (
-                              <div className="mt-1 border border-slate-100 rounded-xl overflow-hidden shadow-lg bg-white max-h-40 overflow-y-auto absolute w-full z-10">
-                                {g.guestResults.map((res) => (
-                                  <button key={res.guest_id} type="button" onClick={() => selectGuestForRow(g.localId, res)}
-                                    className="w-full text-left px-3 py-2 hover:bg-yellow-50/50 text-xs flex justify-between border-b border-slate-50 last:border-0">
-                                    <span className="font-semibold text-slate-800">{res.first_name} {res.last_name}</span>
-                                    <span className="text-slate-500">{res.phone}</span>
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
+   {g.guestId ? (
+  <p className="text-xs text-emerald-600 font-semibold mb-2">
+    Using existing profile: {g.firstName} {g.lastName}
+  </p>
+) : (
+  <>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      {/* Row 1: First Name & Last Name */}
+      <div>
+        <input
+          className={inp + " py-2.5" + (g.fieldErrors?.firstName ? " border-red-400 focus:ring-red-500/20 focus:border-red-500 bg-red-50/30" : "")}
+          placeholder="First Name *"
+          value={g.firstName}
+          disabled={g.saved}
+          onChange={(e) => updateGuestRow(g.localId, "firstName", e.target.value)}
+        />
+        {g.fieldErrors?.firstName && <p className="text-xs text-red-600 mt-1 ml-0.5">{g.fieldErrors.firstName}</p>}
+      </div>
 
-                          {g.guestId ? (
-                            <p className="text-xs text-emerald-600 font-semibold mb-2">
-                              Using existing profile: {g.firstName} {g.lastName}
-                            </p>
-                          ) : (
-                            <>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                <input className={inp + " py-2.5"} placeholder="First Name *" value={g.firstName} disabled={g.saved}
-                                  onChange={(e) => updateGuestRow(g.localId, "firstName", e.target.value)} />
-                                <input className={inp + " py-2.5"} placeholder="Last Name *" value={g.lastName} disabled={g.saved}
-                                  onChange={(e) => updateGuestRow(g.localId, "lastName", e.target.value)} />
-                                <input className={inp + " py-2.5"} placeholder="Phone *" value={g.phone} disabled={g.saved}
-                                  onChange={(e) => updateGuestRow(g.localId, "phone", e.target.value)} />
-                                <input className={inp + " py-2.5"} placeholder="Email" value={g.email} disabled={g.saved}
-                                  onChange={(e) => updateGuestRow(g.localId, "email", e.target.value)} />
-                                <input className={inp + " py-2.5"} placeholder="Nationality" value={g.nationality} disabled={g.saved}
-                                  onChange={(e) => updateGuestRow(g.localId, "nationality", e.target.value)} />
-                                <select className={sel + " py-2.5"} value={g.idType} disabled={g.saved}
-                                  onChange={(e) => updateGuestRow(g.localId, "idType", e.target.value)}>
-                                  <option value="Passport">Passport</option>
-                                  <option value="NRC">NRC</option>
-                                  <option value="Driver's License">Driver's License</option>
-                                  <option value="National ID">National ID</option>
-                                </select>
-                                <select className={sel + " py-2.5"} value={g.gender} disabled={g.saved}
-                                  onChange={(e) => updateGuestRow(g.localId, "gender", e.target.value)}>
-                                  <option value="">Gender — Select</option>
-                                  <option value="Male">Male</option>
-                                  <option value="Female">Female</option>
-                                  <option value="Other">Other</option>
-                                </select>
-                              </div>
+      <div>
+        <input
+          className={inp + " py-2.5" + (g.fieldErrors?.lastName ? " border-red-400 focus:ring-red-500/20 focus:border-red-500 bg-red-50/30" : "")}
+          placeholder="Last Name *"
+          value={g.lastName}
+          disabled={g.saved}
+          onChange={(e) => updateGuestRow(g.localId, "lastName", e.target.value)}
+        />
+        {g.fieldErrors?.lastName && <p className="text-xs text-red-600 mt-1 ml-0.5">{g.fieldErrors.lastName}</p>}
+      </div>
 
-                              {!g.saved && (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
-                                  <FileUpload label="ID Document (Front)" name="idFront"
-                                    value={g.idFront} onChange={(k, v) => updateGuestRow(g.localId, k, v)} />
-                                  <FileUpload label="ID Document (Back)" name="idBack"
-                                    value={g.idBack} onChange={(k, v) => updateGuestRow(g.localId, k, v)} />
-                                </div>
-                              )}
-                            </>
-                          )}
+      {/* Row 2: Nationality + ID Type (Side by side across 2 columns) */}
+      <div className="col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-3">
+        <input
+          className={inp + " py-2.5"}
+          placeholder="Nationality"
+          value={g.nationality}
+          disabled={g.saved}
+          onChange={(e) => updateGuestRow(g.localId, "nationality", e.target.value)}
+        />
 
-                          <div className="mt-3 space-y-3">
-                            {g.idType === "NRC" ? (
-                              <NrcInput
-                                region={g.nrcRegionCode}
-                                township={g.nrcTownship}
-                                citizenType={g.nrcCitizenType}
-                                number={g.nrcNumber}
-                                disabled={g.saved}
-                                onChange={(patch) =>
-                                  setAdditionalGuests((prev) => prev.map((row) => {
-                                    if (row.localId !== g.localId) return row;
-                                    const next = { ...row, ...patch };
-                                    next.idNumber = composeNrc(
-                                      next.nrcRegionCode,
-                                      next.nrcTownship,
-                                      next.nrcCitizenType,
-                                      next.nrcNumber
-                                    );
-                                    return next;
-                                  }))
-                                }
-                              />
-                            ) : (
-                              <input
-                                className={inp + " py-2.5"}
-                                placeholder="ID Number *"
-                                value={g.idNumber}
-                                disabled={g.saved}
-                                onChange={(e) => updateGuestRow(g.localId, "idNumber", e.target.value)}
-                              />
-                            )}
+        <select
+          className={sel + " py-2.5"}
+          value={g.idType}
+          disabled={g.saved}
+          onChange={(e) => updateGuestRow(g.localId, "idType", e.target.value)}
+        >
+          <option value="NRC">NRC</option>
+          <option value="Passport">Passport</option>
+          <option value="Driver's License">Driver's License</option>
+          <option value="National ID">National ID</option>
+        </select>
+      </div>
 
-                            <select
-                              className={sel + " py-2.5"}
-                              value={g.guestType}
-                              disabled={g.saved}
-                              onChange={(e) => updateGuestRow(g.localId, "guestType", e.target.value)}
-                            >
-                              <option value="Adult">Adult</option>
-                              <option value="Child">Child</option>
-                            </select>
-                          </div>
-                        </div>
-                      ))}
+      {/* Row 3: ID Number / NRC Input (FULL WIDTH across both columns) */}
+      <div className="col-span-1 md:col-span-2">
+        {g.idType === "NRC" ? (
+          <div>
+            <NrcInput
+              region={g.nrcRegionCode}
+              township={g.nrcTownship}
+              citizenType={g.nrcCitizenType}
+              number={g.nrcNumber}
+              disabled={g.saved}
+              onChange={(patch) =>
+                setAdditionalGuests((prev) =>
+                  prev.map((row) => {
+                    if (row.localId !== g.localId) return row;
+                    const next = { ...row, ...patch };
+                    next.idNumber = composeNrc(
+                      next.nrcRegionCode,
+                      next.nrcTownship,
+                      next.nrcCitizenType,
+                      next.nrcNumber
+                    );
+                    next.fieldErrors = { ...next.fieldErrors, idNumber: undefined };
+                    return next;
+                  })
+                )
+              }
+            />
+            {g.fieldErrors?.idNumber && <p className="text-xs text-red-600 mt-1 ml-0.5">{g.fieldErrors.idNumber}</p>}
+          </div>
+        ) : (
+          <div>
+            <input
+              className={inp + " py-2.5" + (g.fieldErrors?.idNumber ? " border-red-400 focus:ring-red-500/20 focus:border-red-500 bg-red-50/30" : "")}
+              placeholder="ID Number *"
+              value={g.idNumber}
+              disabled={g.saved}
+              onChange={(e) => updateGuestRow(g.localId, "idNumber", e.target.value)}
+            />
+            {g.fieldErrors?.idNumber && <p className="text-xs text-red-600 mt-1 ml-0.5">{g.fieldErrors.idNumber}</p>}
+          </div>
+        )}
+      </div>
+
+      {/* Row 4: Gender & Guest Type under the ID Number */}
+      <select
+        className={sel + " py-2.5"}
+        value={g.gender}
+        disabled={g.saved}
+        onChange={(e) => updateGuestRow(g.localId, "gender", e.target.value)}
+      >
+        <option value="">Gender — Select</option>
+        <option value="Male">Male</option>
+        <option value="Female">Female</option>
+        <option value="Other">Other</option>
+      </select>
+
+      <select
+        className={sel + " py-2.5"}
+        value={g.guestType}
+        disabled={g.saved}
+        onChange={(e) => updateGuestRow(g.localId, "guestType", e.target.value)}
+      >
+        <option value="Adult">Adult</option>
+        <option value="Child">Child</option>
+      </select>
+    </div>
+
+    {!g.saved && (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+        <FileUpload
+          label="ID Document (Front)"
+          name="idFront"
+          value={g.idFront}
+          onChange={(k, v) => updateGuestRow(g.localId, k, v)}
+        />
+        <FileUpload
+          label="ID Document (Back)"
+          name="idBack"
+          value={g.idBack}
+          onChange={(k, v) => updateGuestRow(g.localId, k, v)}
+        />
+      </div>
+    )}
+  </>
+)}
+
+    </div>
+))}
                     </div>
                   </div>
                 )}

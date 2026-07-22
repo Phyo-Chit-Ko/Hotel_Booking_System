@@ -18,55 +18,83 @@ use Carbon\Carbon;
 
 class ReservationController extends Controller
 {
-    public function index(Request $request)
-    {
-        $query = Reservation::with(['guest', 'roomType', 'payments', 'charges', 'additionalGuests.guest', 'roomMoveTo.newReservation', 'createdBy']);
+    public function index(Request $request) 
+{ 
+    $today = Carbon::today();
 
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('source_booking_number', 'like', "%{$search}%")
-                  ->orWhere('guest_name', 'like', "%{$search}%")
-                  ->orWhere('room_number', 'like', "%{$search}%")
-                  ->orWhereHas('guest', fn ($g) => $g->where('first_name', 'like', "%{$search}%")
-                                                      ->orWhere('last_name', 'like', "%{$search}%"));
-            });
-        }
+    // Auto-mark overdue, un-arrived reservations as No-Show.
+    // Only touches reservations that were expected to check in before
+    // today and never actually checked in — confirmed/reserved rooms
+    // that are just running late (today's date) don't get flagged.
+    Reservation::whereDate('check_in_date', '<', $today)
+        ->whereIn('reservation_status', ['Reserved', 'Confirmed'])
+        ->update(['reservation_status' => 'No-Show']);
 
-        $reservations = $query->orderByDesc('reservation_id')->get();
-        $rows = $reservations->flatMap(fn ($r) => $r->toTableRows())->values();
-
-        $today = Carbon::today();
-
-        $dailyCheckInDue = Reservation::whereDate('check_in_date', $today)
-            ->whereIn('reservation_status', ['Reserved', 'Confirmed', 'Checked-In'])
-            ->count();
-        $dailyCheckInCompleted = Reservation::whereDate('check_in_date', $today)
-            ->where('reservation_status', 'Checked-In')
-            ->count();
-
-        $dailyCheckOutDue = Reservation::whereDate('check_out_date', $today)
-            ->where('reservation_status', 'Checked-In')
-            ->count();
-        $dailyCheckOutCompleted = Reservation::whereDate('check_out_date', $today)
-            ->where('reservation_status', 'Checked-Out')
-            ->count();
-
-        // Rooms that will be occupied tonight: guests already checked in,
-        // plus today's expected arrivals still Reserved/Confirmed.
-        $occupiedRooms = Reservation::where(function ($q) use ($today) {
-                $q->whereDate('check_in_date', $today)->whereIn('reservation_status', ['Reserved', 'Confirmed']);
-            })->orWhere('reservation_status', 'Checked-In')->count();
-
-        return response()->json([
-            'bookings' => $rows,
-            'stats' => [
-                'daily_check_in'  => ['completed' => $dailyCheckInCompleted, 'due' => $dailyCheckInDue],
-                'daily_check_out' => ['completed' => $dailyCheckOutCompleted, 'due' => $dailyCheckOutDue],
-                'occupied_rooms'  => $occupiedRooms,
-            ],
-        ]);
-    }
+    $query = Reservation::with(['guest', 'roomType', 'payments', 'charges', 'additionalGuests.guest', 'roomMoveTo.newReservation', 'createdBy']); 
+  
+    if ($request->filled('search')) { 
+        $search = $request->search; 
+        $query->where(function ($q) use ($search) { 
+            $q->where('source_booking_number', 'like', "%{$search}%") 
+              ->orWhere('guest_name', 'like', "%{$search}%") 
+              ->orWhere('room_number', 'like', "%{$search}%") 
+              ->orWhereHas('guest', fn ($g) => $g->where('first_name', 'like', "%{$search}%") 
+                                                  ->orWhere('last_name', 'like', "%{$search}%")); 
+        }); 
+    } 
+  
+    $reservations = $query->orderByDesc('reservation_id')->get(); 
+    $rows = $reservations->flatMap(fn ($r) => $r->toTableRows())->values(); 
+  
+    // Total rooms count in the hotel (excluding maintenance if applicable) 
+    $totalRooms = Room::count(); 
+  
+    // Today's arrivals (expected check-ins) 
+    $dailyCheckInDue = Reservation::whereDate('check_in_date', $today) 
+        ->whereIn('reservation_status', ['Reserved', 'Confirmed', 'Occupied']) 
+        ->count(); 
+  
+    $dailyCheckInCompleted = Reservation::whereDate('check_in_date', $today) 
+        ->where('reservation_status', 'Occupied') 
+        ->count(); 
+  
+    $dailyCheckOutDue = Reservation::whereDate('check_out_date', $today) 
+        ->whereIn('reservation_status', ['Occupied', 'Checked-Out']) 
+        ->count(); 
+  
+    $dailyCheckOutCompleted = Reservation::whereDate('check_out_date', $today) 
+        ->where('reservation_status', 'Checked-Out') 
+        ->count(); 
+  
+    // Rooms occupied tonight 
+    $occupiedRooms = Reservation::where(function ($q) use ($today) { 
+            $q->whereDate('check_in_date', $today)->whereIn('reservation_status', ['Reserved', 'Confirmed']); 
+        })->orWhere('reservation_status', 'Occupied')->count(); 
+  
+    // Calculate occupancy percentage 
+    $occupancyRate = $totalRooms > 0 ? round(($occupiedRooms / $totalRooms) * 100) : 0; 
+  
+    return response()->json([ 
+        'bookings' => $rows, 
+        'stats' => [ 
+            'daily_check_in'  => ['completed' => $dailyCheckInCompleted, 'due' => $dailyCheckInDue], 
+            'daily_check_out' => ['completed' => $dailyCheckOutCompleted, 'due' => $dailyCheckOutDue], 
+            'occupied_rooms'  => $occupiedRooms, 
+            'occupancy_rate'  => [ 
+                'value'  => $occupancyRate, 
+                'change' => 0 // Set dynamically if tracking week-over-week trends 
+            ], 
+            'active_check_ins' => [ 
+                'value'  => $dailyCheckInCompleted, 
+                'change' => 0 
+            ], 
+            'total_revenue' => [ 
+                'value'  => Reservation::whereIn('reservation_status', ['Occupied', 'Checked-Out'])->sum('total_amount'), 
+                'change' => 0 
+            ] 
+        ], 
+    ]); 
+}
 
     /**
      * Full detail for the Check-In flow — feeds AddReservation's prefill.
@@ -140,7 +168,7 @@ class ReservationController extends Controller
             'children'           => 'nullable|integer|min:0',
             'bookingSource'      => 'nullable|string|max:100',
             'specialRequests'    => 'nullable|string',
-            'reservationStatus'  => 'required|in:Reserved,Confirmed,Checked-In,Checked-Out',
+            'reservationStatus'  => 'required|in:Reserved,Confirmed,Occupied,Checked-Out',
         ]);
 
         $checkInDate  = \Carbon\Carbon::parse($validated['checkIn']);
@@ -274,7 +302,7 @@ class ReservationController extends Controller
             $reservation->guest_id = $validated['guestId'];
         }
 
-        $reservation->reservation_status = 'Checked-In';
+        $reservation->reservation_status = 'Occupied';
         $reservation->save();
 
         // Keep the room's own status in sync — Room Management otherwise
@@ -300,7 +328,7 @@ class ReservationController extends Controller
     {
         $reservation = Reservation::with(['charges', 'payments'])->findOrFail($id);
 
-        if ($reservation->reservation_status !== 'Checked-In') {
+        if ($reservation->reservation_status !== 'Occupied') {
             return response()->json([
                 'message' => 'Only checked-in reservations can be checked out.',
             ], 422);
@@ -331,7 +359,7 @@ class ReservationController extends Controller
         $reservation->save();
 
         // Free the room back up now that the guest has left.
-        Room::where('room_number', $reservation->room_number)->update(['status' => 'Available']);
+        Room::where('room_number', $reservation->room_number)->update(['status' => 'Cleaning']);
 
         $reservation->load(['guest', 'roomType', 'payments', 'charges', 'additionalGuests.guest']);
 
@@ -565,7 +593,7 @@ public function extend(Request $request, $id)
 
    $reservation = Reservation::with(['roomType'])->findOrFail($id);
 
-    if (!in_array($reservation->reservation_status, ['Reserved', 'Confirmed', 'No-Show', 'Checked-In'])) {
+    if (!in_array($reservation->reservation_status, ['Reserved', 'Confirmed', 'No-Show', 'Occupied'])) {
         return response()->json(['message' => 'This reservation can no longer be extended.'], 422);
     }
 
@@ -657,7 +685,7 @@ public function moveRoom(Request $request, $id)
 
     $reservation = Reservation::with(['roomType', 'additionalGuests', 'charges', 'payments'])->findOrFail($id);
 
-    if (!in_array($reservation->reservation_status, ['Reserved', 'Confirmed', 'No-Show', 'Checked-In'])) {
+    if (!in_array($reservation->reservation_status, ['Reserved', 'Confirmed', 'No-Show', 'Occupied'])) {
         return response()->json(['message' => 'This reservation can no longer be moved.'], 422);
     }
 
@@ -686,7 +714,7 @@ public function moveRoom(Request $request, $id)
         return response()->json(['message' => 'New check-out date cannot be before the current one.'], 422);
     }
 
-    $isOccupied     = $reservation->reservation_status === 'Checked-In';
+    $isOccupied     = $reservation->reservation_status === 'Occupied';
     $conflictStart  = $isOccupied ? Carbon::today() : $reservation->check_in_date;
 
     $conflict = Reservation::where('room_number', $newRoom->room_number)
@@ -804,7 +832,7 @@ public function moveRoom(Request $request, $id)
                 // ReservationCharge row created below.
                 'total_amount'        => (float) $reservation->total_amount + $newRoomCharge + $newExtraCharge + $newTax,
                 'deposit_amount'      => 0,
-                'reservation_status'  => 'Checked-In',
+                'reservation_status'  => 'Occupied',
                 'created_by'          => $request->user()->user_id,
             ]);
 

@@ -87,6 +87,7 @@ class BookingController extends Controller
                     'rawStatus'          => $b->status,
                     'reservationId'  => $b->reservation_id,
                     'handledBy'          => $b->handledBy?->name,
+                    'created_at'         => optional($b->created_at)->toDateTimeString(),
                 ];
             }),
             'stats' => [
@@ -99,24 +100,28 @@ class BookingController extends Controller
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'user_id'             => 'required|exists:users,user_id',
-            'room_type_id'        => 'required|exists:room_types,room_type_id',
-            'first_name'          => 'required|string|max:255',
-            'last_name'           => 'required|string|max:255',
-            'email'               => 'required|email|max:255',
-            'phone'               => 'required|string|max:30',
-            'bed_preference'      => 'nullable|string',
-            'check_in_date'       => 'required|date',
-            'check_out_date'      => 'required|date|after:check_in_date',
-            'total_room'          => 'required|integer|min:1',
-            'adult'               => 'required|integer|min:1',
-            'child'               => 'nullable|integer|min:0',
-            'special_requests'    => 'nullable|string',
-            'payment_method'      => 'required|in:K-Pay,Bank',
-            'payment_screenshot'  => 'required|image|max:5120',
-        ]);
+        $messages = [
+    'phone.required' => 'Please enter a phone number.',
+    'phone.regex'    => 'Phone number must start with "09" followed by 7 to 9 digits (e.g., 09123456789).',
+];
 
+$validated = $request->validate([
+    'user_id'             => 'required|exists:users,user_id',
+    'room_type_id'        => 'required|exists:room_types,room_type_id',
+    'first_name'          => 'required|string|max:255',
+    'last_name'           => 'required|string|max:255',
+    'email'               => 'required|email|max:255',
+    'phone'               => 'required|string|regex:/^09\d{7,9}$/',
+    'bed_preference'      => 'nullable|string',
+    'check_in_date'       => 'required|date',
+    'check_out_date'      => 'required|date|after:check_in_date',
+    'total_room'          => 'required|integer|min:1',
+    'adult'               => 'required|integer|min:1',
+    'child'               => 'nullable|integer|min:0',
+    'special_requests'    => 'nullable|string',
+    'payment_method'      => 'required|in:K-Pay,Bank',
+    'payment_screenshot'  => 'required|image|max:5120',
+], $messages);
         $roomType = RoomType::findOrFail($validated['room_type_id']);
         $totalRooms = (int) $validated['total_room'];
         $totalGuests = (int) $validated['adult'] + (int) ($validated['child'] ?? 0);
@@ -483,7 +488,7 @@ class BookingController extends Controller
                 }
 
                 $booking->update([
-                    'status'         => 'converted',
+                    'status'         => 'confirmed',
                     'reservation_id' => $created[0]->reservation_id,
                 ]);
 

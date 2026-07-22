@@ -107,7 +107,7 @@ export default function ReservationDetailModal({
                   Reservation Console
                 </span>
                 <h2 className="text-white text-xl font-black tracking-tight">
-                  Reservation <span className="font-mono text-slate-400 font-medium text-lg">{booking.bookingNumber || `#${booking.id}`}</span>
+                  Reservation <span className="font-mono text-slate-400 font-medium text-lg">{detail?.sourceBookingNumber}</span>
                 </h2>
               </div>
 
@@ -222,49 +222,62 @@ export default function ReservationDetailModal({
             </div>
 
             {/* Interface Footer Actions Container matching Booking Detail's style exactly */}
-            <div className="grid grid-cols-2 gap-2 pt-4 border-t border-slate-800/40 bg-slate-950/20 p-5">
-              <div>
-                {(booking.status === "Check-In" || booking.status === "No-Show") && (
-                  <button
-                    type="button"
-                    onClick={() => onCheckInClick(booking.id)}
-                    className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-lg text-xs transition tracking-wide shadow-lg shadow-emerald-950/20 inline-flex items-center justify-center gap-1.5"
-                  >
-                    <FaCheckCircle className="w-3.5 h-3.5" /> CHECK-IN GUEST
-                  </button>
-                )}
+            {/* Interface Footer Actions Container matching Booking Detail's style exactly */}
+<div className="grid grid-cols-2 gap-2 pt-4 border-t border-slate-800/40 bg-slate-950/20 p-5">
+  <div>
+    {/* Active Check-In Button */}
+    {booking.status === "Check-In" && (
+      <button
+        type="button"
+        onClick={() => onCheckInClick(booking.id)}
+        className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-lg text-xs transition tracking-wide shadow-lg shadow-emerald-950/20 inline-flex items-center justify-center gap-1.5"
+      >
+        <FaCheckCircle className="w-3.5 h-3.5" /> CHECK-IN GUEST
+      </button>
+    )}
 
-                {(booking.status === "Occupied" || booking.status === "Check-Out") && (
-                  <button
-                    type="button"
-                    onClick={handleCheckOutAttempt}
-                    className="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-lg text-xs transition tracking-wide shadow-lg shadow-amber-950/20 inline-flex items-center justify-center gap-1.5"
-                  >
-                    <FaDoorOpen className="w-3.5 h-3.5" /> CHECK-OUT GUEST
-                  </button>
-                )}
+    {/* Disabled Check-In Button for No-Show */}
+    {booking.status === "No-Show" && (
+      <button
+        type="button"
+        disabled
+        className="w-full py-2.5 bg-slate-800/60 border border-slate-700/50 text-slate-500 font-bold rounded-lg text-xs cursor-not-allowed inline-flex items-center justify-center gap-1.5 uppercase tracking-wide opacity-70"
+      >
+        <FaBan className="w-3.5 h-3.5" /> CHECK-IN (NO-SHOW)
+      </button>
+    )}
 
-                {booking.rawStatus === "Moved" && (
-                  <div className="w-full py-2.5 bg-slate-800 border border-slate-700/50 text-slate-400 font-bold rounded-lg text-xs text-center flex items-center justify-center gap-2 uppercase tracking-wide">
-                    {booking.movedToRoom ? `Moved to ${booking.movedToRoom}` : "Moved"}
-                  </div>
-                )}
+    {(booking.status === "Occupied" || booking.status === "Check-Out") && (
+      <button
+        type="button"
+        onClick={handleCheckOutAttempt}
+        className="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-lg text-xs transition tracking-wide shadow-lg shadow-amber-950/20 inline-flex items-center justify-center gap-1.5"
+      >
+        <FaDoorOpen className="w-3.5 h-3.5" /> CHECK-OUT GUEST
+      </button>
+    )}
 
-                {booking.rawStatus === "Checked-Out" && (
-                  <div className="w-full py-2.5 bg-slate-800/40 border border-slate-700/30 text-slate-500 font-bold rounded-lg text-xs text-center flex items-center justify-center gap-2 uppercase tracking-wide">
-                    Checked-Out
-                  </div>
-                )}
-              </div>
+    {booking.rawStatus === "Moved" && (
+      <div className="w-full py-2.5 bg-slate-800 border border-slate-700/50 text-slate-400 font-bold rounded-lg text-xs text-center flex items-center justify-center gap-2 uppercase tracking-wide">
+        {booking.movedToRoom ? `Moved to ${booking.movedToRoom}` : "Moved"}
+      </div>
+    )}
 
-              <button
-                type="button"
-                onClick={onClose}
-                className="w-full py-2.5 border border-slate-700 hover:bg-slate-800 rounded-lg text-xs font-semibold text-slate-300 transition inline-flex items-center justify-center gap-1.5"
-              >
-                <FaBan className="w-3.5 h-3.5" /> Close
-              </button>
-            </div>
+    {booking.rawStatus === "Checked-Out" && (
+      <div className="w-full py-2.5 bg-slate-800/40 border border-slate-700/30 text-slate-500 font-bold rounded-lg text-xs text-center flex items-center justify-center gap-2 uppercase tracking-wide">
+        Checked-Out
+      </div>
+    )}
+  </div>
+
+  <button
+    type="button"
+    onClick={onClose}
+    className="w-full py-2.5 border border-slate-700 hover:bg-slate-800 rounded-lg text-xs font-semibold text-slate-300 transition inline-flex items-center justify-center gap-1.5"
+  >
+    <FaBan className="w-3.5 h-3.5" /> Close
+  </button>
+</div>
           </>
         )}
       </div>

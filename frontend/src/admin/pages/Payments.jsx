@@ -9,19 +9,20 @@ import {
   FaCreditCard,
   FaWallet,
   FaPlus,
+  FaChevronDown,
 } from "react-icons/fa";
 import { formatCurrency } from "../../utils/currency";
 import { authHeaders as getAuthHeaders } from "../../utils/apiHeaders";
-
+ 
 const BACKEND_URL = "http://localhost:8000";
-
+ 
 const METHOD_LABELS = {
   cash: "Cash",
   credit_card: "Credit Card",
   bank_transfer: "Bank Transfer",
   online: "Mobile Wallet (K-Pay/Wave Pay)",
 };
-
+ 
 const PaymentManagement = () => {
   const { user } = useAuth();
   const canWrite = (user?.role || "").toLowerCase() === "manager";
@@ -30,7 +31,7 @@ const PaymentManagement = () => {
   const [loadError, setLoadError] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null); // NEW: proof preview popup
-
+ 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedMethod, setSelectedMethod] = useState("All");
   const [selectedMonth, setSelectedMonth] = useState(() => {
@@ -39,10 +40,10 @@ const PaymentManagement = () => {
     const month = String(now.getMonth() + 1).padStart(2, "0");
     return `${year}-${month}`;
   });
-
+ 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
-
+ 
   const loadPayments = useCallback(async () => {
     setLoading(true);
     setLoadError("");
@@ -50,7 +51,7 @@ const PaymentManagement = () => {
       const res = await fetch("/api/payments", { headers: getAuthHeaders() });
       if (!res.ok) throw new Error("Failed to load payments");
       const data = await res.json();
-
+ 
       const mapped = (data.payments || []).map((p) => ({
         ...p,
         amount: Number(p.amount || 0),
@@ -63,20 +64,20 @@ const PaymentManagement = () => {
       setLoading(false);
     }
   }, []);
-
+ 
   useEffect(() => {
     loadPayments();
   }, [loadPayments]);
-
+ 
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, selectedMethod]);
-
+ 
   const grossCollections = payments
     .filter((p) => !selectedMonth || (p.date || "").slice(0, 7) === selectedMonth)
     .filter((p) => selectedMethod === "All" || p.paymentMethod === selectedMethod)
     .reduce((sum, p) => sum + Number(p.amount || 0), 0);
-
+ 
   const totalRevenue = payments.reduce((sum, item) => sum + Number(item.amount || 0), 0);
   const cardTotal = payments
     .filter((p) => p.paymentMethod === "credit_card")
@@ -84,7 +85,7 @@ const PaymentManagement = () => {
   const onlineTotal = payments
     .filter((p) => ["online", "bank_transfer"].includes(p.paymentMethod))
     .reduce((sum, p) => sum + Number(p.amount || 0), 0);
-
+ 
   const filteredPayments = payments.filter((payment) => {
     const term = searchTerm.toLowerCase();
     const matchesSearch =
@@ -93,18 +94,18 @@ const PaymentManagement = () => {
       (payment.roomNumber || "").toLowerCase().includes(term) ||
       (payment.guestName || "").toLowerCase().includes(term) ||
       (payment.comment && payment.comment.toLowerCase().includes(term));
-
+ 
     const matchesMethod = selectedMethod === "All" || payment.paymentMethod === selectedMethod;
-
+ 
     return matchesSearch && matchesMethod;
   });
-
+ 
   const totalPages = Math.max(1, Math.ceil(filteredPayments.length / itemsPerPage));
   const paginatedPayments = filteredPayments.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage,
   );
-
+ 
   const getMethodStyle = (method) => {
     switch (method) {
       case "credit_card":
@@ -119,7 +120,7 @@ const PaymentManagement = () => {
         return "bg-slate-50 text-slate-700 border border-slate-200";
     }
   };
-
+ 
   return (
     <AdminLayout>
       <div className="w-full space-y-6 p-1">
@@ -130,7 +131,7 @@ const PaymentManagement = () => {
             <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-100 text-2xl text-slate-700">
               <FaMoneyBillWave />
             </div>
-
+ 
             {/* Text */}
             <div>
               <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">
@@ -139,24 +140,24 @@ const PaymentManagement = () => {
                   ? ` · ${METHOD_LABELS[selectedMethod] || selectedMethod}`
                   : ""}
               </p>
-
+ 
               <h3 className="text-2xl font-semibold text-slate-900 tracking-tight mt-0.5">
                 {formatCurrency(grossCollections)}
               </h3>
             </div>
           </div>
-
+ 
           {/* Right Side */}
           <div className=" w-[305px] h-11">
             <input
               type="month"
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
-              className=" h-11 px-3 border border-slate-200 rounded-lg text-xs text-slate-600 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 [color-scheme:light]"
+              className=" h-11 px-3 border border-slate-200 rounded-lg text-xs text-slate-600 bg-white shadow-sm focus:outline-none focus:ring-0 focus:border-slate-300 [color-scheme:light]"
             />
           </div>
         </div>
-
+ 
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-5">
           <div className="flex items-center gap-3">
             <div className="relative w-[355px] h-11">
@@ -169,21 +170,22 @@ const PaymentManagement = () => {
               />
               <FaSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none" />
             </div>
-
-            <div className="h-11">
+ 
+            <div className="h-11 relative">
               <select
                 value={selectedMethod}
                 onChange={(e) => setSelectedMethod(e.target.value)}
-                className="h-full px-4 border border-slate-300 rounded-xl text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 box-border [color-scheme:light]"
+                className="h-full pl-4 pr-9 border border-slate-300 rounded-xl text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-0 focus:border-slate-300 appearance-none cursor-pointer box-border"
               >
                 <option value="All">All Methods</option>
                 <option value="cash">Cash</option>
                 <option value="online">Mobile Wallet (K-Pay/Wave Pay)</option>
               </select>
+              <FaChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none" />
             </div>
-
+ 
             <div className="flex-1" />
-
+ 
             {canWrite && (
               <button
                 type="button"
@@ -194,12 +196,12 @@ const PaymentManagement = () => {
               </button>
             )}
           </div>
-
+ 
           <div className="overflow-x-auto border border-slate-100 rounded-xl">
             <table className="w-full border-collapse text-left text-sm text-slate-600">
               <thead className="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200">
                 <tr>
-                  <th className="px-5 py-3.5 font-medium">Payment ID</th>
+                  <th className="px-5 py-3.5 font-medium">ID</th>
                   <th className="px-5 py-3.5 font-medium">Room Number</th>
                   <th className="px-5 py-3.5 font-medium">Guest</th>
                   <th className="px-5 py-3.5 font-medium">Payment Date</th>
@@ -209,7 +211,7 @@ const PaymentManagement = () => {
                   <th className="px-5 py-3.5 font-medium">Handled By</th>
                 </tr>
               </thead>
-
+ 
               <tbody className="divide-y divide-slate-100">
                 {loading && (
                   <tr><td colSpan="10" className="px-6 py-12 text-center text-sm text-slate-400">Loading payments…</td></tr>
@@ -225,29 +227,29 @@ const PaymentManagement = () => {
                         <td className="px-5 py-4 font-mono font-medium text-slate-900">
                           {rowNumber}
                         </td>
-
+ 
                         <td className="px-5 py-4 font-mono font-medium text-slate-900">
                           {payment.roomNumber || "—"}
                         </td>
-
+ 
                         <td className="px-5 py-4 text-slate-700">
                           {payment.guestName || "—"}
                         </td>
-
+ 
                         <td className="px-5 py-4 font-mono text-xs text-slate-500">
                           {payment.date}
                         </td>
-
+ 
                         <td className="px-5 py-4 font-mono font-semibold text-slate-900">
                           {formatCurrency(payment.amount)}
                         </td>
-
+ 
                         <td className="px-5 py-4">
                           <span className={`px-2.5 py-1 rounded-full text-xs font-medium inline-block ${getMethodStyle(payment.paymentMethod)}`}>
                             {METHOD_LABELS[payment.paymentMethod] || payment.paymentMethod}
                           </span>
                         </td>
-
+ 
                         <td className="px-5 py-4 text-center">
                           {payment.proofUrl ? (
                             <button
@@ -263,7 +265,7 @@ const PaymentManagement = () => {
                             </span>
                           )}
                         </td>
-
+ 
                         <td className="px-5 py-4 text-slate-500">
                           {payment.handledBy || "—"}
                         </td>
@@ -280,7 +282,7 @@ const PaymentManagement = () => {
               </tbody>
             </table>
           </div>
-
+ 
           {!loading && !loadError && filteredPayments.length > 0 && (
             <div className="flex items-center justify-between px-1 pt-2">
               <p className="text-xs text-slate-400">
@@ -320,7 +322,7 @@ const PaymentManagement = () => {
           )}
         </div>
       </div>
-
+ 
       <AddPaymentModal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
@@ -329,7 +331,7 @@ const PaymentManagement = () => {
           loadPayments();
         }}
       />
-
+ 
       {/* Proof preview popup — shows the screenshot/receipt in-page instead of a new tab */}
       {previewUrl && (
         <div
@@ -367,5 +369,6 @@ const PaymentManagement = () => {
     </AdminLayout>
   );
 };
-
+ 
 export default PaymentManagement;
+ 

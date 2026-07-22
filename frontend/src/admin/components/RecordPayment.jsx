@@ -70,7 +70,7 @@ export default function RecordPayment({ booking, onClose, onSaved }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-sm">
+    <div className="fixed inset-0 z-60 flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-sm">
       <div className="w-full max-w-md bg-slate-900 text-white rounded-2xl border border-slate-800 shadow-2xl shadow-black/60 overflow-hidden">
 
         <div className="relative bg-gradient-to-r from-slate-800 via-slate-900 to-slate-950 p-5 border-b border-slate-800">

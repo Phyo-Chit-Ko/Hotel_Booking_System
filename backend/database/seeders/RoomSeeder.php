@@ -41,11 +41,7 @@ class RoomSeeder extends Seeder
         // to compute against out of the box (most rooms available, a few in
         // each of the other states).
         $statusCycle = [
-            'Available', 'Available', 'Available', 'Available',
-            'Occupied', 'Occupied',
-            'Cleaning',
-            'Reserved',
-            'Available', 'Maintenance',
+            'Available',
         ];
 
         $bedTypeCycle = ['Single', 'Double', 'Twin'];

@@ -355,7 +355,7 @@ export default function ReservationManagement() {
             className={statCardClass("inhouse")}
           >
             <div>
-              <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Occupied Rooms</p>
+              <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Occupied Rooms Tonight</p>
               <h3 className="text-2xl font-semibold text-slate-900 tracking-tight mt-0.5">
                 {loading ? "…" : stats.inHouse}
               </h3>
@@ -470,7 +470,7 @@ export default function ReservationManagement() {
                 <col style={{ width: "10%" }} />
                 <col style={{ width: "9%" }} />
                 <col style={{ width: "9%" }} />
-                <col style={{ width: "6%" }} />
+                {/* <col style={{ width: "6%" }} /> */}
                 <col style={{ width: "6%" }} />
                 <col style={{ width: "8%" }} />
                 <col style={{ width: "7%" }} />
@@ -484,7 +484,7 @@ export default function ReservationManagement() {
                   <th className="px-3 py-2">Room Type</th>
                   <th className="px-3 py-2">Check-In</th>
                   <th className="px-3 py-2">Check-Out</th>
-                  <th className="px-3 py-2 text-center">Nights</th>
+                  {/* <th className="px-3 py-2 text-center">Nights</th> */}
                   <th className="px-3 py-2 text-center">Guests</th>
                   <th className="px-3 py-2 text-center">Status</th>
                   <th className="px-3 py-2 text-center no-print">Action</th>
@@ -515,7 +515,7 @@ export default function ReservationManagement() {
                     <td className="px-3 py-2 text-slate-600 truncate" title={booking.roomType}>{booking.roomType}</td>
                     <td className="px-3 py-2 font-mono text-slate-500">{booking.checkIn}</td>
                     <td className="px-3 py-2 font-mono text-slate-500">{booking.checkOut}</td>
-                    <td className="px-3 py-2 text-center font-mono text-slate-700">{booking.nights}</td>
+                    {/* <td className="px-3 py-2 text-center font-mono text-slate-700">{booking.nights}</td> */}
                     <td className="px-3 py-2 text-center font-mono text-slate-700">{booking.totalGuests}</td>
                     <td className="px-3 py-2 text-center">
                       <span className={`px-2 py-1 rounded-full font-medium inline-block ${getStatusBadgeClass(booking.status)}`}>
@@ -651,20 +651,6 @@ export default function ReservationManagement() {
         onMinimize={handleMinimize}
         onSave={handleSaveReservation}
       />
-
-      {/* Look for this instance near the bottom of your ReservationManagement.jsx file */}
-{/* <ReservationDetailModal
-  isOpen={isDetailOpen}
-  booking={detailBooking}
-  onClose={() => setIsDetailOpen(false)}
-  onRecordPayment={(b) => { setIsDetailOpen(false); setPaymentBooking(b); }}
-  onEdit={(b) => { setIsDetailOpen(false); setEditBooking(b); }}
-  onExtend={(b) => { setIsDetailOpen(false); setExtendBooking(b); }}
-  onMoveRoom={(b) => { setIsDetailOpen(false); setMoveRoomPrefill(null); setMoveRoomBooking(b); }}
-  onCheckBalance={(b) => { setIsDetailOpen(false); handleOpenLedger(b); }}
-  onCheckInClick={(id) => { setIsDetailOpen(false); handleOpenCheckIn(id); }}
-  onCheckOutClick={(b) => { setIsDetailOpen(false); handleCheckOutClick(b); }}
-/> */}
 
       {paymentBooking && (
         <RecordPayment

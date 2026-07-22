@@ -1,32 +1,32 @@
 import { useEffect, useState, useMemo } from "react";
 import AdminLayout from "../layouts/AdminLayout";
-import { FaSearch, FaTimes } from "react-icons/fa";
+import { FaSearch, FaTimes, FaChevronDown } from "react-icons/fa";
 import axios from "axios";
-
+ 
 const BACKEND_URL = "http://localhost:8000";
-
+ 
 export default function GuestManagement() {
   const [guests, setGuests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
+ 
   const [search, setSearch] = useState("");
   const [nationality, setNationality] = useState("");
   const [idType, setIdType] = useState("");
   const [vip, setVip] = useState("");
-
+ 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
-
+ 
   // Image preview modal state
   const [previewImage, setPreviewImage] = useState(null); // { url, label }
-
+ 
   const fetchGuests = async () => {
     setLoading(true);
     setError(null);
     try {
       const res = await axios.get("/api/guests");
-
+ 
       const mapped = res.data.map((g) => ({
         id: g.guest_id,
         name: `${g.first_name} ${g.last_name}`,
@@ -41,7 +41,7 @@ export default function GuestManagement() {
         docBackUrl: g.id_back_path ? `${BACKEND_URL}/storage/${g.id_back_path}` : null,
         vip: !!g.is_vip,
       }));
-
+ 
       setGuests(mapped);
     } catch (err) {
       console.error(err);
@@ -50,15 +50,15 @@ export default function GuestManagement() {
       setLoading(false);
     }
   };
-
+ 
   useEffect(() => {
     fetchGuests();
   }, []);
-
+ 
   useEffect(() => {
     setCurrentPage(1);
   }, [search, nationality, idType, vip]);
-
+ 
   const filteredGuests = useMemo(() => {
     const term = search.trim().toLowerCase();
     return guests.filter((guest) => {
@@ -69,7 +69,7 @@ export default function GuestManagement() {
       return matchesSearch && matchesNationality && matchesIdType && matchesVip;
     });
   }, [guests, search, nationality, idType, vip]);
-
+ 
   const totalPages = Math.max(1, Math.ceil(filteredGuests.length / itemsPerPage));
   const paginatedGuests = useMemo(() => {
     return filteredGuests.slice(
@@ -77,7 +77,7 @@ export default function GuestManagement() {
       currentPage * itemsPerPage
     );
   }, [filteredGuests, currentPage]);
-
+ 
   return (
     <AdminLayout>
       <div className="w-full space-y-6 p-1">
@@ -90,51 +90,55 @@ export default function GuestManagement() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search Guest Name.."
-                className="w-full h-full border border-slate-300 rounded-xl pl-11 pr-4 text-sm text-slate-700 bg-white shadow-sm focus:outline-none  focus:ring-amber-500 box-border"
+                className="w-full h-full border border-slate-300 rounded-xl pl-4 pr-11 text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-0 focus:border-slate-300 box-border"
               />
+              <FaSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             </div>
-
-            <div className="h-11">
+ 
+            <div className="h-11 relative">
               <select
                 value={nationality}
                 onChange={(e) => setNationality(e.target.value)}
-                className="h-full px-4 border border-slate-300 rounded-xl text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 box-border [color-scheme:light]"
+                className="h-full pl-4 pr-9 border border-slate-300 rounded-xl text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-0 focus:border-slate-300 appearance-none cursor-pointer box-border"
               >
                 <option value="">All Nationality</option>
                 {[...new Set(guests.map((g) => g.nationality))].map((n) => (
                   <option key={n} value={n}>{n}</option>
                 ))}
               </select>
+              <FaChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none" />
             </div>
-
-            <div className="h-11">
+ 
+            <div className="h-11 relative">
               <select
                 value={idType}
                 onChange={(e) => setIdType(e.target.value)}
-                className="h-full px-4 border border-slate-300 rounded-xl text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 box-border [color-scheme:light]"
+                className="h-full pl-4 pr-9 border border-slate-300 rounded-xl text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-0 focus:border-slate-300 appearance-none cursor-pointer box-border"
               >
                 <option value="">All IDType</option>
                 {[...new Set(guests.map((g) => g.idType))].map((t) => (
                   <option key={t} value={t}>{t}</option>
                 ))}
               </select>
+              <FaChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none" />
             </div>
-
-            <div className="h-11">
+ 
+            <div className="h-11 relative">
               <select
                 value={vip}
                 onChange={(e) => setVip(e.target.value)}
-                className="h-full px-4 border border-slate-300 rounded-xl text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 box-border [color-scheme:light]"
+                className="h-full pl-4 pr-9 border border-slate-300 rounded-xl text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-0 focus:border-slate-300 appearance-none cursor-pointer box-border"
               >
                 <option value="">All VIP</option>
                 <option value="true">VIP Only</option>
                 <option value="false">Non-VIP</option>
               </select>
+              <FaChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none" />
             </div>
-
+ 
             <div className="flex-1" />
           </div>
-
+ 
           {/* Table Area */}
           <div className="border border-slate-100 rounded-xl">
             {loading ? (
@@ -171,7 +175,7 @@ export default function GuestManagement() {
                     <th className="px-5 py-3.5 text-center">VIP</th>
                   </tr>
                 </thead>
-
+ 
                 <tbody className="divide-y divide-slate-100">
                   {paginatedGuests.map((guest, index) => {
                     const rowNumber = (currentPage - 1) * itemsPerPage + index + 1;
@@ -199,7 +203,7 @@ export default function GuestManagement() {
                             </span>
                           )}
                         </td>
-
+ 
                         <td className="px-5 py-4 text-center">
                           {guest.docBack === "View" ? (
                             <button
@@ -215,7 +219,7 @@ export default function GuestManagement() {
                             </span>
                           )}
                         </td>
-
+ 
                         <td className="px-5 py-4 text-center">
                           {guest.vip ? (
                             <span className="bg-emerald-100 text-emerald-700 px-4 py-1 rounded-full text-xs font-extrabold tracking-wider">
@@ -234,7 +238,7 @@ export default function GuestManagement() {
               </table>
             )}
           </div>
-
+ 
           {/* Pagination Controls Footer */}
           {!loading && !error && filteredGuests.length > 0 && (
             <div className="flex items-center justify-between px-1 pt-2">
@@ -275,7 +279,7 @@ export default function GuestManagement() {
           )}
         </div>
       </div>
-
+ 
       {/* Image Preview Modal */}
       {previewImage && (
         <div
@@ -309,3 +313,4 @@ export default function GuestManagement() {
     </AdminLayout>
   );
 }
+ 

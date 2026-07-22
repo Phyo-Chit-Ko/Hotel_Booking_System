@@ -575,7 +575,7 @@ const handleEditSubmit = async (e) => {
                       value={bookingToEdit.status || "Pending"}
                       onChange={(e) => setBookingToEdit({ ...bookingToEdit, status: e.target.value })}
                     >
-                      <option value="Pending" className="bg-slate-900 text-slate-200">Pending</option>
+                      <option value="Pending" className="bg-slate-900 text-slate-200">Select</option>
                       <option value="Confirmed" className="bg-slate-900 text-slate-200">Confirmed</option>
                       <option value="Cancelled" className="bg-slate-900 text-slate-200">Cancelled</option>
                     </select>

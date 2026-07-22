@@ -102,6 +102,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/guests/{id}', [GuestController::class, 'destroy']);
     Route::get('/guests', [GuestController::class, 'index']);
     Route::get('/reservations', [ReservationController::class, 'index']);
+    Route::get('/dashboard/stats', [ReservationController::class, 'index']);
     Route::post('/reservations', [ReservationController::class, 'store']);
     Route::delete('/reservations/{id}', [ReservationController::class, 'destroy']);
 

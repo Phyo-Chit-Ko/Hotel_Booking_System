@@ -30,7 +30,7 @@ export default function Restaurant() {
       
       {/* Full-width Header with Scroll Arrow */}
       <div className="header-image-container">
-        <img src="/images/21.png" alt="Restaurant Banner" className="header-banner" />
+        <img src="/images/4.jpg" alt="Restaurant Banner" className="header-banner" />
         
         <button 
           className="scroll-arrow" 

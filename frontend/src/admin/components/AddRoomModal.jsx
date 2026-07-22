@@ -160,7 +160,7 @@ export default function AddRoomModal({ isOpen, onClose, onSave, roomToEdit = nul
             </div>
 
             {/* Current Status */}
-            <div className="sm:col-span-2 flex flex-col gap-2">
+            <div className=" flex flex-col gap-2">
               <label className="block text-sm font-semibold text-slate-700">Current Status</label>
               <select
                 name="status"
