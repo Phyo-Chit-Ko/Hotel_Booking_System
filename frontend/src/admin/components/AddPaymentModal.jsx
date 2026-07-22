@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { FaTimes, FaMoneyBillWave, FaHashtag, FaFileAlt, FaCloudUploadAlt } from "react-icons/fa";
-import { authHeaders } from "../../utils/apiHeaders";
+import { authHeaders, apiUrl } from "../../utils/apiHeaders";
 
 /**
  * Posts directly to POST /api/payments — the same endpoint RecordPayment.jsx
@@ -51,7 +51,7 @@ export default function AddPaymentModal({ isOpen, onClose, onSave }) {
       if (formData.description) payload.append("comment", formData.description);
       if (formData.payment_proof) payload.append("paymentProof", formData.payment_proof);
 
-      const res = await fetch("/api/payments", {
+      const res = await fetch(apiUrl("/api/payments"), {
         method: "POST",
         headers: authHeaders(),
         body: payload,

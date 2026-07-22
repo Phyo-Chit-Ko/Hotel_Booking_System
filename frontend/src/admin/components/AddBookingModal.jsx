@@ -102,8 +102,8 @@ export default function BookingModal({ isOpen, onClose, selectedRoom }) {
       // Determine Endpoint URL based on Create or Edit context
       const bookingId = selectedRoom?.booking_id || selectedRoom?.raw_id;
       
-      // FIXED: Added absolute backend URL prefix domain
-      const baseUrl = "http://localhost:8000"; 
+      // fetch() ignores axios.defaults.baseURL, so it needs the backend origin explicitly.
+      const baseUrl = import.meta.env.VITE_API_BASE_URL;
       const url = isEditMode ? `${baseUrl}/api/bookings/${bookingId}` : `${baseUrl}/api/bookings`;
 
       const response = await fetch(url, {

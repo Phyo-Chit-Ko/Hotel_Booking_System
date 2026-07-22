@@ -10,7 +10,7 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import { formatCurrency } from "../../utils/currency";
  
-const BACKEND_URL = "http://localhost:8000";
+const BACKEND_URL = import.meta.env.VITE_API_BASE_URL;
  
 const STATUS_META = {
   Active:   { badge: "bg-emerald-50 text-emerald-700 border-emerald-100", dot: "bg-emerald-500", ring: "ring-emerald-300" },

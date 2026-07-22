@@ -15,6 +15,9 @@ import {
   FaBan
 } from "react-icons/fa";
 
+// fetch() ignores axios.defaults.baseURL, so it needs the backend origin explicitly.
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 export default function BookingManagement() {
    const auth = useAuth();
 
@@ -66,7 +69,7 @@ export default function BookingManagement() {
       if (selectedDate) params.append("date", selectedDate);
 
    const res = await fetch(
- `http://localhost:8000/api/bookings?${params.toString()}`,
+ `${API_BASE_URL}/api/bookings?${params.toString()}`,
  {
    headers:{
       Authorization: `Bearer ${sessionStorage.getItem("auth_token")}`,
@@ -111,7 +114,7 @@ export default function BookingManagement() {
 
     let cancelled = false;
     axios
-      .get("http://localhost:8000/api/rooms/available", {
+      .get("/api/rooms/available", {
         params: { check_in: bookingToEdit.checkIn, check_out: bookingToEdit.checkOut },
       })
       .then((res) => {
@@ -160,7 +163,7 @@ const handleEditSubmit = async (e) => {
 
     if (wantsConfirm && chosenRooms.length > 0) {
       const assignRes = await fetch(
-        `http://localhost:8000/api/bookings/${bookingToEdit.raw_id}/rooms`,
+        `${API_BASE_URL}/api/bookings/${bookingToEdit.raw_id}/rooms`,
         {
           method: "PUT",
           headers: {
@@ -178,7 +181,7 @@ const handleEditSubmit = async (e) => {
     }
 
      const res = await fetch(
- `http://localhost:8000/api/bookings/${bookingToEdit.raw_id}`,
+ `${API_BASE_URL}/api/bookings/${bookingToEdit.raw_id}`,
       {
         method: "PUT",
         headers: {

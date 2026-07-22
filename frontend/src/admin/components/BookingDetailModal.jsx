@@ -29,7 +29,7 @@ export default function BookingDetailModal({ isOpen, onClose, booking, onEdit, o
     setLoading(true);
     
     axios
-      .get(`http://localhost:8000/api/bookings/${booking.raw_id || booking.id}`)
+      .get(`/api/bookings/${booking.raw_id || booking.id}`)
       .then((res) => {
         if (!cancelled) setDetail(res.data.booking);
       })

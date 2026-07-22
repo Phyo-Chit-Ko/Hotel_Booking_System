@@ -41,8 +41,8 @@ export default function RoomManagement() {
     try {
       setIsLoading(true);
       const [roomsResponse, roomTypesResponse] = await Promise.all([
-        axios.get("http://127.0.0.1:8000/api/rooms"),
-        axios.get("http://127.0.0.1:8000/api/room-types"),
+        axios.get("/api/rooms"),
+        axios.get("/api/room-types"),
       ]);
       setRooms(roomsResponse.data);
       setRoomTypes(roomTypesResponse.data);
@@ -99,13 +99,13 @@ export default function RoomManagement() {
     try {
       if (isEditing) {
         await axios.put(
-          `http://127.0.0.1:8000/api/rooms/${formData.room_number}`,
+          `/api/rooms/${formData.room_number}`,
           formData,
         );
         toast.success("Room updated successfully!");
       } else {
         await axios.post(
-          "http://127.0.0.1:8000/api/rooms",
+          "/api/rooms",
           formData,
         );
         toast.success("New room created successfully!");
@@ -134,7 +134,7 @@ export default function RoomManagement() {
     if (!result.isConfirmed) return;
 
     try {
-      await axios.delete(`http://127.0.0.1:8000/api/rooms/${roomNumber}`);
+      await axios.delete(`/api/rooms/${roomNumber}`);
       toast.success("Room purged successfully.");
       fetchData();
     } catch (error) {
@@ -165,7 +165,7 @@ export default function RoomManagement() {
       );
  
       await axios.patch(
-        `http://127.0.0.1:8000/api/rooms/${roomNumber}/toggle-status`,
+        `/api/rooms/${roomNumber}/toggle-status`,
         {
           status: nextStatus,
         },

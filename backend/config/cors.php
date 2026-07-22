@@ -19,11 +19,8 @@ return [
     // Allow all HTTP methods (GET, POST, PUT, DELETE, PATCH)
     'allowed_methods' => ['*'],
 
-    // React development servers
-    'allowed_origins' => [
-        'http://localhost:5173',
-        'http://localhost:5174',
-    ],
+    // React development servers (falls back to localhost when FRONTEND_URL isn't set)
+    'allowed_origins' => array_filter(explode(',', env('FRONTEND_URL', 'http://localhost:5173'))),
 
     'allowed_origins_patterns' => [],
 

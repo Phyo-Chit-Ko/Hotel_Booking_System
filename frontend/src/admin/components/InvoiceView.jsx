@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { FaTimes, FaPrint } from "react-icons/fa";
 import { formatCurrency as fmt } from "../../utils/currency";
-import { authHeaders } from "../../utils/apiHeaders";
+import { authHeaders, apiUrl } from "../../utils/apiHeaders";
 
 /**
  * Printable invoice for a reservation — rendered as a normal in-app overlay,
@@ -21,8 +21,8 @@ export default function InvoiceView({ booking, onClose }) {
     setLoading(true);
     setError("");
     Promise.all([
-      fetch(`/api/reservations/${booking.id}/detail`, { headers: authHeaders() }).then((r) => r.json()),
-      fetch(`/api/reservations/${booking.id}/ledger`, { headers: authHeaders() }).then((r) => r.json()),
+      fetch(apiUrl(`/api/reservations/${booking.id}/detail`), { headers: authHeaders() }).then((r) => r.json()),
+      fetch(apiUrl(`/api/reservations/${booking.id}/ledger`), { headers: authHeaders() }).then((r) => r.json()),
     ])
       .then(([d, l]) => {
         if (!active) return;

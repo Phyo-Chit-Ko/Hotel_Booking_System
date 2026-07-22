@@ -18,7 +18,7 @@ import {
   FaReceipt
 } from "react-icons/fa";
 import { formatCurrency } from "../../utils/currency";
-import { authHeaders } from "../../utils/apiHeaders";
+import { authHeaders, apiUrl } from "../../utils/apiHeaders";
 import Swal from "sweetalert2";
 
 // Matched perfectly with BookingDetail's cell aesthetic
@@ -58,7 +58,7 @@ export default function ReservationDetailModal({
     }
     let cancelled = false;
     setLoading(true);
-    fetch(`/api/reservations/${booking.id}/detail`, { headers: authHeaders() })
+    fetch(apiUrl(`/api/reservations/${booking.id}/detail`), { headers: authHeaders() })
       .then((r) => r.json())
       .then((data) => {
         if (!cancelled) setDetail(data.reservation || null);

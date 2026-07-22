@@ -41,7 +41,7 @@ export default function MakeWalkInReservation({ selectedRoom, onClose, onSaveSuc
 
     try {
         console.log(payload);
-const response = await fetch('http://127.0.0.1:8000/api/reservations/walk-in', {
+const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/reservations/walk-in`, {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',

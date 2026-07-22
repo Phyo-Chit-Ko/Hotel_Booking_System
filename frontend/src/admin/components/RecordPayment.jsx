@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { FaTimes, FaCheck, FaUpload } from "react-icons/fa";
 import { formatCurrency as fmt } from "../../utils/currency";
-import { authHeaders } from "../../utils/apiHeaders";
+import { authHeaders, apiUrl } from "../../utils/apiHeaders";
 
 const inp =
   "w-full bg-slate-800/60 border border-slate-700/50 rounded-xl px-4 py-3 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500/60 transition-all";
@@ -53,7 +53,7 @@ export default function RecordPayment({ booking, onClose, onSaved }) {
       if (comment.trim()) payload.append("comment", comment.trim());
       if (paymentProof) payload.append("paymentProof", paymentProof);
 
-      const res = await fetch("/api/payments", {
+      const res = await fetch(apiUrl("/api/payments"), {
         method: "POST",
         headers: authHeaders(),
         body: payload,

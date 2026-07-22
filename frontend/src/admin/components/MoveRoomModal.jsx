@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { FaTimes, FaExchangeAlt } from "react-icons/fa";
-import { authHeaders } from "../../utils/apiHeaders";
+import { authHeaders, apiUrl } from "../../utils/apiHeaders";
 
 const inp =
   "w-full bg-slate-800/60 border border-slate-700/50 rounded-xl px-4 py-3 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500/60 transition-all";
@@ -26,7 +26,7 @@ export default function MoveRoomModal({ booking, onClose, onMoved, prefilledReas
   const effectiveCheckOut = targetCheckOut || booking.checkOut;
 
   useEffect(() => {
-    fetch(`/api/rooms/available?check_in=${booking.checkIn}&check_out=${effectiveCheckOut}`)
+    fetch(apiUrl(`/api/rooms/available?check_in=${booking.checkIn}&check_out=${effectiveCheckOut}`))
       .then((r) => r.json())
       .then((d) => setRooms((d.rooms || []).filter((r) => r.room_number !== booking.roomNumber)))
       .catch(() => setRooms([]));
@@ -41,7 +41,7 @@ export default function MoveRoomModal({ booking, onClose, onMoved, prefilledReas
       const payload = { roomNumber, reason: reason.trim() };
       if (targetCheckOut) payload.checkOut = targetCheckOut;
 
-      const res = await fetch(`/api/reservations/${booking.id}/move-room`, {
+      const res = await fetch(apiUrl(`/api/reservations/${booking.id}/move-room`), {
         method: "PATCH",
         headers: authHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify(payload),

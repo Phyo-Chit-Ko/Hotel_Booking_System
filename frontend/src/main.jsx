@@ -7,7 +7,7 @@ import { AuthProvider } from "./context/AuthContext"; // <--- ADD THIS LINE
 import "./index.css";
 
 axios.defaults.withCredentials = true;
-axios.defaults.baseURL = "http://127.0.0.1:8000";
+axios.defaults.baseURL = import.meta.env.VITE_API_BASE_URL;
 
 // Attach the Sanctum bearer token (if present) to every outgoing request,
 // so admin-only endpoints protected by `auth:sanctum` work without every

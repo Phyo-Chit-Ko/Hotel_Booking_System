@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { FaTimes, FaCheck } from "react-icons/fa";
 import { formatCurrency } from "../../utils/currency";
-import { authHeaders } from "../../utils/apiHeaders";
+import { authHeaders, apiUrl } from "../../utils/apiHeaders";
 
 const inp =
   "w-full bg-slate-800/60 border border-slate-700/50 rounded-xl px-4 py-3 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500/60 transition-all";
@@ -29,7 +29,7 @@ export default function EditReservationModal({ booking, onClose, onSaved }) {
 
   useEffect(() => {
     let active = true;
-    fetch(`/api/reservations/${booking.id}/detail`, { headers: authHeaders() })
+    fetch(apiUrl(`/api/reservations/${booking.id}/detail`), { headers: authHeaders() })
       .then((r) => r.json())
       .then((d) => {
         if (!active) return;
@@ -53,7 +53,7 @@ export default function EditReservationModal({ booking, onClose, onSaved }) {
     setError("");
     setNote("");
     try {
-      const res = await fetch(`/api/reservations/${booking.id}`, {
+      const res = await fetch(apiUrl(`/api/reservations/${booking.id}`), {
         method: "PATCH",
         headers: authHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({

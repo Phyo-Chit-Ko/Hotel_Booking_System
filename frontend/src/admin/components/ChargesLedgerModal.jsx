@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { FaTimes, FaMoneyBillWave, FaExchangeAlt, FaSignOutAlt, FaPrint } from "react-icons/fa";
 import InvoiceView from "./InvoiceView";
 import { formatCurrency as fmt } from "../../utils/currency";
-import { authHeaders } from "../../utils/apiHeaders";
+import { authHeaders, apiUrl } from "../../utils/apiHeaders";
 import Swal from "sweetalert2";
 
 /**
@@ -32,7 +32,7 @@ export default function ChargesLedgerModal({
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`/api/reservations/${booking.id}/ledger`, {
+      const res = await fetch(apiUrl(`/api/reservations/${booking.id}/ledger`), {
         headers: authHeaders(),
       });
       if (!res.ok) throw new Error("Failed to load charges.");
@@ -67,7 +67,7 @@ export default function ChargesLedgerModal({
     }
     setCheckoutSaving(true);
     try {
-      const res = await fetch(`/api/reservations/${booking.id}/check-out`, {
+      const res = await fetch(apiUrl(`/api/reservations/${booking.id}/check-out`), {
         method: "PATCH",
         headers: authHeaders({ "Content-Type": "application/json" }),
       });

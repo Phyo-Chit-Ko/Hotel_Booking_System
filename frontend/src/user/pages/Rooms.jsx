@@ -6,7 +6,7 @@ import { useAuth } from "../../context/AuthContext";
 import Swal from "sweetalert2";
 import { formatCurrency } from "../../utils/currency";
 
-const BACKEND_URL = "http://localhost:8000";
+const BACKEND_URL = import.meta.env.VITE_API_BASE_URL;
 
 // Used only when a room type has no uploaded image yet, so the grid still looks presentable.
 const FALLBACK_IMAGES = [
@@ -311,7 +311,7 @@ export default function Rooms() {
     setSubmitting(true);
 
     try {
-      const response = await fetch("http://localhost:8000/api/bookings", {
+      const response = await fetch(`${BACKEND_URL}/api/bookings`, {
         method: "POST",
         headers: {
           "Accept": "application/json",

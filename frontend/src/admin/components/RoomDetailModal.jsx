@@ -4,7 +4,7 @@ import { FaTimes, FaImage, FaMugHot, FaBath, FaUserCircle, FaCalendarAlt, FaUser
 import { STATUS_META, FALLBACK_STATUS_META } from "../constants/roomStatus";
 import { formatCurrency } from "../../utils/currency";
 
-const BACKEND_URL = "http://localhost:8000";
+const BACKEND_URL = import.meta.env.VITE_API_BASE_URL;
 
 // Unit Inspector-style stat row (ported from the now-retired Available_rooms.jsx
 // "Unit Inspector" panel so the eye-icon modal shares the same visual language).

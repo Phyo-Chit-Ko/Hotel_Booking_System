@@ -11,8 +11,9 @@ import Navbar from "../components/Navbar";
 export default function Account() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const handleGoogleLogin = () => {
-    // This will redirect the browser to your Laravel backend
-    window.location.href = "http://localhost:8000/api/auth/google/redirect";
+    // Full-page navigation to the backend, so it needs the absolute origin
+    // (axios.defaults.baseURL doesn't apply to window.location).
+    window.location.href = `${import.meta.env.VITE_API_BASE_URL}/api/auth/google/redirect`;
 };
 const location = useLocation();
  
@@ -88,10 +89,10 @@ const handleSubmit = async (e) => {
  
   try {
     // 1. Get CSRF Cookie
-    await axios.get("http://localhost:8000/sanctum/csrf-cookie");
- 
+    await axios.get("/sanctum/csrf-cookie");
+
     if (isLogin) {
-      const response = await axios.post("http://localhost:8000/api/login", {
+      const response = await axios.post("/api/login", {
         email: formData.email,
         password: formData.password,
       });
@@ -275,7 +276,7 @@ const handleSubmit = async (e) => {
   onClick={() => {
     // This forces the browser to leave your React app
     // and go to your Laravel backend Google route
-    window.location.href = "http://localhost:8000/api/auth/google/redirect";
+    window.location.href = `${import.meta.env.VITE_API_BASE_URL}/api/auth/google/redirect`;
   }}
 >
           <svg

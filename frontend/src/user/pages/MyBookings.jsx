@@ -25,7 +25,7 @@ export default function MyBookings() {
 
     if (userId) {
 
-      axios.get(`http://localhost:8000/api/my-bookings/${userId}`)
+      axios.get(`/api/my-bookings/${userId}`)
         .then(res => {
 
           console.log("API RESPONSE:", res.data);
@@ -110,7 +110,7 @@ export default function MyBookings() {
 
   const handleCancelBooking = async (bookingId) => {
     try {
-      await axios.put(`http://localhost:8000/api/bookings/${bookingId}`, {
+      await axios.put(`/api/bookings/${bookingId}`, {
         first_name: selectedBooking.first_name,
         last_name: selectedBooking.last_name,
         phone: selectedBooking.phone,

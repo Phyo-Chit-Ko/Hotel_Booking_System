@@ -39,7 +39,7 @@ export default function Register() {
     }
 
     try {
-      await axios.post('http://localhost:8000/api/register', formData);
+      await axios.post('/api/register', formData);
       await Swal.fire({
         icon: "success",
         title: "Registration Successful!",

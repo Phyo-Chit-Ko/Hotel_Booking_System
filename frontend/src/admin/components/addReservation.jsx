@@ -4,7 +4,7 @@ import {
 } from "react-icons/fa";
 import { NAME_RE, PHONE_RE, EMAIL_RE, NATIONALITY_RE, validateIdNumber, composeNrc } from "../../utils/validators";
 import { formatCurrency as fmt } from "../../utils/currency";
-import { authHeaders } from "../../utils/apiHeaders";
+import { authHeaders, apiUrl } from "../../utils/apiHeaders";
 import NrcInput from "./NrcInput";
 
 const inp = "w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:ring-4 focus:ring-yellow-500/20 focus:border-yellow-500 transition-all placeholder-slate-400 bg-slate-50/50 hover:bg-yellow-50/40 hover:border-yellow-300 focus:bg-white";
@@ -99,7 +99,7 @@ export default function AddReservation({
       setSaving(true);
       setStepError("");
       try {
-        const res = await fetch(`/api/reservations/${reservationId}/detail`, {
+        const res = await fetch(apiUrl(`/api/reservations/${reservationId}/detail`), {
           headers: authHeaders(),
         });
         if (!res.ok) throw new Error("Failed to load reservation for check-in");
@@ -168,7 +168,7 @@ export default function AddReservation({
     if (!isOpen || mode !== "checkin" || currentStep !== 3 || !form.reservationId) return;
     let active = true;
     setLedgerLoading(true);
-    fetch(`/api/reservations/${form.reservationId}/ledger`, { headers: authHeaders() })
+    fetch(apiUrl(`/api/reservations/${form.reservationId}/ledger`), { headers: authHeaders() })
       .then((r) => r.json())
       .then((d) => { if (active) setLedgerSummary(d); })
       .catch(() => { if (active) setLedgerSummary(null); })
@@ -193,7 +193,7 @@ export default function AddReservation({
     if (query.length < 2) return setGuestResults([]);
     setSearchLoading(true);
     try {
-      const res = await fetch(`/api/guests/search?q=${encodeURIComponent(query)}`, { headers: authHeaders() });
+      const res = await fetch(apiUrl(`/api/guests/search?q=${encodeURIComponent(query)}`), { headers: authHeaders() });
       const data = await res.json();
       setGuestResults(data.guests || []);
     } catch { setGuestResults([]); }
@@ -219,7 +219,7 @@ export default function AddReservation({
     set("roomNumber", roomNumber);
     if (!roomNumber) return;
     try {
-      const res  = await fetch(`/api/rooms/${roomNumber}`);
+      const res  = await fetch(apiUrl(`/api/rooms/${roomNumber}`));
       const data = await res.json();
       if (data.room) {
         setForm((p) => ({
@@ -236,7 +236,7 @@ export default function AddReservation({
 
   useEffect(() => {
     if (!form.checkIn || !form.checkOut) return;
-    fetch(`/api/rooms/available?check_in=${form.checkIn}&check_out=${form.checkOut}`)
+    fetch(apiUrl(`/api/rooms/available?check_in=${form.checkIn}&check_out=${form.checkOut}`))
       .then((r) => r.json())
       .then((d) => setAvailableRooms(d.rooms || []))
       .catch(() => setAvailableRooms([]));
@@ -306,7 +306,7 @@ export default function AddReservation({
           // yet. Create one from the details captured on this step instead —
           // handleSubmit() already sends this guestId to the check-in
           // endpoint, which links it to the reservation on confirm.
-          const res = await fetch("/api/guests", {
+          const res = await fetch(apiUrl("/api/guests"), {
             method: "POST", headers: authHeaders(), body: buildGuestFormData(),
           });
           const data = await res.json().catch(() => ({}));
@@ -318,7 +318,7 @@ export default function AddReservation({
           // Re-linking to a different guest mid check-in stays out of scope
           // (the search input above is disabled in this mode) — only the
           // identity fields for the already-linked guest can be corrected here.
-          const res = await fetch(`/api/guests/${form.guestId}`, {
+          const res = await fetch(apiUrl(`/api/guests/${form.guestId}`), {
             method: "PATCH",
             headers: authHeaders({ "Content-Type": "application/json" }),
             body: JSON.stringify({
@@ -349,7 +349,7 @@ export default function AddReservation({
 
     setSaving(true);
     try {
-      const res = await fetch("/api/guests", { method: "POST", headers: authHeaders(), body: buildGuestFormData() });
+      const res = await fetch(apiUrl("/api/guests"), { method: "POST", headers: authHeaders(), body: buildGuestFormData() });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || "Failed to save guest");
       const data = await res.json();
 
@@ -381,7 +381,7 @@ export default function AddReservation({
       let reservationIdLocal = form.reservationId;
 
       if (!reservationIdLocal) {
-        const res = await fetch("/api/reservations", {
+        const res = await fetch(apiUrl("/api/reservations"), {
           method: "POST",
           headers: authHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify({
@@ -418,7 +418,7 @@ export default function AddReservation({
         const adultsChanged   = Number(form.adults) !== Number(originalAdults);
         const childrenChanged = Number(form.children) !== Number(originalChildren);
         if (adultsChanged || childrenChanged) {
-          const res = await fetch(`/api/reservations/${reservationIdLocal}`, {
+          const res = await fetch(apiUrl(`/api/reservations/${reservationIdLocal}`), {
             method: "PATCH",
             headers: authHeaders({ "Content-Type": "application/json" }),
             body: JSON.stringify({ adults: Number(form.adults), children: Number(form.children) }),
@@ -469,7 +469,7 @@ for (const g of additionalGuests) {
   }
   gPayload.append("guestType", g.guestType);
 
-  const gRes = await fetch(`/api/reservations/${reservationIdLocal}/guests`, {
+  const gRes = await fetch(apiUrl(`/api/reservations/${reservationIdLocal}/guests`), {
     method: "POST", headers: authHeaders(), body: gPayload,
   });
   if (!gRes.ok) throw new Error((await gRes.json().catch(() => ({}))).message || "Failed to add additional guest");
@@ -499,7 +499,7 @@ for (const g of additionalGuests) {
       let data;
 
       if (mode === "checkin") {
-        const res = await fetch(`/api/reservations/${form.reservationId}/check-in`, {
+        const res = await fetch(apiUrl(`/api/reservations/${form.reservationId}/check-in`), {
           method: "POST",
           headers: authHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify(form.guestId ? { guestId: form.guestId } : {}),
@@ -514,7 +514,7 @@ for (const g of additionalGuests) {
         if (form.transactionNo) payload.append("transactionNo", form.transactionNo);
         if (form.paymentProof) payload.append("paymentProof", form.paymentProof);
 
-        const res = await fetch("/api/payments", { method: "POST", headers: authHeaders(), body: payload });
+        const res = await fetch(apiUrl("/api/payments"), { method: "POST", headers: authHeaders(), body: payload });
         if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || "Failed to save");
         data = await res.json();
       }
@@ -551,18 +551,18 @@ for (const g of additionalGuests) {
       if (mode !== "checkin") {
         for (const g of additionalGuests) {
           if (g.createdThisSession && g.savedGuestId) {
-            await fetch(`/api/guests/${g.savedGuestId}`, {
+            await fetch(apiUrl(`/api/guests/${g.savedGuestId}`), {
               method: "DELETE", headers: authHeaders(),
             }).catch(() => {});
           }
         }
 
         if (guestCreatedThisSession && form.guestId) {
-          await fetch(`/api/guests/${form.guestId}`, {
+          await fetch(apiUrl(`/api/guests/${form.guestId}`), {
             method: "DELETE", headers: authHeaders(),
           }).catch(() => {});
         } else if (reservationCreatedThisSession && form.reservationId) {
-          await fetch(`/api/reservations/${form.reservationId}`, {
+          await fetch(apiUrl(`/api/reservations/${form.reservationId}`), {
             method: "DELETE", headers: authHeaders(),
           }).catch(() => {});
         }
@@ -570,7 +570,7 @@ for (const g of additionalGuests) {
         // A Guest record was created earlier in THIS check-in (the
         // reservation had no guest_id yet) but check-in was never confirmed,
         // so the reservation was never linked to it — safe to delete.
-        await fetch(`/api/guests/${form.guestId}`, {
+        await fetch(apiUrl(`/api/guests/${form.guestId}`), {
           method: "DELETE", headers: authHeaders(),
         }).catch(() => {});
       }
@@ -611,7 +611,7 @@ const setGuestRowErrors = (localId, errors) =>
     updateGuestRow(localId, "guestSearch", query);
     if (query.length < 2) { updateGuestRow(localId, "guestResults", []); return; }
     try {
-      const res = await fetch(`/api/guests/search?q=${encodeURIComponent(query)}`, { headers: authHeaders() });
+      const res = await fetch(apiUrl(`/api/guests/search?q=${encodeURIComponent(query)}`), { headers: authHeaders() });
       const data = await res.json();
       setAdditionalGuests((p) => p.map((g) => (g.localId === localId ? { ...g, guestResults: data.guests || [] } : g)));
     } catch {
@@ -704,7 +704,7 @@ const setGuestRowErrors = (localId, errors) =>
         <input className={inp} style={{ paddingLeft: "44px" }}
           placeholder="Search by name, email, or phone…"
           value={form.guestSearch} onChange={(e) => handleGuestSearch(e.target.value)}
-          disabled={isCheckin} />
+          disabled={isCheckin && !!form.guestId} />
         {searchLoading && <div className="absolute right-4 top-3 w-5 h-5 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin" />}
       </div>
       {guestResults.length > 0 && (

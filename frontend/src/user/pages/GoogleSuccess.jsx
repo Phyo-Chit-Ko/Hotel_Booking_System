@@ -22,7 +22,7 @@ useEffect(() => {
     }
 
     // 2. Fetch the user details
-    axios.get("http://localhost:8000/api/user", {
+    axios.get("/api/user", {
         headers: {
             Authorization: `Bearer ${token}`
         }

@@ -12,9 +12,9 @@ import {
   FaChevronDown,
 } from "react-icons/fa";
 import { formatCurrency } from "../../utils/currency";
-import { authHeaders as getAuthHeaders } from "../../utils/apiHeaders";
+import { authHeaders as getAuthHeaders, apiUrl } from "../../utils/apiHeaders";
  
-const BACKEND_URL = "http://localhost:8000";
+const BACKEND_URL = import.meta.env.VITE_API_BASE_URL;
  
 const METHOD_LABELS = {
   cash: "Cash",
@@ -48,7 +48,7 @@ const PaymentManagement = () => {
     setLoading(true);
     setLoadError("");
     try {
-      const res = await fetch("/api/payments", { headers: getAuthHeaders() });
+      const res = await fetch(apiUrl("/api/payments"), { headers: getAuthHeaders() });
       if (!res.ok) throw new Error("Failed to load payments");
       const data = await res.json();
  

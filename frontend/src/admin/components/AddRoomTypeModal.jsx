@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { FaTimes, FaChevronDown, FaImage, FaSpinner } from "react-icons/fa";
 
-const BACKEND_URL = "http://localhost:8000";
+const BACKEND_URL = import.meta.env.VITE_API_BASE_URL;
 
 const initialFormState = {
   name:               "",

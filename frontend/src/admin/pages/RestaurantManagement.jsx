@@ -50,7 +50,11 @@ export default function RestaurantManagement() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
  
+<<<<<<< HEAD
   const API = "http://127.0.0.1:8000/api";
+=======
+  const API = `${import.meta.env.VITE_API_BASE_URL}/api`;
+>>>>>>> df66d90 (update local)
  
   const activeMenuItemsCount = menuItems.filter(
     (item) => item.status === "Available"

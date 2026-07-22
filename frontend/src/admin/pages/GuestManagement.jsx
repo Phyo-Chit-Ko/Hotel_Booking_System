@@ -3,7 +3,7 @@ import AdminLayout from "../layouts/AdminLayout";
 import { FaSearch, FaTimes, FaChevronDown } from "react-icons/fa";
 import axios from "axios";
  
-const BACKEND_URL = "http://localhost:8000";
+const BACKEND_URL = import.meta.env.VITE_API_BASE_URL;
  
 export default function GuestManagement() {
   const [guests, setGuests] = useState([]);

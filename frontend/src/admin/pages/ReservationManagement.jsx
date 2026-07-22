@@ -17,7 +17,7 @@ import {
   FaExclamationTriangle,
 } from "react-icons/fa";
 import { formatCurrency } from "../../utils/currency";
-import { authHeaders } from "../../utils/apiHeaders";
+import { authHeaders, apiUrl } from "../../utils/apiHeaders";
 import Swal from "sweetalert2";
 
 export default function ReservationManagement() {
@@ -70,7 +70,7 @@ export default function ReservationManagement() {
     setLoading(true);
     setLoadError("");
     try {
-      const res = await fetch("/api/reservations", { headers: authHeaders() });
+      const res = await fetch(apiUrl("/api/reservations"), { headers: authHeaders() });
       if (!res.ok) throw new Error("Failed to load reservations");
       const data = await res.json();
       setBookings(data.bookings || []);
@@ -87,7 +87,7 @@ export default function ReservationManagement() {
   }, []);
 
   useEffect(() => {
-    fetch("/api/room-types", { headers: { Accept: "application/json" } })
+    fetch(apiUrl("/api/room-types"), { headers: { Accept: "application/json" } })
       .then((r) => r.json())
       .then((data) => setRoomTypes(Array.isArray(data) ? data : []))
       .catch(() => setRoomTypes([]));
@@ -259,7 +259,7 @@ export default function ReservationManagement() {
     }
     setCheckoutSaving(true);
     try {
-      const res = await fetch(`/api/reservations/${checkoutBooking.id}/check-out`, {
+      const res = await fetch(apiUrl(`/api/reservations/${checkoutBooking.id}/check-out`), {
         method: "PATCH",
         headers: authHeaders(),
       });

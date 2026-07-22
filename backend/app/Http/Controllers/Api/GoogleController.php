@@ -38,8 +38,7 @@ class GoogleController extends Controller
             $token = $user->createToken('auth_token')->plainTextToken;
 
             // Redirect to success route
-            // In GoogleController.php
-            return redirect("http://localhost:5173/auth/success?token=" . $token);
+            return redirect(env('FRONTEND_URL', 'http://localhost:5173') . "/auth/success?token=" . $token);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }
