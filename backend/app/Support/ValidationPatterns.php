@@ -16,7 +16,7 @@ class ValidationPatterns
     public const NAME = '/^[\pL][\pL\s\'\.\-]*$/u';
 
     // Optional leading +, 7-20 digits with optional spaces/hyphens.
-    public const PHONE = '/^\+?[0-9][0-9\s\-]{6,19}$/';
+    public const PHONE = '/^09\d{7,9}$/';
 
     // Unicode letters, spaces, hyphens — e.g. "Myanmar", "Japanese".
     public const NATIONALITY = '/^[\pL][\pL\s\-]*$/u';
@@ -26,7 +26,7 @@ class ValidationPatterns
 
     // NRC Regex: Region 1-14 / Township 3-6 letters / Citizen type (N|P|E) / Exactly 6 digits
     // Example: 12/MAMANA(N)123456
-    public const ID_NRC = '/^([1-9]|1[0-4])\/[\pL]{3,6}\((N|P|E)\)\d{6}$/ui';
+    public const ID_NRC = '/^([1-9]|1[0-4])\/[\pL]{2,10}\((N|P|E|T|Y|S)\)\d{6}$/ui';
 
     // Driver's License / National ID / Generic: letters/digits/()/- allowed.
     public const ID_GENERIC = '/^[\pL\pN\/\(\)\-\s]+$/u';

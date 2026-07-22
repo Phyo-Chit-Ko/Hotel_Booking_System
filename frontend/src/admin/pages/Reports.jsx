@@ -397,14 +397,13 @@ const Reports = () => {
             <table className="w-full border-collapse text-left text-sm text-slate-600">
               <thead className="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200">
                 <tr>
-                  <th className="px-5 py-3.5">#</th>
+                  <th className="px-5 py-3.5">ID</th>
                   <th className="px-5 py-3.5">Audit Date</th>
                   <th className="px-5 py-3.5 text-center">Check-Ins</th>
                   <th className="px-5 py-3.5 text-center">Check-Outs</th>
                   <th className="px-5 py-3.5 text-center">In-House</th>
                   <th className="px-5 py-3.5 text-center">No-Shows</th>
                   <th className="px-5 py-3.5">Total Revenue</th>
-                  <th className="px-5 py-3.5 text-center">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -418,11 +417,6 @@ const Reports = () => {
                       <td className="px-5 py-4 text-center font-mono text-slate-700">{r.total_inhouse}</td>
                       <td className="px-5 py-4 text-center font-mono text-slate-700">{r.total_no_show_rooms}</td>
                       <td className="px-5 py-4 font-mono font-bold text-slate-900">{formatCurrency(r.total_revenue)}</td>
-                      <td className="px-5 py-4 text-center">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium inline-block ${getStatusStyle(r.status)}`}>
-                          {r.status}
-                        </span>
-                      </td>
                     </tr>
                   ))
                 ) : (

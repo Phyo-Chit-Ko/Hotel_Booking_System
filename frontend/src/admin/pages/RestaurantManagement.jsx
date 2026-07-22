@@ -11,25 +11,33 @@ import {
   FaTimes,
   FaSearch,
   FaTrash,
+  FaReceipt,
+  FaCalendarAlt,
 } from "react-icons/fa";
 import { formatCurrency } from "../../utils/currency";
 import { authHeaders as getAuthHeaders } from "../../utils/apiHeaders";
-
+ 
 export default function RestaurantManagement() {
   const { user } = useAuth();
   const canWrite = (user?.role || "").toLowerCase() === "manager";
-
+ 
   const [menuItems, setMenuItems] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
-  const [foodRevenue, setFoodRevenue] = useState(0.0);
-
+ 
+  // Date Filter State for F&B Charges (Day/Month selection)
+  const [selectedDate, setSelectedDate] = useState("");
+ 
+  // Modal State for Room Food Charges Detail
+  const [allFoodOrders, setAllFoodOrders] = useState([]);
+  const [isOrdersModalOpen, setIsOrdersModalOpen] = useState(false);
+ 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   
   // Validation Errors State
   const [formErrors, setFormErrors] = useState({});
-
+ 
   const [formItem, setFormItem] = useState({
     item_id: null,
     item_name: "",
@@ -37,25 +45,25 @@ export default function RestaurantManagement() {
     price: "",
     status: "Available",
   });
-
+ 
   // Pagination state (6 items per page)
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
-
+ 
   const API = "http://127.0.0.1:8000/api";
-
+ 
   const activeMenuItemsCount = menuItems.filter(
     (item) => item.status === "Available"
   ).length;
-
+ 
   useEffect(() => {
     fetchItemsFromDB();
   }, [searchQuery, selectedCategory]);
-
+ 
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, selectedCategory]);
-
+ 
   const fetchItemsFromDB = async () => {
     try {
       const response = await fetch(
@@ -67,7 +75,7 @@ export default function RestaurantManagement() {
           headers: getAuthHeaders(),
         }
       );
-
+ 
       if (response.status === 401) {
         Swal.fire({
           icon: "error",
@@ -76,32 +84,27 @@ export default function RestaurantManagement() {
         });
         return;
       }
-
+ 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-
+ 
       const data = await response.json();
       setMenuItems(data);
-
+ 
       const chargesResponse = await fetch(`${API}/services`, {
         method: "GET",
         headers: getAuthHeaders(),
       });
-
+ 
       if (chargesResponse.ok) {
         const chargesData = await chargesResponse.json();
-
-        if (
-          chargesData.metrics &&
-          chargesData.metrics.food_revenue_total !== undefined
-        ) {
-          setFoodRevenue(Number(chargesData.metrics.food_revenue_total));
-        } else if (chargesData.services && Array.isArray(chargesData.services)) {
-          const computedFoodRev = chargesData.services
-            .filter((item) => item.service_type === "Food")
-            .reduce((sum, item) => sum + Number(item.total || 0), 0);
-          setFoodRevenue(computedFoodRev);
+ 
+        if (chargesData.services && Array.isArray(chargesData.services)) {
+          const foodList = chargesData.services.filter(
+            (item) => item.service_type === "Food"
+          );
+          setAllFoodOrders(foodList);
         }
       }
     } catch (error) {
@@ -111,7 +114,19 @@ export default function RestaurantManagement() {
       );
     }
   };
-
+ 
+  // Filter Food Orders based on Selected Date
+  const filteredFoodOrders = allFoodOrders.filter((order) => {
+    if (!selectedDate) return true;
+    return order.charge_date && order.charge_date.startsWith(selectedDate);
+  });
+ 
+  // Calculate Filtered Revenue
+  const foodRevenue = filteredFoodOrders.reduce(
+    (sum, item) => sum + Number(item.total || 0),
+    0
+  );
+ 
   const handleOpenAddModal = () => {
     setIsEditMode(false);
     setFormErrors({});
@@ -124,7 +139,7 @@ export default function RestaurantManagement() {
     });
     setIsFormOpen(true);
   };
-
+ 
   const handleOpenEditModal = (item) => {
     setIsEditMode(true);
     setFormErrors({});
@@ -137,17 +152,17 @@ export default function RestaurantManagement() {
     });
     setIsFormOpen(true);
   };
-
+ 
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     setFormErrors({});
-
+ 
     const url = isEditMode
       ? `${API}/restaurant-items/${formItem.item_id}`
       : `${API}/restaurant-items`;
-
+ 
     const method = isEditMode ? "PUT" : "POST";
-
+ 
     try {
       const response = await fetch(url, {
         method,
@@ -159,22 +174,22 @@ export default function RestaurantManagement() {
           status: formItem.status,
         }),
       });
-
+ 
       const result = await response.json().catch(() => ({}));
-
+ 
       if (response.status === 401) {
         throw new Error("You are not authenticated. Please log in again.");
       }
-
+ 
       if (response.status === 422 && result.errors) {
         setFormErrors(result.errors);
         return;
       }
-
+ 
       if (!response.ok) {
         throw new Error(result.message || "Operation failed.");
       }
-
+ 
       Swal.fire({
         icon: "success",
         title: isEditMode ? "Updated!" : "Added!",
@@ -182,7 +197,7 @@ export default function RestaurantManagement() {
         timer: 1500,
         showConfirmButton: false,
       });
-
+ 
       setIsFormOpen(false);
       setFormItem({
         item_id: null,
@@ -201,14 +216,13 @@ export default function RestaurantManagement() {
       });
     }
   };
-
-  // Height & Width ညီအောင် w-28 နှင့် h-10 ကို သုံးထားသော Delete Handler
+ 
   const handleDelete = async (id) => {
     const result = await Swal.fire({
       icon: "warning",
       title: "Delete this menu item?",
       showCancelButton: true,
-      reverseButtons: true, // Cancel (Left) | Delete (Right)
+      reverseButtons: true,
       confirmButtonText: "Yes, delete",
       cancelButtonText: "Cancel",
       buttonsStyling: false,
@@ -221,23 +235,23 @@ export default function RestaurantManagement() {
       },
     });
     if (!result.isConfirmed) return;
-
+ 
     try {
       const response = await fetch(`${API}/restaurant-items/${id}`, {
         method: "DELETE",
         headers: getAuthHeaders(),
       });
-
+ 
       const result = await response.json().catch(() => ({}));
-
+ 
       if (response.status === 401) {
         throw new Error("You are not authenticated. Please log in again.");
       }
-
+ 
       if (!response.ok) {
         throw new Error(result.message || result.error || "Delete failed");
       }
-
+ 
       Swal.fire({
         icon: "success",
         title: "Deleted!",
@@ -245,7 +259,7 @@ export default function RestaurantManagement() {
         timer: 1500,
         showConfirmButton: false,
       });
-
+ 
       fetchItemsFromDB();
     } catch (error) {
       console.error("Delete error:", error);
@@ -256,7 +270,7 @@ export default function RestaurantManagement() {
       });
     }
   };
-
+ 
   const handleToggleStatus = async (id) => {
     try {
       const response = await fetch(
@@ -266,15 +280,15 @@ export default function RestaurantManagement() {
           headers: getAuthHeaders(),
         }
       );
-
+ 
       if (response.status === 401) {
         throw new Error("You are not authenticated. Please log in again.");
       }
-
+ 
       if (!response.ok) {
         throw new Error("Unable to update status.");
       }
-
+ 
       fetchItemsFromDB();
     } catch (error) {
       Swal.fire({
@@ -284,15 +298,15 @@ export default function RestaurantManagement() {
       });
     }
   };
-
+ 
   const totalMenuItems = menuItems.length;
-
+ 
   const totalPages = Math.max(1, Math.ceil(menuItems.length / itemsPerPage));
   const paginatedItems = menuItems.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
-
+ 
   return (
     <AdminLayout>
       {/* KPI Stat Tiles */}
@@ -310,7 +324,7 @@ export default function RestaurantManagement() {
             </p>
           </div>
         </div>
-
+ 
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-amber-50 text-amber-500 border border-amber-100">
             <FaClipboardList className="w-4 h-4" />
@@ -324,22 +338,62 @@ export default function RestaurantManagement() {
             </p>
           </div>
         </div>
-
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-amber-50 text-amber-500 border border-amber-100">
-            <FaCoins className="w-4 h-4" />
+ 
+        {/* F&B ROOM CHARGE TOTAL CARD - ORIGINAL / NO HOVER FILL COLOR CHANGE */}
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 flex flex-col justify-between gap-3">
+          <div className="flex items-center justify-between gap-2">
+            <div
+              onClick={() => setIsOrdersModalOpen(true)}
+              className="flex items-center gap-3 min-w-0 cursor-pointer"
+            >
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-amber-50 text-amber-500 border border-amber-100">
+                <FaCoins className="w-4 h-4" />
+              </div>
+              <div className="min-w-0 flex flex-col gap-0.5">
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider truncate">
+                  F&B Room Charge Total
+                </p>
+                <p className="text-xl font-semibold text-slate-800 leading-tight">
+                  {formatCurrency(foodRevenue)}
+                </p>
+              </div>
+            </div>
+ 
+            <button
+              onClick={() => setIsOrdersModalOpen(true)}
+              className="text-[10px] font-bold text-amber-600 bg-amber-50 hover:bg-amber-100/80 px-2 py-1 rounded-lg border border-amber-200 transition shrink-0"
+            >
+              View Details
+            </button>
           </div>
-          <div className="min-w-0 flex flex-col gap-0.5">
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider truncate">
-              F&B Room Charge Total
-            </p>
-            <p className="text-xl font-semibold text-slate-800 leading-tight">
-              {formatCurrency(foodRevenue)}
-            </p>
+ 
+          {/* Calendar Filter inside Card */}
+          <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+            <span className="text-[11px] font-medium text-slate-400 flex items-center gap-1">
+              <FaCalendarAlt className="text-amber-500 w-3 h-3" /> Filter Date:
+            </span>
+            <div className="flex items-center gap-1.5">
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="h-7 text-[11px] font-semibold px-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg outline-none focus:border-amber-400 transition cursor-pointer w-[125px]"
+              />
+              {selectedDate && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedDate("")}
+                  className="p-1 text-slate-400 hover:text-rose-500 transition rounded-md hover:bg-rose-50"
+                  title="Clear date filter"
+                >
+                  <FaTimes className="w-3 h-3" />
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
-
+ 
       {/* Main Container Card Wrapper */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
         {/* Top Control Section */}
@@ -367,7 +421,7 @@ export default function RestaurantManagement() {
                 )}
               </div>
             </div>
-
+ 
             <div className="flex items-center gap-1.5 overflow-x-auto">
               {["All", "Food", "Snack", "Fruit", "Drink", "Dessert"].map((cat) => (
                 <button
@@ -384,7 +438,7 @@ export default function RestaurantManagement() {
               ))}
             </div>
           </div>
-
+ 
           {canWrite && (
             <button
               onClick={handleOpenAddModal}
@@ -394,7 +448,7 @@ export default function RestaurantManagement() {
             </button>
           )}
         </div>
-
+ 
         {/* Clean Rounded Table Layout Section */}
         <div className="px-6 pb-6">
           <div className="border border-slate-200/80 rounded-xl overflow-hidden bg-white">
@@ -422,7 +476,7 @@ export default function RestaurantManagement() {
                     </th>
                   </tr>
                 </thead>
-
+ 
                 <tbody className="divide-y divide-slate-100">
                   {paginatedItems.map((item, index) => {
                     const rowNumber = (currentPage - 1) * itemsPerPage + index + 1;
@@ -520,7 +574,7 @@ export default function RestaurantManagement() {
             </div>
           </div>
         </div>
-
+ 
         {/* Pagination Controls */}
         {menuItems.length > 0 && (
           <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-white">
@@ -563,15 +617,98 @@ export default function RestaurantManagement() {
           </div>
         )}
       </div>
-
-      {/* MODAL WINDOW */}
+ 
+      {/* ROOM FOOD CHARGES DETAILS MODAL */}
+      {isOrdersModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="fixed inset-0 bg-slate-950/30 backdrop-blur-xs"
+            onClick={() => setIsOrdersModalOpen(false)}
+          />
+ 
+          <div className="bg-white w-full max-w-2xl rounded-2xl border border-slate-200 shadow-2xl relative z-10 overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-gradient-to-r from-amber-50 to-orange-50 shrink-0">
+              <div>
+                <h3 className="text-base font-bold text-slate-800 tracking-tight flex items-center gap-2">
+                  <FaReceipt className="text-amber-600" />
+                  Room F&B Charge Folio Summary
+                </h3>
+                <p className="text-xs font-medium text-slate-500 mt-0.5">
+                  Detailed food service orders posted directly to active guest rooms
+                  {selectedDate && ` (Filtered: ${selectedDate})`}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsOrdersModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 bg-white border shadow-sm p-2 rounded-xl transition flex items-center justify-center"
+              >
+                <FaTimes className="w-3.5 h-3.5" />
+              </button>
+            </div>
+ 
+            <div className="p-5 overflow-y-auto flex-1">
+              {filteredFoodOrders.length > 0 ? (
+                <div className="border border-slate-200/80 rounded-xl overflow-hidden bg-white">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200/80 text-slate-500 font-bold uppercase">
+                        <th className="px-4 py-3">Room</th>
+                        <th className="px-4 py-3">Guest Name</th>
+                        <th className="px-4 py-3">Date</th>
+                        <th className="px-4 py-3">Ordered Items</th>
+                        <th className="px-4 py-3 text-right">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                      {filteredFoodOrders.map((order) => (
+                        <tr key={order.id} className="hover:bg-slate-50/50 transition">
+                          <td className="px-4 py-3.5 font-bold text-slate-900">
+                            {order.room_number ? `Room ${order.room_number}` : "—"}
+                          </td>
+                          <td className="px-4 py-3.5 text-slate-800">{order.guest_name || "—"}</td>
+                          <td className="px-4 py-3.5 text-slate-500 font-mono">{order.charge_date}</td>
+                          <td className="px-4 py-3.5 max-w-[200px] font-semibold text-amber-900">
+                            {order.food_items || order.description || "Food Order"}
+                          </td>
+                          <td className="px-4 py-3.5 text-right font-bold text-slate-900 font-mono">
+                            {formatCurrency(order.total)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-10">
+                  <FaUtensils className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                  <p className="text-sm font-medium text-slate-500">
+                    No room food charges found for this selection.
+                  </p>
+                </div>
+              )}
+            </div>
+ 
+            <div className="bg-slate-50 px-5 py-3.5 flex items-center justify-between border-t border-slate-100 shrink-0">
+              <span className="text-xs font-semibold text-slate-500">
+                Total Revenue ({selectedDate || "All Time"}):
+              </span>
+              <span className="text-base font-extrabold text-slate-900">
+                {formatCurrency(foodRevenue)}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+ 
+      {/* ITEM ADD/EDIT MODAL WINDOW */}
       {isFormOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
             className="fixed inset-0 bg-slate-950/20 backdrop-blur-xs"
             onClick={() => setIsFormOpen(false)}
           />
-
+ 
           <form
             onSubmit={handleFormSubmit}
             noValidate
@@ -597,9 +734,8 @@ export default function RestaurantManagement() {
                 <FaTimes className="w-3 h-3" />
               </button>
             </div>
-
+ 
             <div className="p-5 flex flex-col gap-4 overflow-y-auto">
-              {/* ITEM NAME FIELD */}
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
                   Item Name
@@ -626,9 +762,8 @@ export default function RestaurantManagement() {
                   </p>
                 )}
               </div>
-
+ 
               <div className="grid grid-cols-2 gap-4">
-                {/* CATEGORY FIELD */}
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
                     Category
@@ -647,8 +782,7 @@ export default function RestaurantManagement() {
                     ))}
                   </select>
                 </div>
-
-                {/* PRICE FIELD */}
+ 
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
                     Price (MMK)
@@ -677,8 +811,7 @@ export default function RestaurantManagement() {
                   )}
                 </div>
               </div>
-
-              {/* STATUS FIELD */}
+ 
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
                   Status
@@ -695,8 +828,7 @@ export default function RestaurantManagement() {
                 </select>
               </div>
             </div>
-
-            {/* Form Footer Buttons */}
+ 
             <div className="bg-slate-50 px-5 py-3.5 flex items-center justify-end gap-2 border-t border-slate-100 shrink-0">
               <button
                 type="button"

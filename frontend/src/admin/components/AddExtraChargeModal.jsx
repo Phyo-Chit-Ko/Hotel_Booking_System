@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import {
   FaTimes,
-  FaCheckCircle,
   FaUtensils,
   FaChevronDown,
 } from "react-icons/fa";
@@ -31,7 +30,7 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
   // Fetch food items from API
   useEffect(() => {
     if (!isOpen) return;
-   
+ 
     axios.get("/api/restaurant-items", { params: { category: activeCategory } })
       .then((res) => {
         const items = (res.data || [])
@@ -49,6 +48,7 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
     setErrors({});
     setIsDropdownOpen(false);
     if (chargeToEdit) {
+      const isFood = chargeToEdit.service_type === "Food";
       setFormData({
         room_number: chargeToEdit.room_number || "",
         guest_name: chargeToEdit.guest_name || "",
@@ -56,7 +56,8 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
         charge_date: chargeToEdit.charge_date || new Date().toISOString().split("T")[0],
         description: chargeToEdit.description || "",
         quantity: chargeToEdit.quantity ?? 1,
-        rate: chargeToEdit.rate ?? 0,
+        // Edit ပြုလုပ်ချိန်တွင် Food ဖြစ်ပါက Total တန်ဖိုးကို rate ထဲ ထည့်ပေးထားမည်
+        rate: isFood ? Number(chargeToEdit.total || chargeToEdit.rate || 0) : Number(chargeToEdit.rate || 0),
         food_items: chargeToEdit.food_items || "",
       });
       setSelectedFoodItems({});
@@ -106,16 +107,19 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
  
   if (!isOpen) return null;
  
-  const calculatedTotal = Number(formData.quantity) * Number(formData.rate);
+  // Food Service ဖြစ်ပါက Total ကို Rate တန်ဖိုးအတိုင်း တိုက်ရိုက်ယူမည်
+  const calculatedTotal = formData.service_type === "Food"
+    ? Number(formData.rate)
+    : Number(formData.quantity) * Number(formData.rate);
  
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => {
       const updated = { ...prev, [name]: value };
-     
+ 
       if (name === "service_type") {
         if (value === "Food") {
-          updated.quantity = 1;
+          updated.quantity = 0;
           updated.rate = 0.0;
           updated.food_items = "";
           updated.description = "Food Service Delivery";
@@ -137,7 +141,7 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
   // Add food item handler
   const handleAddFoodItem = (foodItem) => {
     const currentItem = selectedFoodItems[foodItem.id];
-   
+ 
     const updatedItems = {
       ...selectedFoodItems,
       [foodItem.id]: currentItem
@@ -146,17 +150,19 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
     };
  
     let totalCost = 0;
+    let totalQty = 0;
     const descriptionLines = [];
  
     Object.values(updatedItems).forEach((item) => {
       totalCost += item.price * item.qty;
+      totalQty += item.qty;
       descriptionLines.push(`${item.name} (x${item.qty})`);
     });
  
     setSelectedFoodItems(updatedItems);
     setFormData((prev) => ({
       ...prev,
-      quantity: 1,
+      quantity: totalQty,
       rate: Number(totalCost.toFixed(2)),
       food_items: descriptionLines.join(", "),
       description: prev.description || `Food Service Delivery`,
@@ -178,17 +184,19 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
     }
  
     let totalCost = 0;
+    let totalQty = 0;
     const descriptionLines = [];
  
     Object.values(updatedItems).forEach((item) => {
       totalCost += item.price * item.qty;
+      totalQty += item.qty;
       descriptionLines.push(`${item.name} (x${item.qty})`);
     });
  
     setSelectedFoodItems(updatedItems);
     setFormData((prev) => ({
       ...prev,
-      quantity: 1,
+      quantity: totalQty,
       rate: Number(totalCost.toFixed(2)),
       food_items: descriptionLines.join(", "),
       description: descriptionLines.length > 0 ? prev.description : "",
@@ -208,6 +216,8 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
     if (formData.service_type !== "Food") {
       if (!formData.quantity || Number(formData.quantity) <= 0) tempErrors.quantity = "Must be at least 1.";
       if (formData.rate === "" || Number(formData.rate) < 0) tempErrors.rate = "Rate cannot be negative.";
+    } else {
+      if (formData.quantity <= 0) tempErrors.room_number = "Please select at least one food item.";
     }
  
     setErrors(tempErrors);
@@ -217,18 +227,28 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
   const handleSubmit = (e) => {
     e.preventDefault();
     if (validateForm()) {
+      let finalQuantity = Number(formData.quantity);
+      let finalRate = Number(formData.rate);
+      let finalTotal = calculatedTotal;
+ 
+      // Food Service ဖြစ်ပါက Backend မှ QTY * RATE မြှောက်သောအခါ တန်ဖိုးမလွဲစေရန်
+      // Unit Rate (Total Cost ÷ QTY) ကို တွက်ချက်၍ ပို့ပေးပါမည်
+      if (formData.service_type === "Food" && finalQuantity > 0) {
+        finalTotal = Number(formData.rate);
+        finalRate = finalTotal / finalQuantity;
+      }
+ 
       const sanitizedData = {
         ...formData,
-        quantity: Number(formData.quantity),
-        rate: Number(formData.rate),
-        total: calculatedTotal,
+        quantity: finalQuantity,
+        rate: finalRate,
+        total: finalTotal,
       };
       onSave(sanitizedData, chargeToEdit ? chargeToEdit.id : null);
       onClose();
     }
   };
  
-  // Updated focus state color here to use soft slate grey instead of amber
   const inp = (field) =>
     `px-4 py-2.5 bg-slate-50 border rounded-xl w-full text-sm focus:outline-none focus:ring-2 transition-all ${
       errors[field]
@@ -291,7 +311,7 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
             </div>
           </div>
  
-          {/* Service type + Date - Updated focus states to slate style */}
+          {/* Service type + Date */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">Service Type</label>
@@ -322,9 +342,9 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
           {formData.service_type === "Food" && (
             <div className="relative" ref={dropdownRef}>
               <label className="block text-sm font-semibold text-slate-700 mb-2">Menu Selection</label>
-             
+              
               <div className="flex items-center gap-1.5 overflow-x-auto w-full mb-3 pb-1">
-                {["All", "Food", "Snack", "Drink", "Dessert"].map((cat) => (
+                {["All", "Food", "Snack", "Fruit", "Drink", "Dessert"].map((cat) => (
                   <button
                     key={cat}
                     type="button"
@@ -407,7 +427,7 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
             </div>
           )}
  
-          {/* Description - Updated focus state to slate style */}
+          {/* Description */}
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-2">Service Details / Description</label>
             <textarea
@@ -420,31 +440,30 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
             />
           </div>
  
-          {/* Cost accounting block - Updated focus states to slate style */}
+          {/* Cost accounting block */}
           <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3.5">
             {formData.service_type !== "Food" && (
               <>
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Cost Accounting Configurator</p>
-               
+                
                 <div className="grid grid-cols-2 gap-4">
-                 <div>
-  <label className="block text-[11px] font-medium text-slate-500 mb-1">
-    {formData.service_type === "Car Rental" ? "Hours" : "Quantity"}
-  </label>
-  <input
-    type="number"
-    min="1"
-    name="quantity"
-    value={formData.quantity}
-    onChange={handleChange}
-  
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-500 mb-1">
+                      {formData.service_type === "Car Rental" ? "Hours" : "Quantity"}
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      name="quantity"
+                      value={formData.quantity}
+                      onChange={handleChange}
                       className={`w-full px-3 py-1.5 text-sm bg-white border rounded-lg outline-none focus:ring-2 text-slate-800 font-semibold ${
                         errors.quantity ? "border-rose-300 focus:ring-rose-500/20" : "border-slate-200 focus:ring-slate-100 focus:border-slate-300"
                       }`}
                     />
                     {errors.quantity && <p className="text-[11px] text-rose-500 mt-1">{errors.quantity}</p>}
                   </div>
-     
+      
                   <div>
                     <label className="block text-[11px] font-medium text-slate-500 mb-1">Rate (MMK)</label>
                     <input
@@ -464,14 +483,14 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
               </>
             )}
  
-            {/* Grand Total - Always visible */}
+            {/* Grand Total */}
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-slate-500">Calculated Grand Total:</span>
               <span className="text-base font-extrabold text-slate-900">{formatCurrency(calculatedTotal)}</span>
             </div>
           </div>
  
-          {/* Footer - Removed FaCheckCircle icon from submit button */}
+          {/* Footer */}
           <div className="flex gap-3 justify-end pt-4 border-t border-slate-100">
             <button
               type="button"
@@ -492,3 +511,4 @@ export default function AddExtraChargeModal({ isOpen, onClose, onSave, chargeToE
     </div>
   );
 }
+ 

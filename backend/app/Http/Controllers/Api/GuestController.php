@@ -61,7 +61,7 @@ class GuestController extends Controller
         $validated = $request->validate([
             'firstName'   => ['required', 'string', 'max:255', 'regex:' . ValidationPatterns::NAME],
             'lastName'    => ['required', 'string', 'max:255', 'regex:' . ValidationPatterns::NAME],
-            'phone'       => ['required', 'string', 'max:50', 'regex:' . ValidationPatterns::PHONE],
+            'phone'       => ['nullable', 'string', 'max:50', 'regex:' . ValidationPatterns::PHONE],
             'email'       => ['nullable', 'string', 'email:rfc', 'max:255'],
             'nationality' => ['nullable', 'string', 'max:100', 'regex:' . ValidationPatterns::NATIONALITY],
             'gender'      => ['nullable', 'in:Male,Female,Other'],

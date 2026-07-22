@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('first_name');
             $table->string('last_name');
             $table->string('email')->nullable()->unique();
-            $table->string('phone');
+            $table->string('phone')->nullable();
             $table->string('id_number');
             $table->boolean('is_vip')->default(false);
             $table->string('id_front_path')->nullable();
